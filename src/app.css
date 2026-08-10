@@ -1,29 +1,33 @@
 :root {
-	color-scheme: dark;
+	color-scheme: light;
 
-	--bg: #0b0b0a;
-	--fg: #e8e8e6;
-	--fretboard-bg: #12100e;
-	--fret-bg: #1c1c1c;
-	--fret-bg-hover: #262626;
-	--fret-border: #3a3a3a;
-	--fret-fg: #ddd;
-	--fret-marker: #555;
-	--nut: #888;
-	--focus-ring: #4da3ff;
-	--selected-root-ring: #fff;
+	--bg: #faf8ff;
+	--fg: #241a3d;
+	--hero-from: #7c3aed;
+	--hero-via: #a855f7;
+	--hero-to: #ec4899;
+	--fretboard-bg: #ede8fb;
+	--fret-bg: #ffffff;
+	--fret-bg-hover: #f4effe;
+	--fret-border: #ddd3f7;
+	--fret-fg: #241a3d;
+	--fret-marker: #b6a8e6;
+	--fret-number: #7c6aa8;
+	--nut: #7c3aed;
+	--focus-ring: #7c3aed;
+	--selected-root-ring: #ec4899;
 
 	/* Semantic role colors (AGENTS.md §7) — the single source both FretCell
 	   and Legend read from, so they stay in sync by construction. */
-	--role-root: #e0b400;
-	--role-structural: #3b82f6;
-	--role-stable: #22c55e;
+	--role-root: #f59e0b;
+	--role-structural: #4f46e5;
+	--role-stable: #10b981;
 	--role-extension: #a855f7;
 	--role-color: #ec4899;
 	--role-tension: #f97316;
 	--role-alteration: #ef4444;
 	--role-chromatic-approach: #64748b;
-	--role-avoid: #57534e;
+	--role-avoid: #78716c;
 }
 
 * {
@@ -32,7 +36,9 @@
 
 body {
 	margin: 0;
-	background: var(--bg);
+	background:
+		radial-gradient(ellipse 60rem 30rem at 10% -10%, #f3e8ff 0%, transparent 60%),
+		radial-gradient(ellipse 50rem 25rem at 90% 0%, #ffe4f3 0%, transparent 55%), var(--bg);
 	color: var(--fg);
 	font-family:
 		system-ui,

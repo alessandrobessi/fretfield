@@ -47,6 +47,8 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
+		font-weight: 600;
+		color: var(--fret-fg, #241a3d);
 	}
 
 	.swatch {
@@ -57,15 +59,15 @@
 	}
 
 	.swatch[data-role='root'] {
-		background: var(--role-root, #e0b400);
+		background: var(--role-root, #f59e0b);
 	}
 
 	.swatch[data-role='structural'] {
-		background: var(--role-structural, #3b82f6);
+		background: var(--role-structural, #4f46e5);
 	}
 
 	.swatch[data-role='stable'] {
 		background: transparent;
-		border: 2px solid var(--role-stable, #22c55e);
+		border: 2px solid var(--role-stable, #10b981);
 	}
 </style>

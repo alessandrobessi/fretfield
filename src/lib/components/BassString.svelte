@@ -30,8 +30,8 @@
 		justify-content: center;
 		width: 2rem;
 		flex: 0 0 auto;
-		font-weight: 600;
-		color: var(--fret-fg, #ddd);
-		font-size: 0.8rem;
+		font-weight: 700;
+		color: var(--nut, #7c3aed);
+		font-size: 0.85rem;
 	}
 </style>
