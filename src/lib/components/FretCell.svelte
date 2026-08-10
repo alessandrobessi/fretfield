@@ -16,7 +16,7 @@
 	const label = $derived.by(() => {
 		if (position.interval === null) return position.noteName;
 		if (displayMode === 'notes') return position.noteName;
-		if (displayMode === 'both') return `${position.intervalLabel} · ${position.noteName}`;
+		if (displayMode === 'both') return `${position.intervalLabel}\n${position.noteName}`;
 		return position.intervalLabel ?? position.noteName;
 	});
 
@@ -36,6 +36,7 @@
 	class:selected-root={position.isSelectedRootPosition}
 	data-role={position.role}
 	data-shape={roleStyle?.shape}
+	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
 	onclick={() => onSelect(position)}
@@ -52,7 +53,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 2.75rem;
+		width: 3.25rem;
 		height: 2.75rem;
 		flex: 0 0 auto;
 		border: 1px solid var(--fret-border, #3a3a3a);
@@ -114,9 +115,10 @@
 	.label {
 		position: relative;
 		z-index: 1;
-		white-space: pre;
+		white-space: pre-line;
 		text-align: center;
-		line-height: 1;
+		line-height: 1.25;
+		font-size: 0.68rem;
 	}
 
 	@media (prefers-reduced-motion: no-preference) {

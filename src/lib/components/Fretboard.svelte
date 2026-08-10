@@ -66,7 +66,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.2rem;
-		width: 2.75rem;
+		width: 3.25rem;
 		flex: 0 0 auto;
 		height: 1rem;
 	}

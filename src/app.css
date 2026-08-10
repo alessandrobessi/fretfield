@@ -1,0 +1,51 @@
+:root {
+	color-scheme: dark;
+
+	--bg: #0b0b0a;
+	--fg: #e8e8e6;
+	--fretboard-bg: #12100e;
+	--fret-bg: #1c1c1c;
+	--fret-bg-hover: #262626;
+	--fret-border: #3a3a3a;
+	--fret-fg: #ddd;
+	--fret-marker: #555;
+	--nut: #888;
+	--focus-ring: #4da3ff;
+	--selected-root-ring: #fff;
+
+	/* Semantic role colors (AGENTS.md §7) — the single source both FretCell
+	   and Legend read from, so they stay in sync by construction. */
+	--role-root: #e0b400;
+	--role-structural: #3b82f6;
+	--role-stable: #22c55e;
+	--role-extension: #a855f7;
+	--role-color: #ec4899;
+	--role-tension: #f97316;
+	--role-alteration: #ef4444;
+	--role-chromatic-approach: #64748b;
+	--role-avoid: #57534e;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--fg);
+	font-family:
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}
