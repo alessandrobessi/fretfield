@@ -1,7 +1,9 @@
 import { getChordDefinition } from '$lib/music/chords';
+import type { NoteConnection } from '$lib/music/connection-score';
 import { createFretboard, type FretPosition } from '$lib/music/fretboard';
 import {
 	analyzeFretboard,
+	analyzeInterval,
 	type AnalyzedFretPosition,
 	type HarmonicRole,
 	roleCharacter
@@ -14,7 +16,14 @@ import {
 	findUsefulLocalFields
 } from '$lib/music/local-fields';
 import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
+import {
+	type ResolvedChord,
+	buildProgression,
+	getProgressionTemplate,
+	resolvedChordSymbol
+} from '$lib/music/progressions';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
+import { type ChordTransition, analyzeTransition, connectionFor } from '$lib/music/voice-leading';
 
 export type DisplayMode = 'intervals' | 'notes' | 'both';
 
@@ -58,6 +67,23 @@ export interface DisplayFretPosition extends FretPosition {
 	isInActiveRegion: boolean | null;
 }
 
+/** A progression chord enriched with its display symbol, for the ProgressionStrip. */
+export interface DisplayResolvedChord extends ResolvedChord {
+	symbol: string;
+}
+
+/** The inspected note's connection into the next progression chord, formatted for display. */
+export interface DisplayNoteConnection {
+	currentIntervalLabel: string;
+	currentRoleLabel: string;
+	commonTone: boolean;
+	bestTargetNoteName: string;
+	bestTargetIntervalLabel: string;
+	bestTargetRoleLabel: string;
+	semitoneMovement: number;
+	nextChordSymbol: string;
+}
+
 class FretFieldStore {
 	readonly tuning: Tuning = STANDARD_4_STRING_TUNING;
 	readonly fretCount: number = DEFAULT_FRET_COUNT;
@@ -71,9 +97,44 @@ class FretFieldStore {
 	displayMode = $state<DisplayMode>('intervals');
 	regionWidth = $state<number>(DEFAULT_REGION_WIDTH);
 	activeRegion = $state<FretboardRegion | null>(null);
+	progressionTemplateId = $state<string | null>(null);
+	activeChordIndex = $state(0);
+
+	readonly resolvedProgression = $derived.by<DisplayResolvedChord[]>(() => {
+		const root = this.root;
+		const templateId = this.progressionTemplateId;
+		if (root === null || templateId === null) return [];
+		return buildProgression(root, getProgressionTemplate(templateId)).map((chord) => ({
+			...chord,
+			symbol: resolvedChordSymbol(chord)
+		}));
+	});
+
+	readonly activeProgressionChord = $derived.by<DisplayResolvedChord | null>(() => {
+		return this.resolvedProgression[this.activeChordIndex] ?? null;
+	});
+
+	/** The current->next transition, wrapping to the first chord after the last (a practice loop). */
+	readonly currentTransition = $derived.by<ChordTransition | null>(() => {
+		const progression = this.resolvedProgression;
+		if (this.mode !== 'progression' || progression.length < 2) return null;
+		const current = progression[this.activeChordIndex];
+		const next = progression[(this.activeChordIndex + 1) % progression.length];
+		return analyzeTransition(current, next);
+	});
 
 	/** The one call into the engine per relevant state change (AGENTS.md §19); everything else derives from this. */
 	readonly analyzed = $derived.by<AnalyzedFretPosition[] | null>(() => {
+		if (this.mode === 'progression') {
+			const chord = this.activeProgressionChord;
+			if (chord === null) return null;
+			return analyzeFretboard({
+				tuning: this.tuning,
+				fretCount: this.fretCount,
+				root: chord.root,
+				chord: getChordDefinition(chord.chordId)
+			});
+		}
 		const root = this.root;
 		if (root === null) return null;
 		return analyzeFretboard({
@@ -91,11 +152,10 @@ class FretFieldStore {
 	});
 
 	readonly positions = $derived.by<DisplayFretPosition[]>(() => {
-		const root = this.root;
 		const analyzed = this.analyzed;
 		const region = this.activeRegion;
 
-		if (root === null || analyzed === null) {
+		if (analyzed === null) {
 			return createFretboard(this.tuning, this.fretCount).map((position) => ({
 				...position,
 				interval: null,
@@ -114,19 +174,27 @@ class FretFieldStore {
 			}));
 		}
 
+		// The "root" for display-spelling/highlight purposes: the progression's
+		// active chord root in Progression Field, otherwise the selected root.
+		const displayRoot =
+			this.mode === 'progression' ? (this.activeProgressionChord?.root ?? null) : this.root;
 		const selected = this.selectedRootPosition;
 		const analysisMode = this.analysisMode;
 
 		return analyzed.map((position) => ({
 			...position,
 			intervalLabel: intervalCompoundLabel(position.interval),
-			noteName: noteNameForPosition(root, position.pitchClass),
+			noteName:
+				displayRoot === null
+					? defaultNoteName(position.pitchClass)
+					: noteNameForPosition(displayRoot, position.pitchClass),
 			roleDescription: roleCharacter(position.role),
 			typicalResolutionLabels: position.typicalResolutions.map((interval) =>
 				intervalCompoundLabel(interval)
 			),
-			isRootPitchClass: position.pitchClass === root,
+			isRootPitchClass: displayRoot !== null && position.pitchClass === displayRoot,
 			isSelectedRootPosition:
+				this.mode !== 'progression' &&
 				selected !== null &&
 				selected.stringIndex === position.stringIndex &&
 				selected.fret === position.fret,
@@ -152,6 +220,36 @@ class FretFieldStore {
 				(p) => p.stringIndex === inspected.stringIndex && p.fret === inspected.fret
 			) ?? null
 		);
+	});
+
+	/** The inspected note's connection into the next progression chord, when applicable. */
+	readonly inspectedConnection = $derived.by<NoteConnection | null>(() => {
+		const transition = this.currentTransition;
+		const inspected = this.inspected;
+		if (transition === null || inspected === null) return null;
+		return connectionFor(transition, inspected.pitchClass);
+	});
+
+	readonly inspectedConnectionDisplay = $derived.by<DisplayNoteConnection | null>(() => {
+		const connection = this.inspectedConnection;
+		const progression = this.resolvedProgression;
+		if (connection === null || connection.targets.length === 0 || progression.length < 2) {
+			return null;
+		}
+		const nextChord = progression[(this.activeChordIndex + 1) % progression.length];
+		const nextChordDef = getChordDefinition(nextChord.chordId);
+		const best = connection.targets[0];
+
+		return {
+			currentIntervalLabel: intervalCompoundLabel(connection.currentInterval),
+			currentRoleLabel: roleCharacter(connection.currentRole),
+			commonTone: connection.commonTone,
+			bestTargetNoteName: noteNameForPosition(nextChord.root, best.targetPitchClass),
+			bestTargetIntervalLabel: intervalCompoundLabel(best.targetInterval),
+			bestTargetRoleLabel: roleCharacter(analyzeInterval(nextChordDef, best.targetInterval)),
+			semitoneMovement: best.semitoneMovement,
+			nextChordSymbol: nextChord.symbol
+		};
 	});
 
 	setMode(mode: FieldMode): void {
@@ -211,6 +309,25 @@ class FretFieldStore {
 
 	clearRegion(): void {
 		this.activeRegion = null;
+	}
+
+	setProgressionTemplate(templateId: string | null): void {
+		this.progressionTemplateId = templateId;
+		this.activeChordIndex = 0;
+	}
+
+	setActiveChordIndex(index: number): void {
+		const length = this.resolvedProgression.length;
+		if (length === 0) return;
+		this.activeChordIndex = ((index % length) + length) % length;
+	}
+
+	nextChord(): void {
+		this.setActiveChordIndex(this.activeChordIndex + 1);
+	}
+
+	previousChord(): void {
+		this.setActiveChordIndex(this.activeChordIndex - 1);
 	}
 }
 

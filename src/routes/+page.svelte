@@ -1,9 +1,12 @@
 <script lang="ts">
+	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import HarmonyControls from '$lib/components/HarmonyControls.svelte';
 	import Legend from '$lib/components/Legend.svelte';
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
+	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
+	import { fretfield } from '$lib/stores/fretfield.svelte';
 </script>
 
 <svelte:head>
@@ -16,12 +19,14 @@
 		<p class="tagline">See the harmonic field. Move through it.</p>
 	</header>
 
-	<div class="mode-heading">
-		<h2>Chord Field</h2>
-		<p>What can I play now?</p>
-	</div>
+	<FieldModeSwitcher />
 
-	<HarmonyControls />
+	{#if fretfield.mode === 'progression'}
+		<ProgressionControls />
+	{:else}
+		<HarmonyControls />
+	{/if}
+
 	<Fretboard />
 	<Legend />
 	<NoteInspector />
@@ -66,22 +71,5 @@
 		color: #fff;
 		opacity: 0.9;
 		font-weight: 500;
-	}
-
-	.mode-heading {
-		display: flex;
-		align-items: baseline;
-		gap: 0.6rem;
-	}
-
-	.mode-heading h2 {
-		margin: 0;
-		font-size: 1.25rem;
-	}
-
-	.mode-heading p {
-		margin: 0;
-		opacity: 0.65;
-		font-size: 0.95rem;
 	}
 </style>

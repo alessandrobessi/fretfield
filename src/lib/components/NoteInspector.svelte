@@ -4,6 +4,7 @@
 
 	const inspected = $derived(fretfield.inspected);
 	const roleStyle = $derived(inspected ? roleStyleFor(inspected.role) : null);
+	const connection = $derived(fretfield.inspectedConnectionDisplay);
 </script>
 
 <div class="note-inspector" aria-live="polite">
@@ -26,6 +27,25 @@
 			<p class="resolutions">
 				Typical resolution: {inspected.typicalResolutionLabels.join(' or ')}
 			</p>
+		{/if}
+		{#if connection}
+			<div class="connection">
+				{#if connection.commonTone}
+					<p class="connection-line">Common tone into {connection.nextChordSymbol}.</p>
+				{/if}
+				<p class="connection-line">
+					Best target: <strong>{connection.bestTargetNoteName}</strong>
+					({connection.bestTargetIntervalLabel} of {connection.nextChordSymbol})
+				</p>
+				<p class="connection-line">
+					Movement: {connection.semitoneMovement > 0 ? '+' : ''}{connection.semitoneMovement} semitone{Math.abs(
+						connection.semitoneMovement
+					) === 1
+						? ''
+						: 's'}
+				</p>
+				<p class="connection-line">Next role: {connection.bestTargetRoleLabel}</p>
+			</div>
 		{/if}
 	{/if}
 </div>
@@ -108,5 +128,16 @@
 		margin: 0.4rem 0 0;
 		font-size: 0.85rem;
 		opacity: 0.75;
+	}
+
+	.connection {
+		margin-top: 0.6rem;
+		padding-top: 0.6rem;
+		border-top: 1px solid var(--fret-border, #ddd3f7);
+	}
+
+	.connection-line {
+		margin: 0.15rem 0;
+		font-size: 0.85rem;
 	}
 </style>

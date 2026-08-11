@@ -114,3 +114,39 @@ test.describe('Chord Field: full Harmonic Field mode and the Note Inspector', ()
 		await expect(page.getByTestId('fret-A-3')).toHaveAttribute('aria-pressed', 'true');
 	});
 });
+
+test.describe('Progression Field: resolved chords and transition-aware inspector', () => {
+	test('C major ii-V-I resolves to Dm7 -> G7 -> Cmaj7, and F resolves to E into the next chord', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click(); // root C
+		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+
+		const strip = page.locator('.chords');
+		await expect(strip).toContainText('Dm7');
+		await expect(strip).toContainText('G7');
+		await expect(strip).toContainText('Cmaj7');
+
+		// Dm7 starts active.
+		await expect(page.getByRole('button', { name: 'Dm7', exact: true })).toHaveAttribute(
+			'aria-current',
+			'true'
+		);
+
+		// Advance to G7 and confirm F (its b7) resolves to E (3 of Cmaj7), a half-step down.
+		await page.getByRole('button', { name: 'G7', exact: true }).click();
+		await expect(page.getByRole('button', { name: 'G7', exact: true })).toHaveAttribute(
+			'aria-current',
+			'true'
+		);
+
+		await page.getByTestId('fret-E-1').hover(); // E string, fret 1 = F
+		const inspector = page.locator('.note-inspector');
+		await expect(inspector).toContainText('F');
+		await expect(inspector).toContainText('Best target:');
+		await expect(inspector).toContainText('E');
+		await expect(inspector).toContainText('Movement: -1 semitone');
+	});
+});
