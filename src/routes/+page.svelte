@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { base } from '$app/paths';
 	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import HarmonyControls from '$lib/components/HarmonyControls.svelte';
@@ -34,8 +35,11 @@
 
 <main>
 	<header>
-		<h1>FretField</h1>
-		<p class="tagline">See the harmonic field. Move through it.</p>
+		<img class="logo" src="{base}/brand/logo-mark.svg" alt="" width="56" height="56" />
+		<div class="titles">
+			<h1>FretField</h1>
+			<p class="tagline">See the harmonic field. Move through it.</p>
+		</div>
 	</header>
 
 	<FieldModeSwitcher />
@@ -66,8 +70,8 @@
 
 	header {
 		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
+		align-items: center;
+		gap: 1.1rem;
 		padding: 2rem 1.75rem;
 		border-radius: 16px;
 		background: linear-gradient(
@@ -77,6 +81,18 @@
 			var(--hero-to, #ec4899)
 		);
 		box-shadow: 0 8px 24px rgb(124 58 237 / 0.25);
+	}
+
+	.logo {
+		flex: 0 0 auto;
+		border-radius: 14px;
+		box-shadow: 0 2px 10px rgb(0 0 0 / 0.15);
+	}
+
+	.titles {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
 	}
 
 	h1 {
