@@ -2,6 +2,7 @@
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import HarmonyControls from '$lib/components/HarmonyControls.svelte';
 	import Legend from '$lib/components/Legend.svelte';
+	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
 </script>
 
@@ -24,6 +25,7 @@
 	<Fretboard />
 	<Legend />
 	<NoteInspector />
+	<LocalFieldControls />
 </main>
 
 <style>

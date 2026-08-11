@@ -39,6 +39,8 @@
 	class:open={position.fret === 0}
 	class:root-pitch={position.isRootPitchClass}
 	class:selected-root={position.isSelectedRootPosition}
+	class:region-active={position.isInActiveRegion === true}
+	class:region-dimmed={position.isInActiveRegion === false}
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
@@ -182,6 +184,18 @@
 
 	.fret-cell.selected-root {
 		box-shadow: inset 0 0 0 3px var(--selected-root-ring, #ec4899);
+	}
+
+	.fret-cell.region-active {
+		background: color-mix(in srgb, var(--nut, #7c3aed) 8%, var(--fret-bg, #fff));
+	}
+
+	.fret-cell.region-active:hover {
+		background: color-mix(in srgb, var(--nut, #7c3aed) 14%, var(--fret-bg, #fff));
+	}
+
+	.fret-cell.region-dimmed .pill {
+		opacity: 0.35;
 	}
 
 	.label {
