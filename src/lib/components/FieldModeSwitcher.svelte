@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { fretfield, type FieldMode } from '$lib/stores/fretfield.svelte';
 
-	// 'local' isn't listed here — Local Fields already works as an
-	// always-visible panel usable from any mode, not a separate primary view.
+	// The Local Field *lens* (region dimming) already works from any mode —
+	// this tab just brings its navigator to the front as the primary focus.
 	const MODES: { id: FieldMode; label: string; question: string }[] = [
 		{ id: 'chord', label: 'Chord Field', question: 'What can I play now?' },
 		{ id: 'progression', label: 'Progression Field', question: 'Where can I go next?' },
-		{ id: 'paths', label: 'Voice-Leading Paths', question: 'What route should I take?' }
+		{ id: 'paths', label: 'Voice-Leading Paths', question: 'What route should I take?' },
+		{ id: 'local', label: 'Local Fields', question: 'Where on the neck should I play it?' }
 	];
 </script>
 

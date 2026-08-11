@@ -1,11 +1,31 @@
 <script lang="ts">
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 
+	let showOverlap = $state(false);
+
 	const activeIndex = $derived(
 		fretfield.rankedRegions.findIndex((r) => r.region.id === fretfield.activeRegion?.id)
 	);
 	const activeAnalysis = $derived(activeIndex >= 0 ? fretfield.rankedRegions[activeIndex] : null);
 	const rank = $derived(activeIndex >= 0 ? activeIndex + 1 : null);
+
+	const fretCount = fretfield.fretCount;
+	const tickFrets = $derived.by(() => {
+		const step = 5;
+		const ticks: number[] = [];
+		for (let fret = 0; fret <= fretCount; fret += step) ticks.push(fret);
+		return ticks;
+	});
+
+	function percent(fret: number): number {
+		return (fret / fretCount) * 100;
+	}
+
+	function barStyle(minFret: number, maxFret: number): string {
+		const left = percent(minFret);
+		const width = percent(maxFret - minFret + 1);
+		return `left: ${left}%; width: ${width}%;`;
+	}
 </script>
 
 <div class="local-field-controls">
@@ -38,7 +58,16 @@
 			>
 				Anchor to root
 			</button>
-			<button type="button" class="clear" onclick={() => fretfield.clearRegion()}> Clear </button>
+			<button type="button" class="clear" onclick={() => fretfield.clearRegion()}>Clear</button>
+			<button
+				type="button"
+				class="overlap-toggle"
+				class:active={showOverlap}
+				aria-pressed={showOverlap}
+				onclick={() => (showOverlap = !showOverlap)}
+			>
+				Show overlap
+			</button>
 		</div>
 
 		{#if activeAnalysis}
@@ -53,6 +82,34 @@
 				</div>
 			</dl>
 		{/if}
+
+		<div class="neck-ruler" aria-hidden="true">
+			{#if showOverlap}
+				<div class="overlap-stack">
+					{#each fretfield.rankedRegions as analysis, index (analysis.region.id)}
+						<div
+							class="overlap-bar"
+							class:active={index === activeIndex}
+							style={barStyle(analysis.region.minFret, analysis.region.maxFret)}
+						></div>
+					{/each}
+				</div>
+			{:else}
+				<div class="ruler-track">
+					{#if activeAnalysis}
+						<div
+							class="region-bracket"
+							style={barStyle(activeAnalysis.region.minFret, activeAnalysis.region.maxFret)}
+						></div>
+					{/if}
+				</div>
+			{/if}
+			<div class="ruler-labels">
+				{#each tickFrets as fret (fret)}
+					<span class="tick" style={`left: ${percent(fret)}%;`}>{fret}</span>
+				{/each}
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -127,6 +184,12 @@
 		color: var(--role-avoid, #78716c);
 	}
 
+	.nav button.overlap-toggle.active {
+		border-color: var(--nut, #7c3aed);
+		background: color-mix(in srgb, var(--nut, #7c3aed) 10%, var(--fret-bg, #fff));
+		color: var(--nut, #7c3aed);
+	}
+
 	.summary {
 		display: flex;
 		align-items: baseline;
@@ -160,5 +223,58 @@
 	.coverage dd {
 		margin: 0;
 		font-weight: 700;
+	}
+
+	.neck-ruler {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.ruler-track {
+		position: relative;
+		height: 1.25rem;
+		background: var(--fretboard-bg, #ede8fb);
+		border-radius: 6px;
+	}
+
+	.region-bracket {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		background: var(--nut, #7c3aed);
+		border-radius: 6px;
+		opacity: 0.85;
+	}
+
+	.overlap-stack {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding: 0.25rem 0;
+	}
+
+	.overlap-bar {
+		position: relative;
+		height: 0.5rem;
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--nut, #7c3aed) 25%, transparent);
+	}
+
+	.overlap-bar.active {
+		background: var(--nut, #7c3aed);
+	}
+
+	.ruler-labels {
+		position: relative;
+		height: 1rem;
+		font-size: 0.7rem;
+		opacity: 0.6;
+	}
+
+	.tick {
+		position: absolute;
+		transform: translateX(-50%);
 	}
 </style>

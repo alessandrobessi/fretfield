@@ -174,3 +174,25 @@ test.describe('Voice-Leading Paths: ranked paths and fretboard path markers', ()
 		await expect(page.getByTestId('fret-E-0')).toHaveAttribute('data-path-role', 'previous');
 	});
 });
+
+test.describe('Local Fields: region navigator and neck ruler', () => {
+	test('anchoring a region dims the fretboard outside it, and the ruler reflects the active region', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click(); // root C
+		await page.getByRole('tab', { name: 'Local Fields' }).click();
+		await page.getByRole('button', { name: 'Anchor to root' }).click();
+
+		await expect(page.getByTestId('fret-A-3')).toHaveClass(/region-active/);
+		// A fret far outside the anchored region should be dimmed.
+		await expect(page.getByTestId('fret-A-20')).toHaveClass(/region-dimmed/);
+
+		const ruler = page.locator('.neck-ruler');
+		await expect(ruler.locator('.region-bracket')).toBeVisible();
+
+		await page.getByRole('button', { name: 'Show overlap' }).click();
+		await expect(ruler.locator('.overlap-bar')).toHaveCount(9);
+		await expect(ruler.locator('.overlap-bar.active')).toHaveCount(1);
+	});
+});
