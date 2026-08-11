@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { fretfield, type FieldMode } from '$lib/stores/fretfield.svelte';
 
-	// 'paths' and 'local' join this switcher once their primary views exist
-	// (Local Fields already works as an always-visible panel; Voice-Leading
-	// Paths lands in a later phase).
+	// 'local' isn't listed here — Local Fields already works as an
+	// always-visible panel usable from any mode, not a separate primary view.
 	const MODES: { id: FieldMode; label: string; question: string }[] = [
 		{ id: 'chord', label: 'Chord Field', question: 'What can I play now?' },
-		{ id: 'progression', label: 'Progression Field', question: 'Where can I go next?' }
+		{ id: 'progression', label: 'Progression Field', question: 'Where can I go next?' },
+		{ id: 'paths', label: 'Voice-Leading Paths', question: 'What route should I take?' }
 	];
 </script>
 

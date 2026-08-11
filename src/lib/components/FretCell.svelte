@@ -29,6 +29,9 @@
 		const parts = [`${stringName} string`, `fret ${position.fret}`, position.noteName];
 		if (position.interval !== null) parts.push(`interval ${position.intervalLabel}`);
 		if (roleStyle !== null) parts.push(roleStyle.label.toLowerCase());
+		if (position.pathRole === 'current') parts.push('current path step');
+		else if (position.pathRole === 'previous') parts.push('previous path step');
+		else if (position.pathRole === 'next') parts.push('next path step');
 		return parts.join(', ');
 	});
 </script>
@@ -41,6 +44,7 @@
 	class:selected-root={position.isSelectedRootPosition}
 	class:region-active={position.isInActiveRegion === true}
 	class:region-dimmed={position.isInActiveRegion === false}
+	data-path-role={position.pathRole}
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
@@ -196,6 +200,21 @@
 
 	.fret-cell.region-dimmed .pill {
 		opacity: 0.35;
+	}
+
+	.fret-cell[data-path-role='current'] {
+		box-shadow: 0 0 0 3px var(--nut, #7c3aed);
+		z-index: 1;
+	}
+
+	.fret-cell[data-path-role='previous'] {
+		outline: 2px dashed color-mix(in srgb, var(--nut, #7c3aed) 45%, transparent);
+		outline-offset: -2px;
+	}
+
+	.fret-cell[data-path-role='next'] {
+		outline: 2px dotted color-mix(in srgb, var(--nut, #7c3aed) 65%, transparent);
+		outline-offset: -2px;
 	}
 
 	.label {

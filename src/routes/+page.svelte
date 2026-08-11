@@ -5,6 +5,7 @@
 	import Legend from '$lib/components/Legend.svelte';
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
+	import PathsControls from '$lib/components/PathsControls.svelte';
 	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 </script>
@@ -23,6 +24,8 @@
 
 	{#if fretfield.mode === 'progression'}
 		<ProgressionControls />
+	{:else if fretfield.mode === 'paths'}
+		<PathsControls />
 	{:else}
 		<HarmonyControls />
 	{/if}

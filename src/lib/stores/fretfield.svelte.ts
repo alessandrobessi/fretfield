@@ -24,6 +24,13 @@ import {
 } from '$lib/music/progressions';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { type ChordTransition, analyzeTransition, connectionFor } from '$lib/music/voice-leading';
+import {
+	type PathPreset,
+	type VoiceLeadingPath,
+	findVoiceLeadingPaths
+} from '$lib/music/voice-leading-paths';
+
+export type { PathPreset };
 
 export type DisplayMode = 'intervals' | 'notes' | 'both';
 
@@ -65,11 +72,19 @@ export interface DisplayFretPosition extends FretPosition {
 	isVisibleInMode: boolean;
 	/** Local Field lens: null when no region is active (no dimming applied at all). */
 	isInActiveRegion: boolean | null;
+	/** Voice-Leading Paths lens: this position's role in the selected path, if any. */
+	pathRole: 'previous' | 'current' | 'next' | null;
 }
 
 /** A progression chord enriched with its display symbol, for the ProgressionStrip. */
 export interface DisplayResolvedChord extends ResolvedChord {
 	symbol: string;
+}
+
+/** A ranked voice-leading path with per-step note names, for PathSelector. */
+export interface DisplayVoiceLeadingPath {
+	noteNames: string[];
+	score: VoiceLeadingPath['score'];
 }
 
 /** The inspected note's connection into the next progression chord, formatted for display. */
@@ -99,6 +114,8 @@ class FretFieldStore {
 	activeRegion = $state<FretboardRegion | null>(null);
 	progressionTemplateId = $state<string | null>(null);
 	activeChordIndex = $state(0);
+	pathPreset = $state<PathPreset>('balanced');
+	selectedPathIndex = $state<number | null>(null);
 
 	readonly resolvedProgression = $derived.by<DisplayResolvedChord[]>(() => {
 		const root = this.root;
@@ -123,9 +140,37 @@ class FretFieldStore {
 		return analyzeTransition(current, next);
 	});
 
+	readonly rankedPaths = $derived.by<VoiceLeadingPath[]>(() => {
+		if (this.mode !== 'paths') return [];
+		const progression = this.resolvedProgression;
+		if (progression.length < 2) return [];
+		return findVoiceLeadingPaths(progression, this.tuning, this.fretCount, {
+			preset: this.pathPreset,
+			region: this.activeRegion ?? undefined,
+			k: 3
+		});
+	});
+
+	readonly displayRankedPaths = $derived.by<DisplayVoiceLeadingPath[]>(() => {
+		const progression = this.resolvedProgression;
+		return this.rankedPaths.map((path) => ({
+			noteNames: path.positions.map((position, i) =>
+				noteNameForPosition(progression[i].root, position.pitchClass)
+			),
+			score: path.score
+		}));
+	});
+
+	readonly selectedPath = $derived.by<VoiceLeadingPath | null>(() => {
+		const paths = this.rankedPaths;
+		if (paths.length === 0) return null;
+		const index = this.selectedPathIndex;
+		return paths[index !== null && index < paths.length ? index : 0];
+	});
+
 	/** The one call into the engine per relevant state change (AGENTS.md §19); everything else derives from this. */
 	readonly analyzed = $derived.by<AnalyzedFretPosition[] | null>(() => {
-		if (this.mode === 'progression') {
+		if (this.mode === 'progression' || this.mode === 'paths') {
 			const chord = this.activeProgressionChord;
 			if (chord === null) return null;
 			return analyzeFretboard({
@@ -170,16 +215,34 @@ class FretFieldStore {
 				isRootPitchClass: false,
 				isSelectedRootPosition: false,
 				isVisibleInMode: false,
-				isInActiveRegion: null
+				isInActiveRegion: null,
+				pathRole: null
 			}));
 		}
 
+		const usesProgressionRoot = this.mode === 'progression' || this.mode === 'paths';
 		// The "root" for display-spelling/highlight purposes: the progression's
-		// active chord root in Progression Field, otherwise the selected root.
-		const displayRoot =
-			this.mode === 'progression' ? (this.activeProgressionChord?.root ?? null) : this.root;
+		// active chord root in Progression Field/Paths, otherwise the selected root.
+		const displayRoot = usesProgressionRoot
+			? (this.activeProgressionChord?.root ?? null)
+			: this.root;
 		const selected = this.selectedRootPosition;
 		const analysisMode = this.analysisMode;
+
+		const path = this.mode === 'paths' ? this.selectedPath : null;
+		const pathLength = path?.positions.length ?? 0;
+		const pathPositionAt = (offset: number): FretPosition | null => {
+			if (path === null || pathLength === 0) return null;
+			const index = (((this.activeChordIndex + offset) % pathLength) + pathLength) % pathLength;
+			return path.positions[index];
+		};
+		const currentPathPosition = pathPositionAt(0);
+		const previousPathPosition = pathPositionAt(-1);
+		const nextPathPosition = pathPositionAt(1);
+		const matchesPosition = (target: FretPosition | null, position: FretPosition): boolean =>
+			target !== null &&
+			target.stringIndex === position.stringIndex &&
+			target.fret === position.fret;
 
 		return analyzed.map((position) => ({
 			...position,
@@ -194,13 +257,20 @@ class FretFieldStore {
 			),
 			isRootPitchClass: displayRoot !== null && position.pitchClass === displayRoot,
 			isSelectedRootPosition:
-				this.mode !== 'progression' &&
+				!usesProgressionRoot &&
 				selected !== null &&
 				selected.stringIndex === position.stringIndex &&
 				selected.fret === position.fret,
 			isVisibleInMode: analysisMode === 'field' || CHORD_TONE_ROLES.has(position.role),
 			isInActiveRegion:
-				region === null ? null : position.fret >= region.minFret && position.fret <= region.maxFret
+				region === null ? null : position.fret >= region.minFret && position.fret <= region.maxFret,
+			pathRole: matchesPosition(currentPathPosition, position)
+				? 'current'
+				: matchesPosition(previousPathPosition, position)
+					? 'previous'
+					: matchesPosition(nextPathPosition, position)
+						? 'next'
+						: null
 		}));
 	});
 
@@ -328,6 +398,15 @@ class FretFieldStore {
 
 	previousChord(): void {
 		this.setActiveChordIndex(this.activeChordIndex - 1);
+	}
+
+	setPathPreset(preset: PathPreset): void {
+		this.pathPreset = preset;
+		this.selectedPathIndex = null;
+	}
+
+	selectPath(index: number): void {
+		this.selectedPathIndex = index;
 	}
 }
 

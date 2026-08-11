@@ -150,3 +150,27 @@ test.describe('Progression Field: resolved chords and transition-aware inspector
 		await expect(inspector).toContainText('Movement: -1 semitone');
 	});
 });
+
+test.describe('Voice-Leading Paths: ranked paths and fretboard path markers', () => {
+	test('selecting the top path marks its current step on the fretboard and advances with the chord', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click(); // root C
+		await page.getByRole('tab', { name: 'Voice-Leading Paths' }).click();
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+
+		const paths = page.locator('.paths');
+		await expect(paths.locator('.path')).toHaveCount(3);
+		await expect(paths.locator('.path').first()).toHaveAttribute('aria-current', 'true');
+
+		// Dm7 is active; the path's first step (E, open E string) is marked "current".
+		await expect(page.getByTestId('fret-E-0')).toHaveAttribute('data-path-role', 'current');
+
+		// Advance to G7: the path's second step (F, E string fret 1) becomes "current",
+		// and the first step (E) becomes "previous".
+		await page.getByRole('button', { name: 'G7', exact: true }).click();
+		await expect(page.getByTestId('fret-E-1')).toHaveAttribute('data-path-role', 'current');
+		await expect(page.getByTestId('fret-E-0')).toHaveAttribute('data-path-role', 'previous');
+	});
+});
