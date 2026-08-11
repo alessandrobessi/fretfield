@@ -14,6 +14,21 @@ Avoid adding infrastructure before the music model and interaction feel excellen
 
 ---
 
+## Current status
+
+Phases 0–4 below (repository foundation through Harmonic Field mode) are complete, plus Phase 5 (Note inspector) and the progression/voice-leading work originally scheduled as Phases 8–9. The product has since been restructured around four peer modes rather than one linear feature list — see `BLUEPRINT.md` §0 and `AGENTS.md` §1. Mapping onto this roadmap's original phase numbers:
+
+```text
+Chord Field           = Phase 3 (chord-tone visualization) + Phase 4 (Harmonic Field) + Phase 5 (Note inspector) — done
+Progression Field      = Phase 8 (Progression mode), minus audio/playback           — done
+Voice-Leading Paths    = Phase 9 (Voice-leading mode), generalized to full paths     — done
+Local Fields            = new: bass-native regions, not originally scoped            — done
+```
+
+Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (practice modes, audio, alternate tunings, educational integration).
+
+---
+
 # Phase 0 — Repository foundation
 
 ## Goal
@@ -22,19 +37,19 @@ Create a clean, minimal SvelteKit application ready for rapid iteration.
 
 ## Tasks
 
-- [ ] Create repository `fretfield`
-- [ ] Initialize SvelteKit with TypeScript
-- [ ] Use pnpm
-- [ ] Enable strict TypeScript
-- [ ] Configure ESLint
-- [ ] Configure Prettier
-- [ ] Add Vitest
-- [ ] Add Playwright
-- [ ] Add GitHub Actions for lint, typecheck, test, and build
-- [ ] Add a minimal README
-- [ ] Add `BLUEPRINT.md`
-- [ ] Add `ROADMAP.md`
-- [ ] Add `AGENTS.md`
+- [x] Create repository `fretfield`
+- [x] Initialize SvelteKit with TypeScript
+- [x] Use pnpm
+- [x] Enable strict TypeScript
+- [x] Configure ESLint
+- [x] Configure Prettier
+- [x] Add Vitest
+- [x] Add Playwright
+- [x] Add GitHub Actions for lint, typecheck, test, and build
+- [x] Add a minimal README
+- [x] Add `BLUEPRINT.md`
+- [x] Add `ROADMAP.md`
+- [x] Add `AGENTS.md`
 
 Suggested commands:
 
@@ -87,11 +102,11 @@ Expose musical labels only at display boundaries.
 
 Tasks:
 
-- [ ] `PitchClass` representation
-- [ ] semitone normalization
-- [ ] pitch transposition
-- [ ] sharp/flat display policy
-- [ ] note-name parser
+- [x] `PitchClass` representation
+- [x] semitone normalization
+- [x] pitch transposition
+- [x] sharp/flat display policy
+- [x] note-name parser
 
 ## 1.2 Intervals
 
@@ -103,10 +118,10 @@ Implement the chromatic interval system:
 
 Tasks:
 
-- [ ] root-to-note interval calculation
-- [ ] interval-to-semitones mapping
-- [ ] interval labels
-- [ ] compound display aliases: 2/9, 4/11, 6/13
+- [x] root-to-note interval calculation
+- [x] interval-to-semitones mapping
+- [x] interval labels
+- [x] compound display aliases: 2/9, 4/11, 6/13
 
 ## 1.3 Fretboard
 
@@ -120,37 +135,37 @@ E A D G
 
 Tasks:
 
-- [ ] note at string/fret
-- [ ] full fretboard generation
-- [ ] configurable fret count
-- [ ] tuning abstraction
-- [ ] open-string support
+- [x] note at string/fret
+- [x] full fretboard generation
+- [x] configurable fret count
+- [x] tuning abstraction
+- [x] open-string support
 
 ## 1.4 Chords
 
 Initial definitions:
 
-- [ ] major triad
-- [ ] minor triad
-- [ ] diminished triad
-- [ ] augmented triad
-- [ ] sus2
-- [ ] sus4
-- [ ] dominant 7
-- [ ] major 7
-- [ ] minor 7
-- [ ] minor 7 b5
-- [ ] diminished 7
+- [x] major triad
+- [x] minor triad
+- [x] diminished triad
+- [x] augmented triad
+- [x] sus2
+- [x] sus4
+- [x] dominant 7
+- [x] major 7
+- [x] minor 7
+- [x] minor 7 b5
+- [x] diminished 7
 
 ## Tests
 
-- [ ] C + major → C E G
-- [ ] C + minor → C Eb G
-- [ ] C + dominant 7 → C E G Bb
-- [ ] F# + minor 7 → correct transposition
-- [ ] E-string fret 8 → C
-- [ ] A-string fret 3 → C
-- [ ] same interval geometry is preserved after root transposition
+- [x] C + major → C E G
+- [x] C + minor → C Eb G
+- [x] C + dominant 7 → C E G Bb
+- [x] F# + minor 7 → correct transposition
+- [x] E-string fret 8 → C
+- [x] A-string fret 3 → C
+- [x] same interval geometry is preserved after root transposition
 
 ## Exit criteria
 
@@ -172,17 +187,17 @@ Make root selection spatial and immediate.
 
 ## Tasks
 
-- [ ] Build `Fretboard.svelte`
-- [ ] Build one reusable fret-cell component
-- [ ] Render four strings
-- [ ] Render frets 0–20
-- [ ] Add fret markers
-- [ ] Add string labels
-- [ ] Make each fret interactive
-- [ ] Clicking a fret sets the root
-- [ ] Highlight every occurrence of the root
-- [ ] Distinguish the specifically selected root position
-- [ ] Add keyboard focus states
+- [x] Build `Fretboard.svelte`
+- [x] Build one reusable fret-cell component
+- [x] Render four strings
+- [x] Render frets 0–20
+- [x] Add fret markers
+- [x] Add string labels
+- [x] Make each fret interactive
+- [x] Clicking a fret sets the root
+- [x] Highlight every occurrence of the root
+- [x] Distinguish the specifically selected root position
+- [x] Add keyboard focus states
 
 ## UX requirements
 
@@ -205,14 +220,14 @@ Deliver the first genuinely useful version of FretField.
 
 ## Tasks
 
-- [ ] Add chord selector
-- [ ] Add chord-tone analysis
-- [ ] Highlight root
-- [ ] Highlight structural chord tones
-- [ ] Highlight stable chord tones
-- [ ] Show interval labels
-- [ ] Add Notes / Intervals / Both toggle
-- [ ] Add legend
+- [x] Add chord selector
+- [x] Add chord-tone analysis
+- [x] Highlight root
+- [x] Highlight structural chord tones
+- [x] Highlight stable chord tones
+- [x] Show interval labels
+- [x] Add Notes / Intervals / Both toggle
+- [x] Add legend
 
 Initial semantic distinction:
 
@@ -250,14 +265,14 @@ Instead of hiding non-chord tones, classify all twelve intervals according to th
 
 ## Tasks
 
-- [ ] Define `HarmonicRole`
-- [ ] Create role tables/rules per chord family
-- [ ] Add stability score
-- [ ] Add tension score
-- [ ] Add semantic visualization
-- [ ] Add Chord Tones / Harmonic Field toggle
-- [ ] Keep all twelve pitch classes inspectable
-- [ ] Add context-sensitive enharmonic labels
+- [x] Define `HarmonicRole`
+- [x] Create role tables/rules per chord family
+- [x] Add stability score
+- [x] Add tension score
+- [x] Add semantic visualization
+- [x] Add Chord Tones / Harmonic Field toggle
+- [x] Keep all twelve pitch classes inspectable
+- [ ] Add context-sensitive enharmonic labels (compound labels like `b3/#9` ship; dynamic single-spelling re-notation based on alteration context does not)
 
 Recommended initial roles:
 
@@ -277,14 +292,14 @@ avoid
 
 Before treating this phase as complete, manually review every interval over:
 
-- [ ] major
-- [ ] major 7
-- [ ] minor
-- [ ] minor 7
-- [ ] dominant 7
-- [ ] diminished
-- [ ] half-diminished
-- [ ] sus
+- [x] major
+- [x] major 7
+- [x] minor
+- [x] minor 7
+- [x] dominant 7
+- [x] diminished
+- [x] half-diminished
+- [x] sus
 
 Avoid pretending that harmonic-role classification is purely mathematical. Some categories are stylistic and context-dependent. Encode assumptions explicitly.
 
@@ -323,13 +338,13 @@ Possible resolution: E or D
 
 ## Tasks
 
-- [ ] selected-note state
-- [ ] interval
-- [ ] enharmonic function
-- [ ] harmonic role
-- [ ] short explanation
-- [ ] stability/tension wording
-- [ ] suggested resolutions where meaningful
+- [x] selected-note state
+- [x] interval
+- [x] enharmonic function
+- [x] harmonic role
+- [x] short explanation
+- [x] stability/tension wording
+- [x] suggested resolutions where meaningful
 
 ## Exit criteria
 
@@ -405,18 +420,18 @@ Make individual harmonic maps linkable and publication-ready.
 
 ## Tasks
 
-- [ ] serialize root/chord/view into URL
-- [ ] restore state from URL
-- [ ] responsive behavior
-- [ ] horizontal-scroll strategy for small screens
-- [ ] tooltip / inspector polish
-- [ ] empty-state guidance
-- [ ] keyboard shortcuts
-- [ ] accessible labels
-- [ ] reduced motion
-- [ ] visual QA
+- [x] serialize root/chord/view into URL
+- [x] restore state from URL
+- [x] responsive behavior
+- [x] horizontal-scroll strategy for small screens
+- [x] tooltip / inspector polish
+- [x] empty-state guidance
+- [ ] keyboard shortcuts (beyond standard tab/Enter/Space fret navigation)
+- [x] accessible labels
+- [x] reduced motion
+- [ ] visual QA (ongoing, not a one-time task)
 
-Example URL:
+Actual URL shape (superset of the example below — covers all four `FieldMode`s):
 
 ```text
 /?root=C&chord=7&view=intervals&mode=field
@@ -473,14 +488,14 @@ Teach harmony as movement through time.
 
 ## Tasks
 
-- [ ] progression data model
-- [ ] chord editor
-- [ ] previous / next controls
+- [x] progression data model (declarative `ProgressionTemplate`s, not yet a free-form chord editor)
+- [ ] chord editor (template-based only — arbitrary user-built progressions are Phase 6's chord builder + a future custom-progression editor)
+- [x] previous / next controls
 - [ ] loop
 - [ ] tempo
 - [ ] automatic progression playback
-- [ ] keyboard navigation
-- [ ] active chord indicator
+- [x] keyboard navigation
+- [x] active chord indicator
 
 The first version does not require audio.
 
@@ -502,11 +517,11 @@ For each useful note in current harmony, calculate proximity and function in the
 
 Highlight:
 
-- [ ] common tones
-- [ ] semitone resolutions
-- [ ] whole-tone resolutions
-- [ ] guide-tone motion
-- [ ] root-target paths
+- [x] common tones
+- [x] semitone resolutions
+- [x] whole-tone resolutions
+- [x] guide-tone motion
+- [x] root-target paths (generalized beyond single-transition highlighting into full multi-chord Voice-Leading Paths search)
 
 Example:
 

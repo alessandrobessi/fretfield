@@ -14,7 +14,16 @@ Its central idea is:
 
 > The fretboard is a harmonic field, not merely a grid of note names.
 
-Every implementation decision should reinforce that idea.
+Every implementation decision should reinforce that idea. Concretely, the product answers four increasingly powerful questions, each a `FieldMode`:
+
+```text
+Chord Field           "What can I play now?"
+Progression Field      "Where can I go next?"
+Voice-Leading Paths    "What route should I take?"
+Local Fields           "Where on the neck should I play it?"
+```
+
+Local Fields is a spatial lens usable from any of the other three modes (region state lives in the store independent of `mode`), not an isolated feature. Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying selection.
 
 ---
 
@@ -71,8 +80,10 @@ Responsibilities:
 - fretboard generation
 - chord formulas
 - harmonic analysis
+- progression templates
 - resolution rules
 - voice-leading calculations
+- spatial/regional (Local Field) analysis
 
 Must not import:
 
@@ -252,11 +263,19 @@ Examples:
 Fretboard
 BassString
 FretCell
+FieldModeSwitcher
 HarmonyControls
 ChordSelector
+AnalysisModeToggle
 DisplayModeToggle
 Legend
 NoteInspector
+ProgressionSelector
+ProgressionStrip
+ProgressionControls
+PathSelector
+PathsControls
+LocalFieldControls
 ```
 
 Avoid premature micro-components for trivial wrappers.
@@ -560,11 +579,17 @@ Maintain product focus.
 
 ## 27. Long-term architectural direction
 
+Built so far, in `src/lib/music/`:
+
+```text
+pitch.ts intervals.ts tuning.ts fretboard.ts chords.ts harmony.ts
+local-fields.ts progressions.ts connection-score.ts voice-leading.ts
+voice-leading-paths.ts
+```
+
 Future modules may include:
 
 ```text
-music/voice-leading.ts
-music/progressions.ts
 music/scales.ts
 music/approaches.ts
 practice/interval-trainer.ts
@@ -572,7 +597,7 @@ practice/walking-bass.ts
 audio/playback.ts
 ```
 
-These must build on the existing pure music engine rather than replacing it with UI-specific logic.
+These must build on the existing pure music engine rather than replacing it with UI-specific logic. In particular, `progressions.ts` (declarative `ProgressionTemplate`s), `connection-score.ts` (pitch-class-level resolution scoring), and `voice-leading-paths.ts` (the exact-DP path search over `FretPosition`s) are three separate layers — new work should extend the layer that actually owns the concept rather than reaching across them.
 
 ---
 

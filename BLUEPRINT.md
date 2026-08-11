@@ -2,6 +2,23 @@
 
 > **Tagline:** See the harmonic field. Move through it.
 
+## 0. The four-field model (current product structure)
+
+FretField answers four increasingly powerful questions, each a peer `FieldMode` selectable from the same fretboard and the same selected root:
+
+```text
+Chord Field           "What can I play now?"          — full 12-role Harmonic Field over one chord
+Progression Field      "Where can I go next?"           — resolve a progression template, see each note's best resolution into the next chord
+Voice-Leading Paths    "What route should I take?"      — ranked, complete fretted paths through the whole progression
+Local Fields           "Where on the neck should I play it?" — ranked, overlapping neck regions, usable as a lens under any of the above
+```
+
+Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying harmonic selection. `?root=&mode=&chord=&display=&analysis=&progression=&chordIndex=&pathPreset=&region=` in the URL reproduces the same view (§7 Phase 7 originally scoped a narrower version of this; the shipped version covers all four modes).
+
+Sections 1–22 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
+
+---
+
 ## 1. Product concept
 
 FretField is an interactive bass-fretboard application that turns harmony into a spatial map.
