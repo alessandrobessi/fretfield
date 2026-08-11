@@ -8,6 +8,14 @@ import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/
 export type DisplayMode = 'intervals' | 'notes' | 'both';
 
 /**
+ * The four user-facing questions FretField answers. Shared state (root,
+ * display mode, region, progression selection) persists across mode
+ * switches — each mode is a different lens on the same selection, not a
+ * separate page with its own state.
+ */
+export type FieldMode = 'chord' | 'progression' | 'paths' | 'local';
+
+/**
  * A fret position enriched with everything a component needs to render it —
  * the store is the only place that calls into `$lib/music`, per AGENTS.md §4.
  */
@@ -25,6 +33,7 @@ class FretFieldStore {
 	readonly tuning: Tuning = STANDARD_4_STRING_TUNING;
 	readonly fretCount: number = DEFAULT_FRET_COUNT;
 
+	mode = $state<FieldMode>('chord');
 	root = $state<PitchClass | null>(null);
 	selectedRootPosition = $state<FretPosition | null>(null);
 	chordId = $state('major');
@@ -74,6 +83,10 @@ class FretFieldStore {
 		}
 		return groups;
 	});
+
+	setMode(mode: FieldMode): void {
+		this.mode = mode;
+	}
 
 	selectRoot(position: FretPosition): void {
 		this.root = position.pitchClass;
