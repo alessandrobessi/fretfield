@@ -75,3 +75,42 @@ test.describe('core scenario: click root, choose harmony, explore the field', ()
 		await expect(page.locator('.status')).toContainText('Root: C');
 	});
 });
+
+test.describe('Chord Field: full Harmonic Field mode and the Note Inspector', () => {
+	test('Harmonic Field shows tension/chromatic-approach roles; Chord Tones suppresses them', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click();
+		await page.getByLabel('Chord').selectOption({ label: 'Dominant 7' });
+
+		// Ab (b13/#5) is classified as tension in field mode.
+		const abCell = page.getByTestId('fret-G-1');
+		await expect(abCell).toHaveAccessibleName('G string, fret 1, Ab, interval b6/#5, tension');
+		await expect(page.getByLabel('Legend')).toContainText('Tension');
+
+		// Switching to Chord Tones suppresses the tension role back to a plain cell.
+		await page.getByRole('radio', { name: 'Chord Tones' }).click();
+		await expect(abCell).toHaveAccessibleName('G string, fret 1, Ab, interval b6/#5');
+		await expect(page.getByLabel('Legend')).not.toContainText('Tension');
+	});
+
+	test('hovering a fret previews it in the Note Inspector without changing the root', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click();
+		await page.getByLabel('Chord').selectOption({ label: 'Dominant 7' });
+
+		await page.getByTestId('fret-G-1').hover();
+
+		const inspector = page.locator('.note-inspector');
+		await expect(inspector).toContainText('Ab');
+		await expect(inspector).toContainText('Tension');
+		await expect(inspector).toContainText('Typical resolution:');
+
+		// Hovering to inspect a different note never changes the selected root.
+		await expect(page.locator('.status')).toContainText('Root: C');
+		await expect(page.getByTestId('fret-A-3')).toHaveAttribute('aria-pressed', 'true');
+	});
+});

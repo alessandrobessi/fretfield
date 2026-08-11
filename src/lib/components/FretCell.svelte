@@ -7,11 +7,16 @@
 		displayMode: DisplayMode;
 		stringName: string;
 		onSelect: (position: DisplayFretPosition) => void;
+		onInspect: (position: DisplayFretPosition) => void;
 	}
 
-	let { position, displayMode, stringName, onSelect }: Props = $props();
+	let { position, displayMode, stringName, onSelect, onInspect }: Props = $props();
 
-	const roleStyle = $derived(roleStyleFor(position.role));
+	// In 'chord-tones' analysis mode, non-chord-tone roles are visually and
+	// semantically suppressed back to a plain cell — same analyzed data,
+	// different display filter (fretfield.svelte.ts's isVisibleInMode).
+	const visibleRole = $derived(position.isVisibleInMode ? position.role : null);
+	const roleStyle = $derived(roleStyleFor(visibleRole));
 
 	const label = $derived.by(() => {
 		if (position.interval === null) return position.noteName;
@@ -37,9 +42,14 @@
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
-	onclick={() => onSelect(position)}
+	onclick={() => {
+		onSelect(position);
+		onInspect(position);
+	}}
+	onfocus={() => onInspect(position)}
+	onmouseenter={() => onInspect(position)}
 >
-	<span class="pill" data-role={position.role} data-shape={roleStyle?.shape}>
+	<span class="pill" data-role={visibleRole} data-shape={roleStyle?.shape}>
 		<span class="label">{label}</span>
 	</span>
 </button>
@@ -87,24 +97,83 @@
 		border-radius: 999px;
 	}
 
-	.pill[data-role='root'] {
+	/* Shape + fill/outline/border-style combine so no role relies on color alone (AGENTS.md §7). */
+
+	.pill[data-shape='star'] {
+		/* root */
 		background: var(--role-root, #f59e0b);
 		color: #fff;
 		font-weight: 700;
 		box-shadow: 0 1px 4px color-mix(in srgb, var(--role-root, #f59e0b) 60%, transparent);
 	}
 
-	.pill[data-role='structural'] {
+	.pill[data-shape='circle'] {
+		/* structural */
 		background: var(--role-structural, #4f46e5);
 		color: #fff;
 		font-weight: 700;
 	}
 
-	.pill[data-role='stable'] {
+	.pill[data-shape='ring'] {
+		/* stable */
 		background: color-mix(in srgb, var(--role-stable, #10b981) 12%, transparent);
 		border: 2px solid var(--role-stable, #10b981);
 		color: var(--role-stable, #059669);
 		font-weight: 600;
+	}
+
+	.pill[data-shape='diamond'] {
+		/* extension */
+		border-radius: 7px;
+		background: var(--role-extension, #a855f7);
+		color: #fff;
+		font-weight: 600;
+	}
+
+	.pill[data-shape='square'] {
+		/* color */
+		border-radius: 7px;
+		background: color-mix(in srgb, var(--role-color, #ec4899) 14%, transparent);
+		border: 2px solid var(--role-color, #ec4899);
+		color: var(--role-color, #ec4899);
+		font-weight: 600;
+	}
+
+	.pill[data-shape='triangle'] {
+		/* tension */
+		background: var(--role-tension, #f97316);
+		color: #fff;
+		font-weight: 600;
+		outline: 2px dashed color-mix(in srgb, var(--role-tension, #f97316) 70%, transparent);
+		outline-offset: 2px;
+	}
+
+	.pill[data-shape='cross'] {
+		/* alteration */
+		border-radius: 7px;
+		background: var(--role-alteration, #ef4444);
+		color: #fff;
+		font-weight: 600;
+		outline: 2px dashed color-mix(in srgb, var(--role-alteration, #ef4444) 70%, transparent);
+		outline-offset: 2px;
+	}
+
+	.pill[data-shape='dot'] {
+		/* chromatic-approach */
+		min-width: 1.5rem;
+		min-height: 1.5rem;
+		background: color-mix(in srgb, var(--role-chromatic-approach, #64748b) 16%, transparent);
+		border: 2px dotted var(--role-chromatic-approach, #64748b);
+		color: var(--role-chromatic-approach, #64748b);
+	}
+
+	.pill[data-shape='outline'] {
+		/* avoid */
+		border-radius: 7px;
+		background: transparent;
+		border: 2px dotted var(--role-avoid, #78716c);
+		color: var(--role-avoid, #78716c);
+		opacity: 0.75;
 	}
 
 	.fret-cell.root-pitch {

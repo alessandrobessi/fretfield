@@ -33,6 +33,7 @@
 				positions={fretfield.positionsByString[stringIndex]}
 				displayMode={fretfield.displayMode}
 				onSelect={(position) => fretfield.selectRoot(position)}
+				onInspect={(position) => fretfield.inspect(position)}
 			/>
 		{/each}
 		<div class="fret-row numbers" aria-hidden="true">

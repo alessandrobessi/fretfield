@@ -7,15 +7,16 @@
 		positions: DisplayFretPosition[];
 		displayMode: DisplayMode;
 		onSelect: (position: DisplayFretPosition) => void;
+		onInspect: (position: DisplayFretPosition) => void;
 	}
 
-	let { stringName, positions, displayMode, onSelect }: Props = $props();
+	let { stringName, positions, displayMode, onSelect, onInspect }: Props = $props();
 </script>
 
 <div class="bass-string" role="row" aria-label={`${stringName} string`}>
 	<span class="string-label" aria-hidden="true">{stringName}</span>
 	{#each positions as position (position.fret)}
-		<FretCell {position} {displayMode} {stringName} {onSelect} />
+		<FretCell {position} {displayMode} {stringName} {onSelect} {onInspect} />
 	{/each}
 </div>
 

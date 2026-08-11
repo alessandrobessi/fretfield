@@ -2,6 +2,7 @@
 	import { getChordDefinition } from '$lib/music/chords';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
+	import AnalysisModeToggle from './AnalysisModeToggle.svelte';
 	import ChordSelector from './ChordSelector.svelte';
 	import DisplayModeToggle from './DisplayModeToggle.svelte';
 
@@ -16,6 +17,7 @@
 	</div>
 	<div class="controls">
 		<ChordSelector />
+		<AnalysisModeToggle />
 		<DisplayModeToggle />
 	</div>
 </div>

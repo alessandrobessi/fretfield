@@ -17,7 +17,9 @@
 	];
 
 	const activeRoles = $derived.by<HarmonicRole[]>(() =>
-		ROLE_ORDER.filter((role) => fretfield.positions.some((position) => position.role === role))
+		ROLE_ORDER.filter((role) =>
+			fretfield.positions.some((position) => position.isVisibleInMode && position.role === role)
+		)
 	);
 </script>
 
@@ -69,5 +71,41 @@
 	.swatch[data-role='stable'] {
 		background: transparent;
 		border: 2px solid var(--role-stable, #10b981);
+	}
+
+	.swatch[data-role='extension'] {
+		border-radius: 3px;
+		background: var(--role-extension, #a855f7);
+	}
+
+	.swatch[data-role='color'] {
+		border-radius: 3px;
+		background: transparent;
+		border: 2px solid var(--role-color, #ec4899);
+	}
+
+	.swatch[data-role='tension'] {
+		background: var(--role-tension, #f97316);
+		outline: 2px dashed color-mix(in srgb, var(--role-tension, #f97316) 70%, transparent);
+		outline-offset: 2px;
+	}
+
+	.swatch[data-role='alteration'] {
+		border-radius: 3px;
+		background: var(--role-alteration, #ef4444);
+		outline: 2px dashed color-mix(in srgb, var(--role-alteration, #ef4444) 70%, transparent);
+		outline-offset: 2px;
+	}
+
+	.swatch[data-role='chromatic-approach'] {
+		background: transparent;
+		border: 2px dotted var(--role-chromatic-approach, #64748b);
+	}
+
+	.swatch[data-role='avoid'] {
+		border-radius: 3px;
+		background: transparent;
+		border: 2px dotted var(--role-avoid, #78716c);
+		opacity: 0.75;
 	}
 </style>
