@@ -196,3 +196,81 @@ test.describe('Local Fields: region navigator and neck ruler', () => {
 		await expect(ruler.locator('.overlap-bar.active')).toHaveCount(1);
 	});
 });
+
+test.describe('Unified interaction: shared state persists across mode switches', () => {
+	test('root, progression, region, and display mode all survive switching between every tab', async ({
+		page
+	}) => {
+		await page.goto('/');
+
+		// Set up state in Chord Field: root C, Notes display mode.
+		await page.getByTestId('fret-A-3').click();
+		await page.getByRole('radio', { name: 'Notes' }).click();
+		await expect(page.getByTestId('fret-A-3')).toHaveText('C');
+
+		// Progression Field: pick a template.
+		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await expect(page.locator('.status')).toContainText('Tonic: C');
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		await expect(page.locator('.chords')).toContainText('Dm7');
+		// Display mode carried over from Chord Field: shows the plain note name "E", not
+		// its interval over Dm7 (which would read "2/9").
+		await expect(page.getByTestId('fret-E-0')).toHaveText('E');
+
+		// Voice-Leading Paths: same progression is already selected (shared state, not re-chosen).
+		await page.getByRole('tab', { name: 'Voice-Leading Paths' }).click();
+		await expect(page.locator('.chords')).toContainText('Dm7');
+		await expect(page.locator('.paths .path')).toHaveCount(3);
+
+		// Local Fields: anchor a region.
+		await page.getByRole('tab', { name: 'Local Fields' }).click();
+		await page.getByRole('button', { name: 'Anchor to root' }).click();
+		await expect(page.getByTestId('fret-A-3')).toHaveClass(/region-active/);
+
+		// Back to Chord Field: root, chord, display mode, and the region lens are all still active.
+		await page.getByRole('tab', { name: 'Chord Field' }).click();
+		await expect(page.locator('.status')).toContainText('Root: C');
+		await expect(page.getByRole('radio', { name: 'Notes', exact: true })).toHaveAttribute(
+			'aria-checked',
+			'true'
+		);
+		await expect(page.getByTestId('fret-A-3')).toHaveClass(/region-active/);
+
+		// And the progression template chosen back in Progression Field is still selected there.
+		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await expect(page.locator('.chords')).toContainText('Dm7');
+	});
+});
+
+test.describe('URL state: a shared link restores the same view', () => {
+	test('choosing a root, chord, and display mode updates the URL, and reloading it restores that state', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click(); // root C
+		await page.getByLabel('Chord').selectOption({ label: 'Dominant 7' });
+		await page.getByRole('radio', { name: 'Both' }).click();
+
+		await expect(page).toHaveURL(/root=C/);
+		await expect(page).toHaveURL(/chord=dominant-7/);
+		await expect(page).toHaveURL(/display=both/);
+
+		await page.reload();
+
+		await expect(page.locator('.status')).toContainText('Root: C');
+		await expect(page.locator('.status')).toContainText('Dominant 7');
+		await expect(page.getByRole('radio', { name: 'Both', exact: true })).toHaveAttribute(
+			'aria-checked',
+			'true'
+		);
+		await expect(page.getByTestId('fret-A-3')).toHaveAccessibleName(
+			'A string, fret 3, C, interval 1, root'
+		);
+	});
+
+	test('a malformed query string is ignored rather than breaking the app', async ({ page }) => {
+		await page.goto('/?root=not-a-note&mode=bogus&chord=nonexistent');
+		await expect(page.locator('h1')).toHaveText('FretField');
+		await expect(page.locator('.status')).toContainText('Root: —');
+	});
+});

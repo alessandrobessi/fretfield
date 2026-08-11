@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import HarmonyControls from '$lib/components/HarmonyControls.svelte';
@@ -8,6 +9,23 @@
 	import PathsControls from '$lib/components/PathsControls.svelte';
 	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
+	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
+
+	// Restore once on load; URL-shareable state only (root/mode/chord/display/
+	// progression/region) — never blocks first render if the query is absent
+	// or stale.
+	if (browser) {
+		fretfield.restoreFromURLState(
+			decodeStateFromSearchParams(new URLSearchParams(window.location.search))
+		);
+	}
+
+	$effect(() => {
+		if (!browser) return;
+		const search = encodeStateToSearchParams(fretfield.toURLState()).toString();
+		const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
+		window.history.replaceState(null, '', url);
+	});
 </script>
 
 <svelte:head>

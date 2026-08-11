@@ -29,6 +29,7 @@ import {
 	type VoiceLeadingPath,
 	findVoiceLeadingPaths
 } from '$lib/music/voice-leading-paths';
+import type { URLState } from '$lib/utils/url-state';
 
 export type { PathPreset };
 
@@ -407,6 +408,45 @@ class FretFieldStore {
 
 	selectPath(index: number): void {
 		this.selectedPathIndex = index;
+	}
+
+	/** A plain-data snapshot of the shareable fields, for URL serialization (src/lib/utils/url-state.ts). */
+	toURLState(): URLState {
+		return {
+			root: this.root,
+			mode: this.mode,
+			chordId: this.chordId,
+			displayMode: this.displayMode,
+			analysisMode: this.analysisMode,
+			progressionTemplateId: this.progressionTemplateId,
+			activeChordIndex: this.activeChordIndex,
+			pathPreset: this.pathPreset,
+			region: this.activeRegion
+				? { minFret: this.activeRegion.minFret, maxFret: this.activeRegion.maxFret }
+				: null
+		};
+	}
+
+	/** Applies whichever fields are present in a decoded URL state — see decodeStateFromSearchParams. */
+	restoreFromURLState(state: Partial<URLState>): void {
+		if (state.root !== undefined) this.root = state.root;
+		if (state.mode !== undefined) this.mode = state.mode as FieldMode;
+		if (state.chordId !== undefined) this.chordId = state.chordId;
+		if (state.displayMode !== undefined) this.displayMode = state.displayMode as DisplayMode;
+		if (state.analysisMode !== undefined) this.analysisMode = state.analysisMode as AnalysisMode;
+		if (state.progressionTemplateId !== undefined) {
+			this.progressionTemplateId = state.progressionTemplateId;
+		}
+		if (state.activeChordIndex !== undefined) this.activeChordIndex = state.activeChordIndex;
+		if (state.pathPreset !== undefined) this.pathPreset = state.pathPreset as PathPreset;
+		if (state.region !== undefined) {
+			const region = state.region;
+			this.activeRegion = region && {
+				id: `region-${region.minFret}-${region.maxFret}`,
+				minFret: region.minFret,
+				maxFret: region.maxFret
+			};
+		}
 	}
 }
 
