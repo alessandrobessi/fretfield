@@ -72,7 +72,11 @@
 		flex-direction: column;
 		gap: 1.25rem;
 		padding: 1.5rem;
-		max-width: 64rem;
+		/* Wide enough that the full 21-fret board (row label + 21 × 3.25rem
+		   cells = 70.25rem) fits without horizontal scrolling on a typical
+		   desktop viewport — narrower viewports still fall back to the
+		   fretboard's own horizontal scroll (AGENTS.md §18). */
+		max-width: 78rem;
 		margin: 0 auto;
 	}
 
