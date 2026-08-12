@@ -2,6 +2,7 @@
 	import { ROLE_STYLES } from '$lib/config/roles';
 	import type { HarmonicRole } from '$lib/music/harmony';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
+	import { liveInput } from '$lib/stores/live-input.svelte';
 
 	// Fixed, meaningful display order — not Set insertion order.
 	const ROLE_ORDER: readonly HarmonicRole[] = [
@@ -21,9 +22,11 @@
 			fretfield.positions.some((position) => position.isVisibleInMode && position.role === role)
 		)
 	);
+
+	const showLiveLegend = $derived(liveInput.candidatePositions.length > 0);
 </script>
 
-{#if activeRoles.length > 0}
+{#if activeRoles.length > 0 || showLiveLegend}
 	<ul class="legend" aria-label="Legend">
 		{#each activeRoles as role (role)}
 			<li>
@@ -31,6 +34,12 @@
 				{ROLE_STYLES[role].label}
 			</li>
 		{/each}
+		{#if showLiveLegend}
+			<li>
+				<span class="swatch live-swatch" aria-hidden="true"></span>
+				Live-played note
+			</li>
+		{/if}
 	</ul>
 {/if}
 
@@ -107,5 +116,11 @@
 		background: transparent;
 		border: 2px dotted var(--role-avoid, #78716c);
 		opacity: 0.75;
+	}
+
+	.live-swatch {
+		border-radius: 6px;
+		background: transparent;
+		border: 2px solid var(--live-accent, #06b6d4);
 	}
 </style>

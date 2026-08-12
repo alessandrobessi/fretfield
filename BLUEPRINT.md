@@ -15,7 +15,9 @@ Local Fields           "Where on the neck should I play it?" — ranked, overlap
 
 Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying harmonic selection. `?root=&mode=&chord=&display=&analysis=&progression=&chordIndex=&pathPreset=&region=` in the URL reproduces the same view (§7 Phase 7 originally scoped a narrower version of this; the shipped version covers all four modes).
 
-Sections 1–22 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
+**Live Input** (§18) is a fifth, optional layer over all four — not a fifth `FieldMode`. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it, rather than adding a separate harmonic system.
+
+Sections 1–23 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
 
 ---
 
@@ -623,7 +625,41 @@ This can become one of FretField's most differentiated features.
 
 ---
 
-## 18. Future modes
+## 18. Live Input — real-time bass pitch detection
+
+Live Input is an optional real-time layer over the four Field modes above, not a fifth mode. It answers a fifth, complementary question — _what did I just play, and what does it mean?_ — using whichever mode's engine is already on screen, rather than a separate feature with its own harmonic logic.
+
+```text
+LIVE INPUT (optional layer)
+        │
+        ▼
+ detected pitch → physical position(s) → existing harmonic context
+        │
+        ├──> Chord Field         "Played E — 3 of C7, structural"
+        ├──> Progression Field   "Played F — b7 of G7, resolves to E (Cmaj7's 3)"
+        ├──> Voice-Leading Paths "Played E — matches the current path step"
+        └──> Local Fields        "3 candidates, only 1 inside the active region — likely position"
+```
+
+**Pipeline:** Bass → USB audio interface/mic → Web Audio API → YIN pitch detection → temporal stabilization → `DetectedNote` → absolute-pitch-to-fretboard mapping → existing harmonic analysis → visual feedback.
+
+**Architectural boundary** (mirrors §13's engine layering): `src/lib/audio/` only ever produces a neutral `DetectedNote` — frequency, MIDI, pitch class, octave, cents, confidence. It has no concept of a chord, a key, a role, a progression, or a Voice-Leading Path; nothing in that domain imports from `src/lib/music/` beyond the bare `PitchClass` type. Harmonic meaning is layered on afterward, by the dedicated `src/lib/stores/live-input.svelte.ts` store combined with the main store's already-computed analysis — never a second, parallel harmonic engine.
+
+**Detection:** a pure-TypeScript YIN implementation (difference function → cumulative mean normalized difference → absolute-threshold search → parabolic interpolation), tuned to the electric bass's practical range (~35–450 Hz). YIN was chosen because bass tone is harmonically rich enough that a louder overtone can outweigh the fundamental — naive approaches (zero-crossings, highest FFT bin, raw spectral peak) are unreliable for exactly that reason.
+
+**Ambiguity is real, not a bug.** A detected pitch generally maps to more than one physical position (the same E2 is reachable on three different strings). Live Input never hides that: every physically valid position lights up as a candidate, and only when something already on screen narrows it down — a selected Voice-Leading Path step, an active Local Field containing exactly one candidate, or continuity from where the player was a moment ago — does one candidate get marked as the likely one. Absent all of that, the ambiguity stays visible rather than guessing a string.
+
+**Visual layering, not replacement.** The live-played layer is an additional, independent visual state composed on top of whatever a fret already shows (its Harmonic Role pill, its Voice-Leading Path step, its Local Field dimming) — never a substitute for it. A fret can simultaneously be a chord's structural tone, the current step of a selected path, and the position that's currently sounding, and all three stay visible.
+
+**Product framing:** Live Input is not a tuner. The loop it supports is `SEE → PLAY → DETECT → UNDERSTAND → SEE NEXT POSSIBILITIES → PLAY` — not just "what note did I play?" but "what does it mean here, and where can I go from here?"
+
+**Privacy:** entirely client-side. Audio is analyzed locally in the browser; nothing is recorded, stored, or uploaded, and there is no backend.
+
+**Explicitly out of scope for this feature:** polyphonic pitch detection, chord recognition from audio, automatic backing tracks, MIDI input, recording, audio playback, a metronome, scoring/gamification, account persistence, cloud processing, ML-based pitch models, automatic progression advancement, a full Guided Practice mode, and transcription. Some of these may become their own future modes (see §19); Live Input deliberately stays a thin, honest layer rather than growing into all of them at once.
+
+---
+
+## 19. Future modes
 
 Potential extensions:
 
@@ -665,7 +701,7 @@ Mirror fretboard orientation.
 
 ---
 
-## 19. Accessibility
+## 20. Accessibility
 
 Requirements:
 
@@ -685,7 +721,7 @@ A string, fret 3, C, root, interval 1
 
 ---
 
-## 20. Testing strategy
+## 21. Testing strategy
 
 ### Unit tests
 
@@ -722,7 +758,7 @@ click C → choose Dominant 7 → verify C/E/G/Bb roles → switch root to F →
 
 ---
 
-## 21. Non-goals for v1
+## 22. Non-goals for v1
 
 Do not add:
 
@@ -742,7 +778,7 @@ FretField should first become exceptionally good at one thing:
 
 ---
 
-## 22. Success criteria
+## 23. Success criteria
 
 The MVP succeeds when a bassist can:
 

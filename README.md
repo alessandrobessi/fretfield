@@ -17,6 +17,8 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 | 🧭 **Voice-Leading Paths** | _What route should I take?_           | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.         |
 | 📍 **Local Fields**        | _Where on the neck should I play it?_ | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                   |
 
+**Live Input** is an optional layer over all four, not a fifth mode: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch, highlights every fret that physically produces it, and explains it using whichever mode is active — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
+
 **Try it live:** https://alessandrobessi.github.io/fretfield/
 
 ---
@@ -75,8 +77,20 @@ src/lib/music/
 ├── progressions.ts            declarative progression templates
 ├── connection-score.ts        pitch-class-level resolution scoring
 ├── voice-leading.ts           full-field transition analysis
-└── voice-leading-paths.ts     exact-DP path search across a progression
+├── voice-leading-paths.ts     exact-DP path search across a progression
+├── absolute-pitch.ts          MIDI-based fretboard mapping for Live Input
+└── live-position.ts           ambiguous-position ranking for Live Input
+
+src/lib/audio/
+├── types.ts                   DetectedNote, LiveNoteState, the LiveAudioSource abstraction
+├── pitch-detector.ts          YIN fundamental-frequency detection
+├── pitch-tracker.ts           temporal stabilization (onset/sustain/release)
+├── note-mapping.ts            frequency ↔ MIDI ↔ pitch-class conversions
+├── audio-input.ts             real browser capture (getUserMedia + AnalyserNode)
+└── fake-audio-source.ts       deterministic capture double, used by tests
 ```
+
+`src/lib/audio/` only ever knows about acoustic pitch — frequency, MIDI, confidence. It has no concept of a chord, a key, or a role; that meaning is layered on afterward by `src/lib/stores/live-input.svelte.ts` and the main store, which combine a detected note with whatever `src/lib/music/` analysis is already on screen.
 
 Every non-trivial harmonic claim in the engine is checked against a concrete example from the product spec rather than "the tests pass" alone — e.g. the full Harmonic Field over C7 is asserted against BLUEPRINT.md's own worked table, and G7→Cmaj7's guide-tone resolutions (F→E, B→C) are asserted by name.
 

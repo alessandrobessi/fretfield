@@ -1,3 +1,4 @@
+import { matchesTarget } from '$lib/audio/note-mapping';
 import { getChordDefinition } from '$lib/music/chords';
 import type { NoteConnection } from '$lib/music/connection-score';
 import { createFretboard, type FretPosition } from '$lib/music/fretboard';
@@ -8,7 +9,12 @@ import {
 	type HarmonicRole,
 	roleCharacter
 } from '$lib/music/harmony';
-import { type IntervalId, intervalCompoundLabel, noteNameForPosition } from '$lib/music/intervals';
+import {
+	type IntervalId,
+	intervalCompoundLabel,
+	intervalFromRoot,
+	noteNameForPosition
+} from '$lib/music/intervals';
 import {
 	DEFAULT_REGION_WIDTH,
 	type FretboardRegion,
@@ -16,6 +22,7 @@ import {
 	findUsefulLocalFields
 } from '$lib/music/local-fields';
 import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
+import { liveInput } from '$lib/stores/live-input.svelte';
 import {
 	type ResolvedChord,
 	buildProgression,
@@ -75,6 +82,12 @@ export interface DisplayFretPosition extends FretPosition {
 	isInActiveRegion: boolean | null;
 	/** Voice-Leading Paths lens: this position's role in the selected path, if any. */
 	pathRole: 'previous' | 'current' | 'next' | null;
+	/** Live Input layer: this position produces the exact pitch currently sounding. Composes with role/region/path styling — never replaces it. */
+	isLivePlayed: boolean;
+	/** Live Input layer: this is the one candidate inferLivePosition() judged most likely, when the pitch is ambiguous. */
+	isLiveLikely: boolean;
+	/** Progression Field's Live Input layer (§13): this position is the best resolution target for the currently-played note. */
+	isLiveNextTarget: boolean;
 }
 
 /** A progression chord enriched with its display symbol, for the ProgressionStrip. */
@@ -100,6 +113,40 @@ export interface DisplayNoteConnection {
 	nextChordSymbol: string;
 }
 
+/** The currently-playing note, spelled for display — independent of which Field mode is active. */
+export interface DisplayLiveNote {
+	noteName: string;
+	frequencyHz: number;
+	cents: number;
+	octave: number;
+}
+
+/** Chord Field's reading of the live-played note (§12): reuses the exact same role/interval engine as the static fretboard. */
+export interface DisplayLiveChordInterpretation {
+	noteName: string;
+	intervalLabel: string;
+	roleLabel: string;
+}
+
+/** Progression Field's reading of the live-played note (§13): reuses the existing connection/resolution engine — no separate resolution rules. */
+export interface DisplayLiveProgressionInterpretation {
+	noteName: string;
+	intervalLabel: string;
+	roleLabel: string;
+	commonTone: boolean;
+	bestTargetNoteName: string | null;
+	bestTargetIntervalLabel: string | null;
+	semitoneMovement: number | null;
+	nextChordSymbol: string;
+}
+
+/** Voice-Leading Paths' reading of the live-played note (§14): did it match the current step's expected pitch? */
+export interface DisplayLivePathMatch {
+	expectedNoteName: string;
+	detectedNoteName: string;
+	matched: boolean;
+}
+
 class FretFieldStore {
 	readonly tuning: Tuning = STANDARD_4_STRING_TUNING;
 	readonly fretCount: number = DEFAULT_FRET_COUNT;
@@ -117,6 +164,20 @@ class FretFieldStore {
 	activeChordIndex = $state(0);
 	pathPreset = $state<PathPreset>('balanced');
 	selectedPathIndex = $state<number | null>(null);
+
+	constructor() {
+		// Live Input needs Voice-Leading Path/Local Field context to disambiguate
+		// a detected pitch, but must stay ignorant of this store to avoid a
+		// circular dependency — so it pulls context through an injected getter
+		// instead of importing fretfield.svelte.ts itself.
+		liveInput.setContextProvider(() => ({
+			voiceLeadingPathPosition:
+				this.mode === 'paths'
+					? (this.selectedPath?.positions[this.activeChordIndex] ?? null)
+					: null,
+			localFieldRegion: this.activeRegion
+		}));
+	}
 
 	readonly resolvedProgression = $derived.by<DisplayResolvedChord[]>(() => {
 		const root = this.root;
@@ -201,6 +262,20 @@ class FretFieldStore {
 		const analyzed = this.analyzed;
 		const region = this.activeRegion;
 
+		const liveCandidates = liveInput.candidatePositions;
+		const liveLikely = liveInput.likelyPosition;
+		const liveNextTarget = this.liveNextTargetPitchClass;
+		const isLivePlayedPosition = (position: FretPosition): boolean =>
+			liveCandidates.some(
+				(c) => c.stringIndex === position.stringIndex && c.fret === position.fret
+			);
+		const isLiveLikelyPosition = (position: FretPosition): boolean =>
+			liveLikely !== null &&
+			liveLikely.stringIndex === position.stringIndex &&
+			liveLikely.fret === position.fret;
+		const isLiveNextTargetPosition = (position: FretPosition): boolean =>
+			liveNextTarget !== null && position.pitchClass === liveNextTarget;
+
 		if (analyzed === null) {
 			return createFretboard(this.tuning, this.fretCount).map((position) => ({
 				...position,
@@ -217,7 +292,10 @@ class FretFieldStore {
 				isSelectedRootPosition: false,
 				isVisibleInMode: false,
 				isInActiveRegion: null,
-				pathRole: null
+				pathRole: null,
+				isLivePlayed: isLivePlayedPosition(position),
+				isLiveLikely: isLiveLikelyPosition(position),
+				isLiveNextTarget: isLiveNextTargetPosition(position)
 			}));
 		}
 
@@ -271,7 +349,10 @@ class FretFieldStore {
 					? 'previous'
 					: matchesPosition(nextPathPosition, position)
 						? 'next'
-						: null
+						: null,
+			isLivePlayed: isLivePlayedPosition(position),
+			isLiveLikely: isLiveLikelyPosition(position),
+			isLiveNextTarget: isLiveNextTargetPosition(position)
 		}));
 	});
 
@@ -320,6 +401,102 @@ class FretFieldStore {
 			bestTargetRoleLabel: roleCharacter(analyzeInterval(nextChordDef, best.targetInterval)),
 			semitoneMovement: best.semitoneMovement,
 			nextChordSymbol: nextChord.symbol
+		};
+	});
+
+	/** Progression Field (§13): the played note's best resolution target, by pitch class — used to emphasize that fret on the board, not just describe it in text. */
+	readonly liveNextTargetPitchClass = $derived.by<PitchClass | null>(() => {
+		const note = liveInput.detectedNote;
+		const transition = this.currentTransition;
+		if (note === null || transition === null) return null;
+		const connection = connectionFor(transition, note.pitchClass);
+		return connection.targets[0]?.targetPitchClass ?? null;
+	});
+
+	/** The currently-playing note, spelled against whatever root is on screen right now. Independent of mode. */
+	readonly liveNote = $derived.by<DisplayLiveNote | null>(() => {
+		const note = liveInput.detectedNote;
+		if (note === null) return null;
+		const usesProgressionRoot = this.mode === 'progression' || this.mode === 'paths';
+		const displayRoot = usesProgressionRoot
+			? (this.activeProgressionChord?.root ?? null)
+			: this.root;
+		return {
+			noteName:
+				displayRoot === null
+					? defaultNoteName(note.pitchClass)
+					: noteNameForPosition(displayRoot, note.pitchClass),
+			frequencyHz: note.frequencyHz,
+			cents: note.cents,
+			octave: note.octave
+		};
+	});
+
+	/** Chord Field's interpretation of the live-played note (§12) — reuses `analyzeInterval`, never a parallel role table. */
+	readonly liveChordInterpretation = $derived.by<DisplayLiveChordInterpretation | null>(() => {
+		const note = liveInput.detectedNote;
+		if (note === null) return null;
+		const usesProgressionRoot = this.mode === 'progression' || this.mode === 'paths';
+		const root = usesProgressionRoot ? (this.activeProgressionChord?.root ?? null) : this.root;
+		const chordId = usesProgressionRoot ? this.activeProgressionChord?.chordId : this.chordId;
+		if (root === null || chordId === undefined) return null;
+
+		const interval = intervalFromRoot(root, note.pitchClass);
+		const role = analyzeInterval(getChordDefinition(chordId), interval);
+		return {
+			noteName: noteNameForPosition(root, note.pitchClass),
+			intervalLabel: intervalCompoundLabel(interval),
+			roleLabel: roleCharacter(role)
+		};
+	});
+
+	/** Progression Field's interpretation of the live-played note (§13) — reuses the existing connection/resolution engine. */
+	readonly liveProgressionInterpretation = $derived.by<DisplayLiveProgressionInterpretation | null>(
+		() => {
+			const note = liveInput.detectedNote;
+			const transition = this.currentTransition;
+			const progression = this.resolvedProgression;
+			if (note === null || transition === null || progression.length < 2) return null;
+
+			const connection = connectionFor(transition, note.pitchClass);
+			const currentChord = progression[this.activeChordIndex];
+			const nextChord = progression[(this.activeChordIndex + 1) % progression.length];
+			const best = connection.targets[0] ?? null;
+
+			return {
+				noteName: noteNameForPosition(currentChord.root, note.pitchClass),
+				intervalLabel: intervalCompoundLabel(connection.currentInterval),
+				roleLabel: roleCharacter(connection.currentRole),
+				commonTone: connection.commonTone,
+				bestTargetNoteName: best
+					? noteNameForPosition(nextChord.root, best.targetPitchClass)
+					: null,
+				bestTargetIntervalLabel: best ? intervalCompoundLabel(best.targetInterval) : null,
+				semitoneMovement: best ? best.semitoneMovement : null,
+				nextChordSymbol: nextChord.symbol
+			};
+		}
+	);
+
+	/** Voice-Leading Paths' interpretation of the live-played note (§14): matches the current step's expected pitch, no auto-advance. */
+	readonly livePathMatch = $derived.by<DisplayLivePathMatch | null>(() => {
+		const note = liveInput.detectedNote;
+		const path = this.selectedPath;
+		if (note === null || path === null || this.mode !== 'paths') return null;
+
+		const progression = this.resolvedProgression;
+		const expectedPosition = path.positions[this.activeChordIndex];
+		if (!expectedPosition) return null;
+		const expectedRoot = progression[this.activeChordIndex]?.root ?? null;
+		const spell = (pitchClass: PitchClass): string =>
+			expectedRoot === null
+				? defaultNoteName(pitchClass)
+				: noteNameForPosition(expectedRoot, pitchClass);
+
+		return {
+			expectedNoteName: spell(expectedPosition.pitchClass),
+			detectedNoteName: spell(note.pitchClass),
+			matched: matchesTarget(note, expectedPosition.pitchClass)
 		};
 	});
 

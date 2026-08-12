@@ -5,11 +5,13 @@
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import HarmonyControls from '$lib/components/HarmonyControls.svelte';
 	import Legend from '$lib/components/Legend.svelte';
+	import LiveInputControls from '$lib/components/LiveInputControls.svelte';
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
 	import PathsControls from '$lib/components/PathsControls.svelte';
 	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
+	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
 	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
 
 	// Restore once on load; URL-shareable state only (root/mode/chord/display/
@@ -19,6 +21,7 @@
 		fretfield.restoreFromURLState(
 			decodeStateFromSearchParams(new URLSearchParams(window.location.search))
 		);
+		installLiveInputTestHooks();
 	}
 
 	$effect(() => {
@@ -43,6 +46,7 @@
 	</header>
 
 	<FieldModeSwitcher />
+	<LiveInputControls />
 
 	{#if fretfield.mode === 'progression'}
 		<ProgressionControls />

@@ -32,6 +32,9 @@
 		if (position.pathRole === 'current') parts.push('current path step');
 		else if (position.pathRole === 'previous') parts.push('previous path step');
 		else if (position.pathRole === 'next') parts.push('next path step');
+		if (position.isLiveLikely) parts.push('currently played');
+		else if (position.isLivePlayed) parts.push('possible played position');
+		if (position.isLiveNextTarget) parts.push('best resolution target');
 		return parts.join(', ');
 	});
 </script>
@@ -44,6 +47,9 @@
 	class:selected-root={position.isSelectedRootPosition}
 	class:region-active={position.isInActiveRegion === true}
 	class:region-dimmed={position.isInActiveRegion === false}
+	class:live-played={position.isLivePlayed}
+	class:live-likely={position.isLiveLikely}
+	class:live-next-target={position.isLiveNextTarget}
 	data-path-role={position.pathRole}
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
@@ -215,6 +221,55 @@
 	.fret-cell[data-path-role='next'] {
 		outline: 2px dotted color-mix(in srgb, var(--nut, #7c3aed) 65%, transparent);
 		outline-offset: -2px;
+	}
+
+	/*
+	 * Live Input layer: an independent ::after pseudo-element rather than
+	 * outline/box-shadow on .fret-cell itself, so it never collides with
+	 * pathRole's outline or selected-root's box-shadow — a fret can be
+	 * structural + a path step + a live candidate all at once, and every
+	 * distinction has to stay visible (product spec §9/§15).
+	 */
+	.fret-cell.live-played::after {
+		content: '';
+		position: absolute;
+		inset: 3px;
+		border-radius: 6px;
+		border: 2px dashed var(--live-accent, #06b6d4);
+		pointer-events: none;
+	}
+
+	.fret-cell.live-likely::after {
+		border: 3px solid var(--live-accent, #06b6d4);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.fret-cell.live-likely::after {
+			animation: live-pulse 700ms ease-out 1;
+		}
+	}
+
+	@keyframes live-pulse {
+		from {
+			box-shadow: 0 0 0 6px color-mix(in srgb, var(--live-accent, #06b6d4) 45%, transparent);
+		}
+		to {
+			box-shadow: 0 0 0 0 transparent;
+		}
+	}
+
+	/*
+	 * Progression Field's "where this note wants to go" layer (§13) — a
+	 * separate ::before pseudo-element so it composes independently of the
+	 * ::after played/likely ring above and of .selected-root's box-shadow.
+	 */
+	.fret-cell.live-next-target::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 2px var(--live-target-accent, #10b981);
+		pointer-events: none;
 	}
 
 	.label {

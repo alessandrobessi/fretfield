@@ -93,6 +93,14 @@ Must not import:
 - CSS
 - route modules
 
+### `src/lib/audio/`
+
+Pure TypeScript, acoustic-pitch domain only (Live Input's DSP layer). Responsibilities: Web Audio capture, YIN pitch detection, temporal stabilization, frequency/MIDI/pitch-class conversion. Its only output type, `DetectedNote`, is neutral — frequency, MIDI, pitch class, octave, cents, confidence.
+
+Must not know about, or import: chords, keys, `HarmonicRole`, progressions, Voice-Leading Paths, Local Fields, or anything else from `src/lib/music/` beyond the bare `PitchClass` type. Harmonic meaning is layered on afterward by `src/lib/stores/live-input.svelte.ts` combined with the main store's already-computed analysis — never a second, parallel harmonic engine living in this domain.
+
+Must not depend on a real microphone for tests — real capture (`audio-input.ts`) and the deterministic test double (`fake-audio-source.ts`) both implement the same `LiveAudioSource` interface, so DSP logic is tested with synthetic buffers and integration is tested with the fake source.
+
 ### `src/lib/components/`
 
 Rendering and interaction only.
@@ -104,6 +112,8 @@ Components consume analyzed music data.
 Application state only.
 
 Do not duplicate derived harmonic logic here.
+
+`live-input.svelte.ts` is a deliberately separate store from `fretfield.svelte.ts`: it owns the Web Audio lifecycle (`AudioContext`, `MediaStream`, `AnalyserNode`, device selection). Those must never leak into the main music-theory store — it only ever consumes plain `DetectedNote`/`FretPosition` state from `live-input.svelte.ts`, the same way a component consumes analyzed music data.
 
 ### `src/routes/`
 
@@ -573,6 +583,8 @@ Unless explicitly requested or scheduled in the roadmap, do not add:
 - analytics SDKs
 - advertising code
 
+Within Live Input specifically, also do not add: polyphonic pitch detection, chord recognition from audio, MIDI input, recording, audio playback, a metronome, ML-based pitch models, or automatic progression advancement — see `BLUEPRINT.md` §18 for the full exclusion list and why. Live Input stays a thin layer over the existing four modes; it is not the place to build a second product.
+
 Maintain product focus.
 
 ---
@@ -584,7 +596,14 @@ Built so far, in `src/lib/music/`:
 ```text
 pitch.ts intervals.ts tuning.ts fretboard.ts chords.ts harmony.ts
 local-fields.ts progressions.ts connection-score.ts voice-leading.ts
-voice-leading-paths.ts
+voice-leading-paths.ts absolute-pitch.ts live-position.ts
+```
+
+And in `src/lib/audio/` (Live Input's acoustic-pitch domain — see §4):
+
+```text
+types.ts pitch-detector.ts pitch-tracker.ts note-mapping.ts
+audio-input.ts fake-audio-source.ts
 ```
 
 Future modules may include:
@@ -596,6 +615,8 @@ practice/interval-trainer.ts
 practice/walking-bass.ts
 audio/playback.ts
 ```
+
+(`audio/playback.ts` above is audio _output_ — playing selected notes/chords, per ROADMAP.md's Phase 11 — a distinct, still-unbuilt feature from Live Input's audio _input_/detection in `src/lib/audio/`.)
 
 These must build on the existing pure music engine rather than replacing it with UI-specific logic. In particular, `progressions.ts` (declarative `ProgressionTemplate`s), `connection-score.ts` (pitch-class-level resolution scoring), and `voice-leading-paths.ts` (the exact-DP path search over `FretPosition`s) are three separate layers — new work should extend the layer that actually owns the concept rather than reaching across them.
 

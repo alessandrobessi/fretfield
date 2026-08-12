@@ -25,7 +25,9 @@ Voice-Leading Paths    = Phase 9 (Voice-leading mode), generalized to full paths
 Local Fields            = new: bass-native regions, not originally scoped            — done
 ```
 
-Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (practice modes, audio, alternate tunings, educational integration).
+Phase 9.5 (Live Input — real-time bass pitch detection layered over all four modes) is also done; see `BLUEPRINT.md` §18.
+
+Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (practice modes, audio playback, alternate tunings, educational integration).
 
 ---
 
@@ -545,6 +547,35 @@ This creates a spatial graph of melodic possibilities.
 FretField begins answering:
 
 > “Where should I move next?”
+
+---
+
+# Phase 9.5 — Live Input
+
+## Goal
+
+Let the player plug in a real bass and have FretField react to what's actually being played, as an optional layer over Chord Field, Progression Field, Voice-Leading Paths, and Local Fields — not a new mode with its own harmonic logic. See `BLUEPRINT.md` §18 for the full architecture and product framing.
+
+## Tasks
+
+- [x] `src/lib/audio/` domain: `DetectedNote`/`PitchEstimate`/`LiveNoteState` types, kept ignorant of chords/keys/roles
+- [x] pure-TypeScript YIN pitch detector, tuned to the bass range (~35–450 Hz), robust to a louder harmonic than the fundamental
+- [x] temporal stabilization (`PitchTracker`): onset requires consecutive-frame agreement, brief dropouts don't drop a held note, sustained silence releases it
+- [x] `src/lib/music/absolute-pitch.ts`: MIDI-based open-string tuning and exact fret-position mapping, separate from the existing pitch-class-only `Tuning`
+- [x] `src/lib/music/live-position.ts`: deterministic ambiguous-position ranking (unique → selected path step → active Local Field → movement continuity → stays ambiguous)
+- [x] real browser capture (`getUserMedia` + `AnalyserNode`, explicit Enable/Disable, no permission requested on load) and a deterministic `FakeAudioSource` test double behind a shared `LiveAudioSource` interface
+- [x] `src/lib/stores/live-input.svelte.ts`: owns the Web Audio lifecycle, kept separate from the music-theory store
+- [x] wired into the main store so Chord Field/Progression Field/Voice-Leading Paths interpret the live-played note via the _existing_ engine (`analyzeInterval`, `connectionFor`, `matchesTarget`) — no parallel harmonic logic
+- [x] fretboard `live-played` / `live-likely` / `live-next-target` layers, composed on top of existing role/path/region styling rather than replacing it
+- [x] `LiveInputControls.svelte`: Enable/Disable, device picker, status, detected note, diagnostic input-level meter
+- [x] unit tests for the DSP layer (synthetic buffers only, including harmonic-rich/adversarial cases) and the position-inference logic
+- [x] Playwright e2e coverage via the injected `FakeAudioSource` — no real microphone required in CI
+
+## Exit criteria
+
+FretField begins answering, live:
+
+> “What did I just play, and what does it mean here?”
 
 ---
 
