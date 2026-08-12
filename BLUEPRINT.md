@@ -17,7 +17,9 @@ Root selection, display mode, and progression selection persist across mode swit
 
 **Live Input** (§18) is a fifth, optional layer over all four — not a fifth `FieldMode`. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it, rather than adding a separate harmonic system.
 
-Sections 1–23 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
+**Guided Practice** (§19) is a sixth layer, built entirely on top of the other five: it turns each mode's existing answer into an exercise — propose a target, the player finds and plays it, Live Input detects it, the existing engine explains what happened. It owns no harmonic logic of its own and is not a `FieldMode` either.
+
+Sections 1–24 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
 
 ---
 
@@ -655,11 +657,54 @@ LIVE INPUT (optional layer)
 
 **Privacy:** entirely client-side. Audio is analyzed locally in the browser; nothing is recorded, stored, or uploaded, and there is no backend.
 
-**Explicitly out of scope for this feature:** polyphonic pitch detection, chord recognition from audio, automatic backing tracks, MIDI input, recording, audio playback, a metronome, scoring/gamification, account persistence, cloud processing, ML-based pitch models, automatic progression advancement, a full Guided Practice mode, and transcription. Some of these may become their own future modes (see §19); Live Input deliberately stays a thin, honest layer rather than growing into all of them at once.
+**Explicitly out of scope for this feature:** polyphonic pitch detection, chord recognition from audio, automatic backing tracks, MIDI input, recording, audio playback, a metronome, scoring/gamification, account persistence, cloud processing, ML-based pitch models, and automatic progression advancement. Live Input deliberately stays a thin, honest layer — it detects and explains, nothing more; turning that into an interactive exercise loop is Guided Practice's job (§19), built on top of it rather than folded into it.
 
 ---
 
-## 19. Future modes
+## 19. Guided Practice — closing the learning loop
+
+Guided Practice turns FretField from a visualization tool into an interactive bass-learning environment, built entirely on the five layers above it. It adds no harmonic engine of its own:
+
+```text
+FretField proposes a target
+        │
+        ▼
+   player finds and plays it
+        │
+        ▼
+   Live Input detects the note
+        │
+        ▼
+   the existing engine evaluates and explains it
+        │
+        ▼
+        next target
+```
+
+**Product principle:** hear/see a harmonic problem, make a physical choice on the bass, and immediately understand the musical consequence — not a Guitar-Hero-style binary note game. Wherever the underlying engine supports it, an answer is one of `exact / strong alternative / valid alternative / incorrect for this exercise`, not a flat right/wrong (§9's "you played D — 9 of Cmaj7, musically valid, but this exercise asked for the 3rd" is the model example).
+
+**The four initial exercise modes**, each mapped directly onto an existing Field mode's question:
+
+```text
+Find Interval        "Can you locate this interval relative to the root?"        — Chord Field
+Find Chord Tone       "Can you find this structural note of the current chord?"   — Chord Field
+Resolve Note           "Given this note, can you find a strong resolution?"        — Progression Field
+Follow Path             "Can you follow the selected voice-leading path?"           — Voice-Leading Paths
+```
+
+**Architecture** (`src/lib/practice/`): a pure decision layer, parallel to `$lib/music` and `$lib/audio`, that takes a plain `PracticeContext` (root, chord, progression, selected path, active region — all read from the existing stores, never duplicated) and decides what the current exercise is and whether a played note satisfies it. `evaluateAttempt()` is the one place a note is compared against a target; Resolve Note's targets come from calling `analyzeConnection`/`connectionFor` directly — G7→Cmaj7's F→E and B→C are proven, not hardcoded, the same invariant Live Input's Progression Field integration already relies on. Find Chord Tone's "valid alternative" ranking reuses `roleStability`. Follow Path reuses whichever `VoiceLeadingPath` is already selected, unchanged for the whole exercise — the practice engine never recomputes a different path mid-exercise.
+
+**Session state machine:** `idle → prompting → waiting-for-note → evaluating → feedback → next exercise`, with no timers — the player always sees feedback before a next target appears, whether by an automatic short transition or an explicit Next button. A sustained note (many repeated `DetectedNote` frames) registers as exactly one attempt, gated on Live Input's onset signal, not on raw audio frames.
+
+**Position vs. pitch:** most exercises only require the right pitch class, in any octave — audio alone can't prove which string/fret was used. Only when a Local Field is explicitly active and the exercise is trained for it does physical position matter, and even then an ambiguous-but-plausible position is reported as "correct — position ambiguous" rather than rejected, reusing Live Input's own position-inference confidence rather than inventing new certainty math.
+
+**Hint levels** (`hidden / interval / positions`, default `positions` for beginners) control how much of the target is shown before the player plays: nothing, the interval name, or the interval name plus a highlight on every valid fretboard position. The highlight composes with — never replaces — existing role/path/region/Live-Input styling.
+
+**Explicitly out of scope for this feature:** a metronome, backing tracks, automatic chord timing, rhythm/duration/tempo scoring, polyphonic detection, MIDI input, recording, persistent progress, user accounts, achievements, an adaptive AI teacher, spaced repetition, and generated bass lines. Session statistics (attempts, correct, strong alternatives, exercises completed) live only in memory and reset on reload — no backend, no account.
+
+---
+
+## 20. Future modes
 
 Potential extensions:
 
@@ -701,7 +746,7 @@ Mirror fretboard orientation.
 
 ---
 
-## 20. Accessibility
+## 21. Accessibility
 
 Requirements:
 
@@ -721,7 +766,7 @@ A string, fret 3, C, root, interval 1
 
 ---
 
-## 21. Testing strategy
+## 22. Testing strategy
 
 ### Unit tests
 
@@ -758,7 +803,7 @@ click C → choose Dominant 7 → verify C/E/G/Bb roles → switch root to F →
 
 ---
 
-## 22. Non-goals for v1
+## 23. Non-goals for v1
 
 Do not add:
 
@@ -778,7 +823,7 @@ FretField should first become exceptionally good at one thing:
 
 ---
 
-## 23. Success criteria
+## 24. Success criteria
 
 The MVP succeeds when a bassist can:
 

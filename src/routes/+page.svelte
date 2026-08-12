@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
+	import GuidedPracticeControls from '$lib/components/GuidedPracticeControls.svelte';
 	import HarmonyControls from '$lib/components/HarmonyControls.svelte';
 	import Legend from '$lib/components/Legend.svelte';
 	import LiveInputControls from '$lib/components/LiveInputControls.svelte';
@@ -12,6 +13,7 @@
 	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
+	import { installPracticeTestHooks } from '$lib/testing/practice-test-hooks';
 	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
 
 	// Restore once on load; URL-shareable state only (root/mode/chord/display/
@@ -22,6 +24,7 @@
 			decodeStateFromSearchParams(new URLSearchParams(window.location.search))
 		);
 		installLiveInputTestHooks();
+		installPracticeTestHooks();
 	}
 
 	$effect(() => {
@@ -47,6 +50,7 @@
 
 	<FieldModeSwitcher />
 	<LiveInputControls />
+	<GuidedPracticeControls />
 
 	{#if fretfield.mode === 'progression'}
 		<ProgressionControls />

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { DisplayFretPosition, DisplayMode } from '$lib/stores/fretfield.svelte';
 	import { roleStyleFor } from '$lib/config/roles';
+	import { practice } from '$lib/stores/practice.svelte';
 
 	interface Props {
 		position: DisplayFretPosition;
@@ -17,6 +18,22 @@
 	// different display filter (fretfield.svelte.ts's isVisibleInMode).
 	const visibleRole = $derived(position.isVisibleInMode ? position.role : null);
 	const roleStyle = $derived(roleStyleFor(visibleRole));
+
+	const isSamePosition = (p: { stringIndex: number; fret: number }): boolean =>
+		p.stringIndex === position.stringIndex && p.fret === position.fret;
+
+	// Guided Practice's hint layer (§11): a target only ever lights up the
+	// fretboard at 'positions' hint level — 'hidden'/'interval' keep the
+	// prompt purely conceptual, so `practice.targetPositions` is already
+	// empty at those levels (see stores/practice.svelte.ts).
+	const isPracticeTarget = $derived(practice.targetPositions.some(isSamePosition));
+
+	// Guided Practice's result layer (§9): only the fret(s) that could have
+	// produced the just-played note get a result marker, and only while
+	// feedback is actually showing.
+	const practiceResult = $derived.by(() =>
+		practice.lastPlayedPositions.some(isSamePosition) ? practice.lastResult : null
+	);
 
 	const label = $derived.by(() => {
 		if (position.interval === null) return position.noteName;
@@ -35,6 +52,10 @@
 		if (position.isLiveLikely) parts.push('currently played');
 		else if (position.isLivePlayed) parts.push('possible played position');
 		if (position.isLiveNextTarget) parts.push('best resolution target');
+		if (isPracticeTarget) parts.push('practice target');
+		if (practiceResult !== null && practiceResult !== 'ignored') {
+			parts.push(`practice result: ${practiceResult.replace('-', ' ')}`);
+		}
 		return parts.join(', ');
 	});
 </script>
@@ -50,7 +71,9 @@
 	class:live-played={position.isLivePlayed}
 	class:live-likely={position.isLiveLikely}
 	class:live-next-target={position.isLiveNextTarget}
+	class:practice-target={isPracticeTarget}
 	data-path-role={position.pathRole}
+	data-practice-result={practiceResult}
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
@@ -61,6 +84,12 @@
 	onfocus={() => onInspect(position)}
 	onmouseenter={() => onInspect(position)}
 >
+	{#if isPracticeTarget}
+		<span class="practice-target-marker" aria-hidden="true"></span>
+	{/if}
+	{#if practiceResult !== null && practiceResult !== 'ignored'}
+		<span class="practice-result-marker" data-result={practiceResult} aria-hidden="true"></span>
+	{/if}
 	<span class="pill" data-role={visibleRole} data-shape={roleStyle?.shape}>
 		<span class="label">{label}</span>
 	</span>
@@ -270,6 +299,48 @@
 		border-radius: inherit;
 		box-shadow: inset 0 0 0 2px var(--live-target-accent, #10b981);
 		pointer-events: none;
+	}
+
+	/*
+	 * Guided Practice layers: real (aria-hidden) elements rather than more
+	 * pseudo-elements — ::before/::after are already spoken for by the Live
+	 * Input layers above, and a fret can be a target AND show a result AND
+	 * be a live-played candidate all at once (product spec §10).
+	 */
+	.practice-target-marker {
+		position: absolute;
+		inset: 3px;
+		border-radius: 6px;
+		border: 2px dashed var(--practice-target-accent, #10b981);
+		pointer-events: none;
+	}
+
+	.practice-result-marker {
+		position: absolute;
+		inset: 1px;
+		border-radius: 8px;
+		pointer-events: none;
+	}
+
+	.practice-result-marker[data-result='exact'],
+	.practice-result-marker[data-result='strong-alternative'] {
+		border: 3px solid var(--practice-correct-accent, #10b981);
+	}
+
+	.practice-result-marker[data-result='valid-alternative'] {
+		border: 3px solid var(--practice-caution-accent, #eab308);
+	}
+
+	/* Restrained on purpose (product spec §10/§21): no red flash, just a calm, dismissable outline. */
+	.practice-result-marker[data-result='incorrect'] {
+		border: 2px dashed var(--practice-incorrect-accent, #94a3b8);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.practice-result-marker[data-result='exact'],
+		.practice-result-marker[data-result='strong-alternative'] {
+			animation: live-pulse 700ms ease-out 1;
+		}
 	}
 
 	.label {

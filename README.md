@@ -19,6 +19,8 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 
 **Live Input** is an optional layer over all four, not a fifth mode: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch, highlights every fret that physically produces it, and explains it using whichever mode is active — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
 
+**Guided Practice** turns those same four modes into exercises, closing the loop: FretField proposes a target (find an interval, find a chord tone, resolve a note into the next chord, or follow a voice-leading path one step at a time), you find and play it, Live Input detects it, and FretField explains what happened — exact, a strong or valid alternative, or not quite, never a flat right/wrong. Also not a fifth mode; it's built entirely on the same four questions and the same harmonic engine.
+
 **Try it live:** https://alessandrobessi.github.io/fretfield/
 
 ---
@@ -88,9 +90,18 @@ src/lib/audio/
 ├── note-mapping.ts            frequency ↔ MIDI ↔ pitch-class conversions
 ├── audio-input.ts             real browser capture (getUserMedia + AnalyserNode)
 └── fake-audio-source.ts       deterministic capture double, used by tests
+
+src/lib/practice/
+├── types.ts                   PracticeSession/Exercise/Target/Evaluation — structured, not UI strings
+├── evaluation.ts               centralized exact/strong/valid/incorrect scoring, reused from connection-score.ts
+├── exercise-generators.ts      one generator per mode, deterministic with an injectable random source
+├── practice-engine.ts          the pure prompting → waiting-for-note → feedback session state machine
+└── presets.ts                  mode labels, default settings/thresholds
 ```
 
 `src/lib/audio/` only ever knows about acoustic pitch — frequency, MIDI, confidence. It has no concept of a chord, a key, or a role; that meaning is layered on afterward by `src/lib/stores/live-input.svelte.ts` and the main store, which combine a detected note with whatever `src/lib/music/` analysis is already on screen.
+
+`src/lib/practice/` decides what exercise is active and whether a played note satisfies it — it never re-implements harmonic theory itself. A Resolve Note exercise's "F resolves to E" target comes from calling the same `analyzeConnection`/`connectionFor` functions Progression Field already uses; a Follow Path exercise reuses whichever `VoiceLeadingPath` is already selected, unchanged for the whole exercise.
 
 Every non-trivial harmonic claim in the engine is checked against a concrete example from the product spec rather than "the tests pass" alone — e.g. the full Harmonic Field over C7 is asserted against BLUEPRINT.md's own worked table, and G7→Cmaj7's guide-tone resolutions (F→E, B→C) are asserted by name.
 
@@ -111,7 +122,7 @@ pnpm dev -- --open
 pnpm lint       # prettier + eslint
 pnpm check      # svelte-check / TypeScript
 pnpm test:unit  # vitest — the music engine's invariants live here
-pnpm test:e2e   # playwright — full user flows across all four modes
+pnpm test:e2e   # playwright — full user flows across all four modes and Guided Practice
 pnpm build      # production build
 ```
 

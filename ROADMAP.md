@@ -25,9 +25,9 @@ Voice-Leading Paths    = Phase 9 (Voice-leading mode), generalized to full paths
 Local Fields            = new: bass-native regions, not originally scoped            — done
 ```
 
-Phase 9.5 (Live Input — real-time bass pitch detection layered over all four modes) is also done; see `BLUEPRINT.md` §18.
+Phase 9.5 (Live Input — real-time bass pitch detection layered over all four modes) and Phase 9.6 (Guided Practice — the exercise loop built on top of it) are also done; see `BLUEPRINT.md` §18–§19.
 
-Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (practice modes, audio playback, alternate tunings, educational integration).
+Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (remaining practice modes — Ear Training, Groove Navigation, Walking Bass — audio playback, alternate tunings, educational integration).
 
 ---
 
@@ -579,21 +579,39 @@ FretField begins answering, live:
 
 ---
 
+# Phase 9.6 — Guided Practice
+
+## Goal
+
+Turn the four Field modes plus Live Input into an interactive practice loop — propose a target, the player finds and plays it, the existing engine evaluates and explains it — without a second harmonic engine. See `BLUEPRINT.md` §19 for the full architecture and product framing.
+
+## Tasks
+
+- [x] `src/lib/practice/types.ts`: `PracticeSession`/`PracticeExercise`/`PracticeTarget`/`PracticeEvaluation`, structured (never pre-rendered UI strings)
+- [x] `src/lib/practice/evaluation.ts`: centralized `evaluateAttempt`, exact/strong-alternative/valid-alternative/incorrect via configurable thresholds, position-ambiguity handling that never rejects a correct pitch solely for an unprovable exact string/fret
+- [x] `src/lib/practice/exercise-generators.ts`: `createIntervalExercise`, `createChordToneExercise`, `createResolutionExercise` (reuses `analyzeConnection`/`connectionFor` — G7→Cmaj7's F→E/B→C proven, not hardcoded), `createPathExercise` (reuses the already-selected `VoiceLeadingPath`, stable for the whole exercise); deterministic with an injectable random source, simple recent-target exclusion
+- [x] `src/lib/practice/practice-engine.ts`: the pure `idle → active (waiting-for-note → feedback) → completed` session state machine, no timers
+- [x] `noteOnsetId` added to `live-input.svelte.ts` — the smallest clean signal needed so a sustained note registers as exactly one attempt, not one per audio frame
+- [x] `src/lib/stores/practice.svelte.ts`: orchestration store combining `fretfield` + `liveInput` state into a `PracticeContext`, drives `fretfield.mode`/`activeChordIndex` so existing Field-mode visuals track the exercise for free
+- [x] fretboard `practice-target` (hint-gated) / `practice-result` layers, composed independently of every existing role/path/region/Live-Input layer
+- [x] `GuidedPracticeControls.svelte`: mode picker, hint level, Local-Field-only toggle, prompt, feedback, Next, session stats
+- [x] unit tests per mode (including transposition invariance across C/Eb/A and Local Field position-ambiguity handling) and Playwright e2e coverage via the same injected `FakeAudioSource` — no real microphone required in CI
+
+## Exit criteria
+
+FretField closes the loop:
+
+> “See a target, play it, hear/see the result, understand what it means, see where to go next.”
+
+---
+
 # Phase 10 — Practice modes
 
 Add one mode at a time.
 
-## Interval Trainer
+## Interval Trainer / Chord-Tone Trainer
 
-- root appears
-- target interval is requested
-- user clicks fret
-- app validates
-
-## Chord-Tone Trainer
-
-- chord shown
-- player identifies chord tones
+Superseded by Guided Practice's Find Interval and Find Chord Tone modes (Phase 9.6) — same core mechanic (root/chord appears, a target is requested, the app validates), but played on a real bass through Live Input rather than validated by clicking a fret.
 
 ## Ear Training
 

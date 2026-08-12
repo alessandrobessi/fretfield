@@ -57,6 +57,16 @@ export class LiveInputStore {
 	likelyPosition = $state<FretPosition | null>(null);
 	inputLevel = $state<InputLevel>('no-signal');
 	error = $state<string | null>(null);
+	/**
+	 * Increments exactly once per genuinely new confirmed note — either the
+	 * first note after silence, or a legato change to a different pitch while
+	 * still sustaining. Stays constant across the many reinforcement frames a
+	 * single held note produces. This is the smallest clean "note-on" signal
+	 * a consumer (Guided Practice) needs to register one attempt per note
+	 * instead of dozens per second — see `applyTrackerState` below, which is
+	 * the one place that already knows when a note is genuinely new.
+	 */
+	noteOnsetId = $state(0);
 
 	private source: LiveAudioSource;
 	private readonly tracker: PitchTracker;
@@ -64,6 +74,7 @@ export class LiveInputStore {
 	private readonly fretCount: number;
 	private contextProvider: LiveInputContextProvider = () => ({});
 	private lastLikelyPosition: FretPosition | null = null;
+	private lastTrackedMidi: number | null = null;
 
 	constructor(
 		source: LiveAudioSource = new MicrophoneAudioSource(),
@@ -130,6 +141,7 @@ export class LiveInputStore {
 		this.candidatePositions = [];
 		this.likelyPosition = null;
 		this.lastLikelyPosition = null;
+		this.lastTrackedMidi = null;
 		this.inputLevel = 'no-signal';
 		this.error = null;
 	}
@@ -165,9 +177,13 @@ export class LiveInputStore {
 			this.detectedNote = null;
 			this.candidatePositions = [];
 			this.likelyPosition = null;
+			// A gap (however brief) means the *next* confirmed note — even if it's
+			// the same pitch as before — is a new attempt, not a continuation.
+			this.lastTrackedMidi = null;
 			return;
 		}
 
+		const isNewOnset = this.lastTrackedMidi !== state.note.midi;
 		this.detectedNote = state.note;
 		const candidates = findFretPositionsForMidi(this.tuning, this.fretCount, state.note.midi);
 		this.candidatePositions = candidates;
@@ -178,6 +194,11 @@ export class LiveInputStore {
 		});
 		this.likelyPosition = inference.likelyPosition;
 		this.lastLikelyPosition = inference.likelyPosition ?? this.lastLikelyPosition;
+
+		if (isNewOnset) {
+			this.lastTrackedMidi = state.note.midi;
+			this.noteOnsetId += 1;
+		}
 	}
 }
 

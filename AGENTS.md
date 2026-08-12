@@ -101,6 +101,14 @@ Must not know about, or import: chords, keys, `HarmonicRole`, progressions, Voic
 
 Must not depend on a real microphone for tests — real capture (`audio-input.ts`) and the deterministic test double (`fake-audio-source.ts`) both implement the same `LiveAudioSource` interface, so DSP logic is tested with synthetic buffers and integration is tested with the fake source.
 
+### `src/lib/practice/`
+
+Pure TypeScript, Guided Practice's decision layer. Responsibilities: deciding what exercise is active (`exercise-generators.ts`), whether a played note satisfies it (`evaluation.ts`), and the session state machine (`practice-engine.ts`). Sits _above_ `src/lib/music/` and `src/lib/audio/` (it may import both — that boundary is the other direction, see above) but has no dependency on any Svelte store; a `PracticeContext` is plain data (root, chord, progression, selected path, active region) assembled by the caller, so generators/evaluation stay pure and directly testable.
+
+Must not duplicate harmonic logic: a Resolve Note target's role/interval comes from calling `analyzeConnection`/`connectionFor` (the same functions Progression Field uses), never a parallel scoring table. Find Chord Tone/Find Interval's "valid alternative" ranking reuses `roleStability`. If a new exercise needs a "how good is this note" judgment the existing engine doesn't already expose, extend `$lib/music`, not `$lib/practice`.
+
+Must not depend on a real microphone for tests, same reasoning as `src/lib/audio/` — exercise generation and evaluation are tested with synthetic `DetectedNote` objects; only the Playwright layer touches the injected `FakeAudioSource`.
+
 ### `src/lib/components/`
 
 Rendering and interaction only.
@@ -114,6 +122,8 @@ Application state only.
 Do not duplicate derived harmonic logic here.
 
 `live-input.svelte.ts` is a deliberately separate store from `fretfield.svelte.ts`: it owns the Web Audio lifecycle (`AudioContext`, `MediaStream`, `AnalyserNode`, device selection). Those must never leak into the main music-theory store — it only ever consumes plain `DetectedNote`/`FretPosition` state from `live-input.svelte.ts`, the same way a component consumes analyzed music data.
+
+`practice.svelte.ts` is a third, separate store sitting above both: it's the only place that reads `fretfield` and `liveInput` together to build a `PracticeContext` and drive `$lib/practice`'s pure engine. It owns no harmonic or audio logic itself. `fretfield.svelte.ts` must never import `practice.svelte.ts` — that would be circular (practice already depends on fretfield); any fretboard visual layer Guided Practice needs is composed at the component level (`FretCell.svelte` reads both `fretfield` and `practice` directly) instead of being threaded through `DisplayFretPosition`. Svelte 5 reactivity note learned the hard way while building this: `$state` reads are tracked by call stack, not lexical scope, so a plain method call from inside `$effect` (e.g. `practice.handleDetectedNote(note)`) can silently capture deeply-nested store reads/writes as dependencies and self-retrigger; wrap such calls in `untrack(...)`, and never rely on `||`/`&&` short-circuiting to make multiple fields "tracked" — read each one into its own `const` first.
 
 ### `src/routes/`
 
@@ -585,6 +595,8 @@ Unless explicitly requested or scheduled in the roadmap, do not add:
 
 Within Live Input specifically, also do not add: polyphonic pitch detection, chord recognition from audio, MIDI input, recording, audio playback, a metronome, ML-based pitch models, or automatic progression advancement — see `BLUEPRINT.md` §18 for the full exclusion list and why. Live Input stays a thin layer over the existing four modes; it is not the place to build a second product.
 
+Within Guided Practice specifically, also do not add: a metronome, backing tracks, automatic chord timing, rhythm/duration/tempo scoring, persistent progress, user accounts, achievements, an adaptive AI teacher, spaced repetition, or generated bass lines — see `BLUEPRINT.md` §19. Session stats live only in memory for the current session; do not add a backend to persist them.
+
 Maintain product focus.
 
 ---
@@ -606,15 +618,22 @@ types.ts pitch-detector.ts pitch-tracker.ts note-mapping.ts
 audio-input.ts fake-audio-source.ts
 ```
 
+And in `src/lib/practice/` (Guided Practice's decision layer — see §4):
+
+```text
+types.ts evaluation.ts exercise-generators.ts practice-engine.ts presets.ts
+```
+
 Future modules may include:
 
 ```text
 music/scales.ts
 music/approaches.ts
-practice/interval-trainer.ts
 practice/walking-bass.ts
 audio/playback.ts
 ```
+
+(`practice/walking-bass.ts` above would back a future Walking Bass practice mode — target root arrivals with chromatic-approach hints, per ROADMAP.md's Phase 10; Find Interval/Find Chord Tone's original "Interval Trainer"/"Chord-Tone Trainer" framing is already covered by `practice/exercise-generators.ts`.)
 
 (`audio/playback.ts` above is audio _output_ — playing selected notes/chords, per ROADMAP.md's Phase 11 — a distinct, still-unbuilt feature from Live Input's audio _input_/detection in `src/lib/audio/`.)
 

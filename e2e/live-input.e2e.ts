@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { enableFakeInput, playNote } from './helpers';
 
 /**
  * These tests drive Live Input entirely through the `FakeAudioSource`
@@ -10,24 +11,6 @@ import { expect, test, type Page } from '@playwright/test';
 
 const E2_HZ = 82.4069;
 const F2_HZ = 87.3071;
-
-async function enableFakeInput(page: Page): Promise<void> {
-	await page.evaluate(async () => {
-		await (
-			window as unknown as { __fretfieldTestHooks__: { enableWithFakeSource(): Promise<void> } }
-		).__fretfieldTestHooks__.enableWithFakeSource();
-	});
-}
-
-async function playNote(page: Page, frequencyHz: number): Promise<void> {
-	await page.evaluate((freq) => {
-		(
-			window as unknown as {
-				__fretfieldTestHooks__: { playNote(frequencyHz: number): void };
-			}
-		).__fretfieldTestHooks__.playNote(freq);
-	}, frequencyHz);
-}
 
 test.describe('Live Input: Chord Field, played-pitch highlighting', () => {
 	test('playing E2 highlights every physically valid position and stays ambiguous with no context', async ({
