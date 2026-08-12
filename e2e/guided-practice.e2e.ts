@@ -21,6 +21,13 @@ async function startPractice(
 	mode: 'find-interval' | 'find-chord-tone' | 'resolve-note' | 'follow-path',
 	interval?: string
 ): Promise<void> {
+	// See helpers.ts's waitForTestHooks: `page.goto()` resolving doesn't mean
+	// +page.svelte's script (which installs this hook) has run yet.
+	await page.waitForFunction(
+		() =>
+			(window as unknown as { __fretfieldPracticeTestHooks__?: unknown })
+				.__fretfieldPracticeTestHooks__ !== undefined
+	);
 	await page.evaluate(
 		({ mode, interval }) => {
 			(
