@@ -104,31 +104,51 @@ export class LiveInputStore {
 		this.source = source;
 	}
 
-	/** The explicit user action that requests microphone permission — never called automatically. */
+	/**
+	 * The explicit user action that requests microphone permission — never
+	 * called automatically. Starts capture *before* enumerating devices:
+	 * browsers blank out every device's label and id until permission has
+	 * been granted at least once, so listing devices first (as this used to)
+	 * hands the UI placeholder ids that don't match any real device — picking
+	 * a specific one later (e.g. an interface by name) would then fail with a
+	 * "device not found" style error. Enumerating only after `source.start()`
+	 * succeeds guarantees `devices` always holds real, selectable ids.
+	 */
 	async enable(deviceId: string | null = null): Promise<void> {
 		this.source.stop();
 		this.tracker.stop();
 		this.error = null;
 		this.lastLikelyPosition = null;
 
-		try {
-			this.devices = await this.source.listDevices();
-		} catch {
-			this.devices = [];
-		}
-		this.selectedDeviceId = deviceId ?? this.selectedDeviceId ?? this.devices[0]?.deviceId ?? null;
+		// Falls back to whichever device was last selected — e.g. a plain
+		// Disable/Enable toggle (no explicit deviceId) should resume on the
+		// same interface rather than silently reverting to the OS default.
+		// `this.selectedDeviceId` is only ever a real id by this point (never
+		// the pre-permission placeholder), so it's always safe to reuse.
+		const requestedDeviceId = deviceId ?? this.selectedDeviceId;
 
 		this.tracker.start();
 		this.status = 'listening';
 
 		try {
-			await this.source.start(this.selectedDeviceId, this.handleFrame, this.handleSourceError);
+			await this.source.start(requestedDeviceId, this.handleFrame, this.handleSourceError);
 			this.enabled = true;
+			this.selectedDeviceId = requestedDeviceId;
 		} catch (caught) {
 			this.tracker.stop();
 			this.enabled = false;
 			this.status = 'error';
 			this.error = caught instanceof Error ? caught.message : 'Failed to start audio input.';
+			return;
+		}
+
+		try {
+			this.devices = await this.source.listDevices();
+			if (this.selectedDeviceId === null) {
+				this.selectedDeviceId = this.devices[0]?.deviceId ?? null;
+			}
+		} catch {
+			this.devices = [];
 		}
 	}
 
