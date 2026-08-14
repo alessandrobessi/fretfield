@@ -79,7 +79,7 @@
 		{/if}
 	</div>
 
-	{#if liveInput.enabled}
+	{#if liveInput.enabled || liveInput.error}
 		<div class="details">
 			{#if liveInput.devices.length > 0}
 				<label class="device-picker">
