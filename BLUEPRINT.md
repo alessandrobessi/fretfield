@@ -2,24 +2,27 @@
 
 > **Tagline:** See the harmonic field. Move through it.
 
-## 0. The four-field model (current product structure)
+## 0. The five-field model (current product structure)
 
-FretField answers four increasingly powerful questions, each a peer `FieldMode` selectable from the same fretboard and the same selected root:
+FretField answers five increasingly powerful questions, each a peer `FieldMode` selectable from the same fretboard and the same selected root:
 
 ```text
 Chord Field           "What can I play now?"          — full 12-role Harmonic Field over one chord
 Progression Field      "Where can I go next?"           — resolve a progression template, see each note's best resolution into the next chord
 Voice-Leading Paths    "What route should I take?"      — ranked, complete fretted paths through the whole progression
 Local Fields           "Where on the neck should I play it?" — ranked, overlapping neck regions, usable as a lens under any of the above
+Scale Blocks           "What scales fit across this progression?" — up to 4 independently-configured chords, each with its own scale, overlaid on the neck at once
 ```
 
-Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying harmonic selection. `?root=&mode=&chord=&display=&analysis=&progression=&chordIndex=&pathPreset=&region=` in the URL reproduces the same view (§7 Phase 7 originally scoped a narrower version of this; the shipped version covers all four modes).
+Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying harmonic selection. `?root=&mode=&chord=&display=&analysis=&progression=&chordIndex=&pathPreset=&region=` in the URL reproduces the same view (§7 Phase 7 originally scoped a narrower version of this; the shipped version covers all four original modes — Scale Blocks' `chordBlocks` state is deliberately session-only, see §20).
 
-**Live Input** (§18) is a fifth, optional layer over all four — not a fifth `FieldMode`. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it, rather than adding a separate harmonic system.
+Scale Blocks (§20) is structurally different from the other four: instead of one shared root/chord driving a single-chord analysis, it holds its own independent list of up to 4 chord blocks and shows all of their scales simultaneously. It's a genuine fifth mode, not a layer.
 
-**Guided Practice** (§19) is a sixth layer, built entirely on top of the other five: it turns each mode's existing answer into an exercise — propose a target, the player finds and plays it, Live Input detects it, the existing engine explains what happened. It owns no harmonic logic of its own and is not a `FieldMode` either.
+**Live Input** (§18) is an optional layer over all five modes — not a `FieldMode` itself. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it, rather than adding a separate harmonic system.
 
-Sections 1–24 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
+**Guided Practice** (§19) is a layer built entirely on top of Live Input and the four single-chord modes (it does not currently drive Scale Blocks): it turns each mode's existing answer into an exercise — propose a target, the player finds and plays it, Live Input detects it, the existing engine explains what happened. It owns no harmonic logic of its own and is not a `FieldMode` either.
+
+Sections 1–25 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
 
 ---
 
@@ -704,7 +707,31 @@ Follow Path             "Can you follow the selected voice-leading path?"       
 
 ---
 
-## 20. Future modes
+## 20. Scale Blocks — simultaneous multi-chord scale overlay
+
+Unlike Live Input and Guided Practice, Scale Blocks is a genuine fifth `FieldMode`, not a layer: it shows several chords' scales at once rather than one chord's role field at a time, so it needed its own state (`chordBlocks`) rather than reusing `root`/`chordId`.
+
+```text
+build up to 4 chord blocks
+        │
+        ▼
+each block: its own root + chord quality + a scale that fits it
+        │
+        ▼
+every fret on the neck shows which block(s)' scale contain its pitch class
+```
+
+**Chord blocks** (`ChordBlock { id, root, chordId, scaleId }`, capped at `MAX_CHORD_BLOCKS = 4`): fully independent of each other — no shared key or tonic is enforced, though in practice a bassist usually builds blocks from one progression (e.g. a ii–V–I). Edited via per-block root/chord/scale dropdowns, never by clicking a fret (clicking a fret still sets the _global_ selected root, exactly as it already does in every other mode — see AGENTS.md §9).
+
+**`src/lib/music/scales.ts`:** the first place scale theory enters the engine. A `ScaleDefinition` is just a named `IntervalId[]`, defined the same way chord formulas already are — no new pitch arithmetic. `suggestedScalesFor(chordId)` is family-keyed (mirrors `FAMILY_DEFAULT_ROLES` in `harmony.ts`'s exact pattern) and only orders/groups the scale dropdown; every scale stays pickable for every chord, consistent with §24's "no wrong note" framing.
+
+**Fretboard rendering:** with no single shared chord, the base pill always shows a plain note name (the existing no-root fallback branch, not a new code path). Membership in each configured block's scale is shown as a small row of up to 4 numbered, colored chips per fret — the number identifies the block without relying on color alone (§22's non-color-signal rule), and a fret can carry multiple chips at once when its pitch class is in more than one block's scale (a common, musically expected case: e.g. D Dorian and G Mixolydian are different modes of the same seven notes).
+
+**Not built (yet):** URL persistence for `chordBlocks` (session-only, matching Guided Practice's own precedent), Local Field constraining of Scale Blocks, and Live Input/Guided Practice integration with this mode.
+
+---
+
+## 21. Future modes
 
 Potential extensions:
 
@@ -746,7 +773,7 @@ Mirror fretboard orientation.
 
 ---
 
-## 21. Accessibility
+## 22. Accessibility
 
 Requirements:
 
@@ -766,7 +793,7 @@ A string, fret 3, C, root, interval 1
 
 ---
 
-## 22. Testing strategy
+## 23. Testing strategy
 
 ### Unit tests
 
@@ -803,7 +830,7 @@ click C → choose Dominant 7 → verify C/E/G/Bb roles → switch root to F →
 
 ---
 
-## 23. Non-goals for v1
+## 24. Non-goals for v1
 
 Do not add:
 
@@ -823,7 +850,7 @@ FretField should first become exceptionally good at one thing:
 
 ---
 
-## 24. Success criteria
+## 25. Success criteria
 
 The MVP succeeds when a bassist can:
 

@@ -8,18 +8,21 @@
   <a href="https://alessandrobessi.github.io/fretfield/"><img src="https://img.shields.io/badge/live%20app-alessandrobessi.github.io%2Ffretfield-7c3aed" alt="Live app"></a>
 </p>
 
-FretField is an interactive bass-fretboard application that teaches the neck as a spatial field of harmonic possibilities — not a grid of shapes to memorize. Click any fret to set a root, and it answers four increasingly powerful questions:
+FretField is an interactive bass-fretboard application that teaches the neck as a spatial field of harmonic possibilities — not a grid of shapes to memorize. Click any fret to set a root, and it answers five increasingly powerful questions:
 
-|                            |                                       |                                                                                                                                                                                                                |
-| -------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🎯 **Chord Field**         | _What can I play now?_                | The full 12-tone Harmonic Field over the current chord — root, structural, stable, extension, color, tension, alteration, chromatic-approach, avoid — or a simplified Chord Tones view for quick reference.    |
-| ➡️ **Progression Field**   | _Where can I go next?_                | Resolve a progression template (ii–V–I, I–vi–ii–V, 12-bar blues, …) from the selected root and see each note's best resolution into the next chord, derived from interval math — not a hardcoded lookup table. |
-| 🧭 **Voice-Leading Paths** | _What route should I take?_           | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.         |
-| 📍 **Local Fields**        | _Where on the neck should I play it?_ | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                   |
+|                            |                                            |                                                                                                                                                                                                                |
+| -------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🎯 **Chord Field**         | _What can I play now?_                     | The full 12-tone Harmonic Field over the current chord — root, structural, stable, extension, color, tension, alteration, chromatic-approach, avoid — or a simplified Chord Tones view for quick reference.    |
+| ➡️ **Progression Field**   | _Where can I go next?_                     | Resolve a progression template (ii–V–I, I–vi–ii–V, 12-bar blues, …) from the selected root and see each note's best resolution into the next chord, derived from interval math — not a hardcoded lookup table. |
+| 🧭 **Voice-Leading Paths** | _What route should I take?_                | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.         |
+| 📍 **Local Fields**        | _Where on the neck should I play it?_      | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                   |
+| 🧩 **Scale Blocks**        | _What scales fit across this progression?_ | Build up to 4 independent chord "blocks" — each its own root, quality, and scale — and see all of them at once: every fret numbered/colored by which block's scale it belongs to, overlaps included.           |
 
-**Live Input** is an optional layer over all four, not a fifth mode: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch, highlights every fret that physically produces it, and explains it using whichever mode is active — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
+**Live Input** is an optional layer over all five modes, not a `FieldMode` itself: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch and highlights every fret that physically produces it everywhere, including Scale Blocks; the deeper explanation — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note — is available for those three modes specifically. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
 
-**Guided Practice** turns those same four modes into exercises, closing the loop: FretField proposes a target (find an interval, find a chord tone, resolve a note into the next chord, or follow a voice-leading path one step at a time), you find and play it, Live Input detects it, and FretField explains what happened — exact, a strong or valid alternative, or not quite, never a flat right/wrong. Also not a fifth mode; it's built entirely on the same four questions and the same harmonic engine.
+**Guided Practice** turns the four single-chord modes into exercises, closing the loop: FretField proposes a target (find an interval, find a chord tone, resolve a note into the next chord, or follow a voice-leading path one step at a time), you find and play it, Live Input detects it, and FretField explains what happened — exact, a strong or valid alternative, or not quite, never a flat right/wrong. Not a `FieldMode` either; it's built entirely on the existing questions and the same harmonic engine, and doesn't currently drive Scale Blocks.
+
+**Scale Blocks** _is_ its own mode (the "🧩" row above) — a genuinely different, simultaneous view rather than a layer over the other four: build up to 4 independent chord blocks and see every one of their scales overlaid on the neck at once, each fret numbered and colored by which block(s) it belongs to.
 
 **Try it live:** https://alessandrobessi.github.io/fretfield/
 
@@ -81,7 +84,8 @@ src/lib/music/
 ├── voice-leading.ts           full-field transition analysis
 ├── voice-leading-paths.ts     exact-DP path search across a progression
 ├── absolute-pitch.ts          MIDI-based fretboard mapping for Live Input
-└── live-position.ts           ambiguous-position ranking for Live Input
+├── live-position.ts           ambiguous-position ranking for Live Input
+└── scales.ts                  scale definitions + family-aware suggestions, for Scale Blocks
 
 src/lib/audio/
 ├── types.ts                   DetectedNote, LiveNoteState, the LiveAudioSource abstraction

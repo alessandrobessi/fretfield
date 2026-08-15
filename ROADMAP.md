@@ -16,16 +16,17 @@ Avoid adding infrastructure before the music model and interaction feel excellen
 
 ## Current status
 
-Phases 0–4 below (repository foundation through Harmonic Field mode) are complete, plus Phase 5 (Note inspector) and the progression/voice-leading work originally scheduled as Phases 8–9. The product has since been restructured around four peer modes rather than one linear feature list — see `BLUEPRINT.md` §0 and `AGENTS.md` §1. Mapping onto this roadmap's original phase numbers:
+Phases 0–4 below (repository foundation through Harmonic Field mode) are complete, plus Phase 5 (Note inspector) and the progression/voice-leading work originally scheduled as Phases 8–9. The product has since been restructured around five peer modes rather than one linear feature list — see `BLUEPRINT.md` §0 and `AGENTS.md` §1. Mapping onto this roadmap's original phase numbers:
 
 ```text
 Chord Field           = Phase 3 (chord-tone visualization) + Phase 4 (Harmonic Field) + Phase 5 (Note inspector) — done
 Progression Field      = Phase 8 (Progression mode), minus audio/playback           — done
 Voice-Leading Paths    = Phase 9 (Voice-leading mode), generalized to full paths     — done
 Local Fields            = new: bass-native regions, not originally scoped            — done
+Scale Blocks            = new: Phase 9.7, not originally scoped                       — done
 ```
 
-Phase 9.5 (Live Input — real-time bass pitch detection layered over all four modes) and Phase 9.6 (Guided Practice — the exercise loop built on top of it) are also done; see `BLUEPRINT.md` §18–§19.
+Phase 9.5 (Live Input — real-time bass pitch detection layered over all five modes), Phase 9.6 (Guided Practice — the exercise loop built on top of it), and Phase 9.7 (Scale Blocks — simultaneous multi-chord scale overlay) are also done; see `BLUEPRINT.md` §18–§20.
 
 Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (remaining practice modes — Ear Training, Groove Navigation, Walking Bass — audio playback, alternate tunings, educational integration).
 
@@ -602,6 +603,30 @@ Turn the four Field modes plus Live Input into an interactive practice loop — 
 FretField closes the loop:
 
 > “See a target, play it, hear/see the result, understand what it means, see where to go next.”
+
+---
+
+# Phase 9.7 — Scale Blocks
+
+## Goal
+
+Let the player build up to 4 independent chord blocks — each its own root, chord quality, and scale — and see all of their scales overlaid on the fretboard at once, one numbered/colored chip per matching block. See `BLUEPRINT.md` §20. Unlike Live Input/Guided Practice, this ships as a genuine fifth `FieldMode`, not a layer over the other four — confirmed with the user before implementation.
+
+## Tasks
+
+- [x] `src/lib/music/scales.ts`: `ScaleDefinition` (a named `IntervalId[]`, same pattern as chord formulas), an 11-scale v1 set (pentatonics, church modes, blues, harmonic minor), `suggestedScalesFor(chordId)` family-keyed like `FAMILY_DEFAULT_ROLES` — a starting recommendation only, never a restriction
+- [x] `fretfield.svelte.ts`: `FieldMode` gains `'scale-blocks'`; `ChordBlock`/`MAX_CHORD_BLOCKS` (4); `chordBlocks` state + add/remove/set-root/set-chord/set-scale methods; `DisplayFretPosition` gains `scaleBlockMembership: number[]` computed in the existing `positions` derived; `analyzed` forced to `null` in this mode so the base pill falls back to plain note names (no new code path)
+- [x] `FretCell.svelte`: a row of up to 4 numbered, colored chips per fret — composes independently of every existing role/path/region/Live-Input/Guided-Practice layer
+- [x] `ScaleBlockControls.svelte` (per-block root/chord/scale dropdowns, add/remove, suggested-scales-first grouping) and `ScaleBlockLegend.svelte` (a compact key under the fretboard)
+- [x] wired into `FieldModeSwitcher.svelte`/`+page.svelte`; `NoteInspector.svelte` shows which block(s) a note belongs to and each one's chord+scale
+- [x] unit tests for `scales.ts` (concrete pitch-class examples, transposition invariance, family-aware suggestions for all 11 chord qualities) and Playwright e2e coverage (single block, overlapping blocks, remove, cross-mode persistence)
+- [x] manually verified with a real ii–V–I (Dm7/Dorian, G7/Mixolydian) — confirmed the shared-tone overlap renders correctly and matches the theory
+
+## Exit criteria
+
+FretField answers, across several chords at once:
+
+> “What scales fit across this progression, and where do they overlap?”
 
 ---
 

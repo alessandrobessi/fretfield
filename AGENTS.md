@@ -14,16 +14,19 @@ Its central idea is:
 
 > The fretboard is a harmonic field, not merely a grid of note names.
 
-Every implementation decision should reinforce that idea. Concretely, the product answers four increasingly powerful questions, each a `FieldMode`:
+Every implementation decision should reinforce that idea. Concretely, the product answers five increasingly powerful questions, each a `FieldMode`:
 
 ```text
 Chord Field           "What can I play now?"
 Progression Field      "Where can I go next?"
 Voice-Leading Paths    "What route should I take?"
 Local Fields           "Where on the neck should I play it?"
+Scale Blocks           "What scales fit across this progression?"
 ```
 
-Local Fields is a spatial lens usable from any of the other three modes (region state lives in the store independent of `mode`), not an isolated feature. Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying selection.
+Local Fields is a spatial lens usable from any of the other three single-chord modes (region state lives in the store independent of `mode`), not an isolated feature. Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying selection.
+
+Scale Blocks is the one mode that doesn't fit that "shared root/chordId" model — it holds its own independent `chordBlocks` list (up to 4, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time. It's a genuine `FieldMode` like the other four, not a layer (contrast with Live Input/Guided Practice below, which explicitly are layers).
 
 ---
 
@@ -84,6 +87,7 @@ Responsibilities:
 - resolution rules
 - voice-leading calculations
 - spatial/regional (Local Field) analysis
+- scale definitions and chord-family-aware scale suggestions (`scales.ts`)
 
 Must not import:
 
@@ -597,6 +601,8 @@ Within Live Input specifically, also do not add: polyphonic pitch detection, cho
 
 Within Guided Practice specifically, also do not add: a metronome, backing tracks, automatic chord timing, rhythm/duration/tempo scoring, persistent progress, user accounts, achievements, an adaptive AI teacher, spaced repetition, or generated bass lines — see `BLUEPRINT.md` §19. Session stats live only in memory for the current session; do not add a backend to persist them.
 
+Within Scale Blocks specifically, do not add: URL persistence for `chordBlocks` without discussing it first (deliberately session-only for v1, matching Guided Practice's precedent), or a fifth+ block beyond `MAX_CHORD_BLOCKS`. Don't make `suggestedScalesFor` filter/restrict the scale dropdown — it orders it, it never removes an option.
+
 Maintain product focus.
 
 ---
@@ -608,7 +614,7 @@ Built so far, in `src/lib/music/`:
 ```text
 pitch.ts intervals.ts tuning.ts fretboard.ts chords.ts harmony.ts
 local-fields.ts progressions.ts connection-score.ts voice-leading.ts
-voice-leading-paths.ts absolute-pitch.ts live-position.ts
+voice-leading-paths.ts absolute-pitch.ts live-position.ts scales.ts
 ```
 
 And in `src/lib/audio/` (Live Input's acoustic-pitch domain — see §4):
@@ -627,7 +633,6 @@ types.ts evaluation.ts exercise-generators.ts practice-engine.ts presets.ts
 Future modules may include:
 
 ```text
-music/scales.ts
 music/approaches.ts
 practice/walking-bass.ts
 audio/playback.ts

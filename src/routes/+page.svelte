@@ -11,6 +11,8 @@
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
 	import PathsControls from '$lib/components/PathsControls.svelte';
 	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
+	import ScaleBlockControls from '$lib/components/ScaleBlockControls.svelte';
+	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
 	import { installPracticeTestHooks } from '$lib/testing/practice-test-hooks';
@@ -56,12 +58,15 @@
 		<ProgressionControls />
 	{:else if fretfield.mode === 'paths'}
 		<PathsControls />
+	{:else if fretfield.mode === 'scale-blocks'}
+		<ScaleBlockControls />
 	{:else}
 		<HarmonyControls />
 	{/if}
 
 	<Fretboard />
 	<Legend />
+	<ScaleBlockLegend />
 	<NoteInspector />
 	<LocalFieldControls />
 </main>

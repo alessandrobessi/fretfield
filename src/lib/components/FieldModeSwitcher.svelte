@@ -7,7 +7,12 @@
 		{ id: 'chord', label: 'Chord Field', question: 'What can I play now?' },
 		{ id: 'progression', label: 'Progression Field', question: 'Where can I go next?' },
 		{ id: 'paths', label: 'Voice-Leading Paths', question: 'What route should I take?' },
-		{ id: 'local', label: 'Local Fields', question: 'Where on the neck should I play it?' }
+		{ id: 'local', label: 'Local Fields', question: 'Where on the neck should I play it?' },
+		{
+			id: 'scale-blocks',
+			label: 'Scale Blocks',
+			question: 'What scales fit across this progression?'
+		}
 	];
 </script>
 

@@ -56,6 +56,11 @@
 		if (practiceResult !== null && practiceResult !== 'ignored') {
 			parts.push(`practice result: ${practiceResult.replace('-', ' ')}`);
 		}
+		if (position.scaleBlockMembership.length > 0) {
+			parts.push(
+				`in scale for block ${position.scaleBlockMembership.map((i) => i + 1).join(', block ')}`
+			);
+		}
 		return parts.join(', ');
 	});
 </script>
@@ -93,6 +98,13 @@
 	<span class="pill" data-role={visibleRole} data-shape={roleStyle?.shape}>
 		<span class="label">{label}</span>
 	</span>
+	{#if position.scaleBlockMembership.length > 0}
+		<div class="scale-block-chips" aria-hidden="true">
+			{#each position.scaleBlockMembership as blockIndex (blockIndex)}
+				<span class="chip" data-block={blockIndex}>{blockIndex + 1}</span>
+			{/each}
+		</div>
+	{/if}
 </button>
 
 <style>
@@ -341,6 +353,52 @@
 		.practice-result-marker[data-result='strong-alternative'] {
 			animation: live-pulse 700ms ease-out 1;
 		}
+	}
+
+	/*
+	 * Scale Blocks: a small row of numbered chips, one per matching block —
+	 * a real element (not a 3rd/4th pseudo-element) since ::before/::after
+	 * are already spoken for above, and a fret can belong to several blocks'
+	 * scales at once. The digit itself (not just color) identifies the
+	 * block, per AGENTS.md §7's non-color-signal rule.
+	 */
+	.scale-block-chips {
+		position: absolute;
+		bottom: 2px;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		gap: 1px;
+		pointer-events: none;
+	}
+
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 0.85rem;
+		height: 0.85rem;
+		border-radius: 50%;
+		font-size: 0.55rem;
+		font-weight: 700;
+		color: #fff;
+		line-height: 1;
+	}
+
+	.chip[data-block='0'] {
+		background: var(--scale-block-1, #3b82f6);
+	}
+
+	.chip[data-block='1'] {
+		background: var(--scale-block-2, #f43f5e);
+	}
+
+	.chip[data-block='2'] {
+		background: var(--scale-block-3, #eab308);
+	}
+
+	.chip[data-block='3'] {
+		background: var(--scale-block-4, #8b5cf6);
 	}
 
 	.label {

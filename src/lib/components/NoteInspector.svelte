@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { roleStyleFor } from '$lib/config/roles';
+	import { getChordDefinition } from '$lib/music/chords';
+	import { defaultNoteName } from '$lib/music/pitch';
+	import { getScaleDefinition } from '$lib/music/scales';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 
 	const inspected = $derived(fretfield.inspected);
@@ -45,6 +48,19 @@
 						: 's'}
 				</p>
 				<p class="connection-line">Next role: {connection.bestTargetRoleLabel}</p>
+			</div>
+		{/if}
+		{#if inspected.scaleBlockMembership.length > 0}
+			<div class="scale-blocks">
+				{#each inspected.scaleBlockMembership as blockIndex (blockIndex)}
+					{@const block = fretfield.chordBlocks[blockIndex]}
+					<p class="scale-block-line">
+						<span class="chip" data-block={blockIndex} aria-hidden="true">{blockIndex + 1}</span>
+						In block {blockIndex + 1}: {defaultNoteName(block.root!)}{getChordDefinition(
+							block.chordId!
+						).symbol} ({getScaleDefinition(block.scaleId!).label})
+					</p>
+				{/each}
 			</div>
 		{/if}
 	{/if}
@@ -139,5 +155,48 @@
 	.connection-line {
 		margin: 0.15rem 0;
 		font-size: 0.85rem;
+	}
+
+	.scale-blocks {
+		margin-top: 0.6rem;
+		padding-top: 0.6rem;
+		border-top: 1px solid var(--fret-border, #ddd3f7);
+	}
+
+	.scale-block-line {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin: 0.15rem 0;
+		font-size: 0.85rem;
+	}
+
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.1rem;
+		height: 1.1rem;
+		flex: 0 0 auto;
+		border-radius: 50%;
+		font-size: 0.65rem;
+		font-weight: 700;
+		color: #fff;
+	}
+
+	.chip[data-block='0'] {
+		background: var(--scale-block-1, #3b82f6);
+	}
+
+	.chip[data-block='1'] {
+		background: var(--scale-block-2, #f43f5e);
+	}
+
+	.chip[data-block='2'] {
+		background: var(--scale-block-3, #eab308);
+	}
+
+	.chip[data-block='3'] {
+		background: var(--scale-block-4, #8b5cf6);
 	}
 </style>

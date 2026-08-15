@@ -29,6 +29,7 @@ import {
 	getProgressionTemplate,
 	resolvedChordSymbol
 } from '$lib/music/progressions';
+import { getScaleDefinition, scaleContainsPitchClass } from '$lib/music/scales';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { type ChordTransition, analyzeTransition, connectionFor } from '$lib/music/voice-leading';
 import {
@@ -43,12 +44,29 @@ export type { PathPreset };
 export type DisplayMode = 'intervals' | 'notes' | 'both';
 
 /**
- * The four user-facing questions FretField answers. Shared state (root,
+ * The five user-facing questions FretField answers. Shared state (root,
  * display mode, region, progression selection) persists across mode
  * switches — each mode is a different lens on the same selection, not a
- * separate page with its own state.
+ * separate page with its own state. `scale-blocks` is the one exception:
+ * it's a simultaneous, multi-chord view rather than a single-chord lens, so
+ * it owns its own `chordBlocks` state instead of reusing root/chordId.
  */
-export type FieldMode = 'chord' | 'progression' | 'paths' | 'local';
+export type FieldMode = 'chord' | 'progression' | 'paths' | 'local' | 'scale-blocks';
+
+/**
+ * One independently-configured chord in Scale Blocks mode: its own root,
+ * chord quality, and the scale being overlaid for it. `null` fields mean
+ * "not yet chosen" — a block only contributes to the fretboard once all
+ * three are set.
+ */
+export interface ChordBlock {
+	id: string;
+	root: PitchClass | null;
+	chordId: string | null;
+	scaleId: string | null;
+}
+
+export const MAX_CHORD_BLOCKS = 4;
 
 /**
  * Chord Field has two views over the same analysis: 'chord-tones' shows only
@@ -88,6 +106,8 @@ export interface DisplayFretPosition extends FretPosition {
 	isLiveLikely: boolean;
 	/** Progression Field's Live Input layer (§13): this position is the best resolution target for the currently-played note. */
 	isLiveNextTarget: boolean;
+	/** Scale Blocks: indices into `chordBlocks` of every fully-configured block whose scale contains this pitch class. Always empty outside `scale-blocks` mode. */
+	scaleBlockMembership: number[];
 }
 
 /** A progression chord enriched with its display symbol, for the ProgressionStrip. */
@@ -164,6 +184,7 @@ class FretFieldStore {
 	activeChordIndex = $state(0);
 	pathPreset = $state<PathPreset>('balanced');
 	selectedPathIndex = $state<number | null>(null);
+	chordBlocks = $state<ChordBlock[]>([]);
 
 	constructor() {
 		// Live Input needs Voice-Leading Path/Local Field context to disambiguate
@@ -232,6 +253,10 @@ class FretFieldStore {
 
 	/** The one call into the engine per relevant state change (AGENTS.md §19); everything else derives from this. */
 	readonly analyzed = $derived.by<AnalyzedFretPosition[] | null>(() => {
+		// Scale Blocks has no single shared chord to analyze roles against —
+		// each block has its own. The fallback branch below (plain note names,
+		// no role) is exactly right here, not a special case.
+		if (this.mode === 'scale-blocks') return null;
 		if (this.mode === 'progression' || this.mode === 'paths') {
 			const chord = this.activeProgressionChord;
 			if (chord === null) return null;
@@ -276,6 +301,25 @@ class FretFieldStore {
 		const isLiveNextTargetPosition = (position: FretPosition): boolean =>
 			liveNextTarget !== null && position.pitchClass === liveNextTarget;
 
+		const activeChordBlocks =
+			this.mode === 'scale-blocks'
+				? this.chordBlocks
+						.map((block, index) => ({ block, index }))
+						.filter(
+							({ block }) => block.root !== null && block.chordId !== null && block.scaleId !== null
+						)
+				: [];
+		const scaleBlockMembershipFor = (position: FretPosition): number[] =>
+			activeChordBlocks
+				.filter(({ block }) =>
+					scaleContainsPitchClass(
+						block.root!,
+						getScaleDefinition(block.scaleId!),
+						position.pitchClass
+					)
+				)
+				.map(({ index }) => index);
+
 		if (analyzed === null) {
 			return createFretboard(this.tuning, this.fretCount).map((position) => ({
 				...position,
@@ -295,7 +339,8 @@ class FretFieldStore {
 				pathRole: null,
 				isLivePlayed: isLivePlayedPosition(position),
 				isLiveLikely: isLiveLikelyPosition(position),
-				isLiveNextTarget: isLiveNextTargetPosition(position)
+				isLiveNextTarget: isLiveNextTargetPosition(position),
+				scaleBlockMembership: scaleBlockMembershipFor(position)
 			}));
 		}
 
@@ -352,7 +397,8 @@ class FretFieldStore {
 						: null,
 			isLivePlayed: isLivePlayedPosition(position),
 			isLiveLikely: isLiveLikelyPosition(position),
-			isLiveNextTarget: isLiveNextTargetPosition(position)
+			isLiveNextTarget: isLiveNextTargetPosition(position),
+			scaleBlockMembership: scaleBlockMembershipFor(position)
 		}));
 	});
 
@@ -585,6 +631,37 @@ class FretFieldStore {
 
 	selectPath(index: number): void {
 		this.selectedPathIndex = index;
+	}
+
+	/** Scale Blocks state is intentionally session-only (no URL persistence), same precedent as Guided Practice — resets on reload. */
+	addChordBlock(): void {
+		if (this.chordBlocks.length >= MAX_CHORD_BLOCKS) return;
+		this.chordBlocks = [
+			...this.chordBlocks,
+			{ id: crypto.randomUUID(), root: null, chordId: null, scaleId: null }
+		];
+	}
+
+	removeChordBlock(id: string): void {
+		this.chordBlocks = this.chordBlocks.filter((block) => block.id !== id);
+	}
+
+	setChordBlockRoot(id: string, root: PitchClass | null): void {
+		this.chordBlocks = this.chordBlocks.map((block) =>
+			block.id === id ? { ...block, root } : block
+		);
+	}
+
+	setChordBlockChord(id: string, chordId: string | null): void {
+		this.chordBlocks = this.chordBlocks.map((block) =>
+			block.id === id ? { ...block, chordId } : block
+		);
+	}
+
+	setChordBlockScale(id: string, scaleId: string | null): void {
+		this.chordBlocks = this.chordBlocks.map((block) =>
+			block.id === id ? { ...block, scaleId } : block
+		);
 	}
 
 	/** A plain-data snapshot of the shareable fields, for URL serialization (src/lib/utils/url-state.ts). */
