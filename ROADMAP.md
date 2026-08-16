@@ -16,7 +16,7 @@ Avoid adding infrastructure before the music model and interaction feel excellen
 
 ## Current status
 
-Phases 0–4 below (repository foundation through Harmonic Field mode) are complete, plus Phase 5 (Note inspector) and the progression/voice-leading work originally scheduled as Phases 8–9. The product has since been restructured around five peer modes rather than one linear feature list — see `BLUEPRINT.md` §0 and `AGENTS.md` §1. Mapping onto this roadmap's original phase numbers:
+Phases 0–4 below (repository foundation through Harmonic Field mode) are complete, plus Phase 5 (Note inspector) and the progression/voice-leading work originally scheduled as Phases 8–9. The product has since been restructured around six peer modes rather than one linear feature list — see `BLUEPRINT.md` §0 and `AGENTS.md` §1. Mapping onto this roadmap's original phase numbers:
 
 ```text
 Chord Field           = Phase 3 (chord-tone visualization) + Phase 4 (Harmonic Field) + Phase 5 (Note inspector) — done
@@ -24,11 +24,12 @@ Progression Field      = Phase 8 (Progression mode), minus audio/playback       
 Voice-Leading Paths    = Phase 9 (Voice-leading mode), generalized to full paths     — done
 Local Fields            = new: bass-native regions, not originally scoped            — done
 Scale Blocks            = new: Phase 9.7, not originally scoped                       — done
+Scale Practice           = new: Phase 9.8, pulls the metronome forward from Phase 11  — done
 ```
 
-Phase 9.5 (Live Input — real-time bass pitch detection layered over all five modes), Phase 9.6 (Guided Practice — the exercise loop built on top of it), and Phase 9.7 (Scale Blocks — simultaneous multi-chord scale overlay) are also done; see `BLUEPRINT.md` §18–§20.
+Phase 9.5 (Live Input — real-time bass pitch detection layered over all six modes), Phase 9.6 (Guided Practice — the exercise loop built on top of it), Phase 9.7 (Scale Blocks — simultaneous multi-chord scale overlay), and Phase 9.8 (Scale Practice — metronome-driven zone drilling) are also done; see `BLUEPRINT.md` §18–§21.
 
-Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (remaining practice modes — Ear Training, Groove Navigation, Walking Bass — audio playback, alternate tunings, educational integration).
+Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (remaining practice modes — Ear Training, Groove Navigation, Walking Bass — audio playback beyond the metronome click, alternate tunings, educational integration).
 
 ---
 
@@ -630,6 +631,31 @@ FretField answers, across several chords at once:
 
 ---
 
+# Phase 9.8 — Scale Practice
+
+## Goal
+
+Let the player pick a root, a scale, and a fret zone, then drill it against a real, adjustable-BPM metronome — a target note lit up each beat, on-beat/pitch feedback after. See `BLUEPRINT.md` §21. Pulls the `metronome` item forward from Phase 11's backlog, but ships as its own `FieldMode` rather than bolted onto Live Input or Guided Practice — both of those explicitly exclude timing by design (§18/§19), confirmed with the user before implementation.
+
+## Tasks
+
+- [x] `src/lib/scale-practice/`: `types.ts` (`PracticeZone`, `BeatResult`), `sequence.ts` (`buildScaleSequence` — ascending-then-descending through a zone, looping), `evaluation.ts` (`evaluateBeat` — independent pitch/timing verdicts, no harmonic ranking needed)
+- [x] `src/lib/audio/metronome.ts`: a short synthesized click via a dedicated `AudioContext`, separate from Live Input's capture context — the app's first audio output
+- [x] `src/lib/stores/scale-practice.svelte.ts`: root/scale/zone/BPM state, a self-correcting `Date.now()`-based `setTimeout` scheduler, onset-gated note handling (same wiring as Guided Practice), and a testability seam (`stopSchedulerForTesting`/`advanceBeatForTesting`) so Playwright never depends on real BPM timing
+- [x] `fretfield.svelte.ts`: `FieldMode` gains `'scale-practice'`; `analyzed` forced to `null` in this mode, same fallback path Scale Blocks already established
+- [x] `FretCell.svelte`: current-target pulsing ring, last-beat result marker (correct-on-time/correct-off-time/incorrect/missed), and zone dimming — composed independently from the `scalePractice` store, same pattern as Guided Practice's own layers
+- [x] `ScalePracticeControls.svelte` (root/scale dropdowns, zone fret-range inputs, BPM control, Start/Stop, status line) wired into `FieldModeSwitcher.svelte`/`+page.svelte`; `NoteInspector.svelte` shows a hovered note's scale degree
+- [x] unit tests for `sequence.ts`/`evaluation.ts` (concrete up-down cycles, zone-exclusion, all pitch/timing tiers) and Playwright e2e coverage (sequence progression, correct/incorrect/missed feedback, stop clears markers, tab-switch stops the session)
+- [x] manually verified in the browser: real-time scheduling at several BPMs, audible click firing without console errors, and both a fully-overlapping and a genuinely partial-overlap scale/zone example
+
+## Exit criteria
+
+FretField answers, in time:
+
+> “Can you play this scale, in this zone, on the beat?”
+
+---
+
 # Phase 10 — Practice modes
 
 Add one mode at a time.
@@ -664,7 +690,7 @@ Potential scope:
 
 - [ ] play fret on click
 - [ ] play selected chord
-- [ ] metronome
+- [x] metronome (shipped as Phase 9.8 — Scale Practice — its own mode, not folded into Live Input/Guided Practice)
 - [ ] progression playback
 - [ ] looped harmonic backing
 

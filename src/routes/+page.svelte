@@ -13,9 +13,11 @@
 	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
 	import ScaleBlockControls from '$lib/components/ScaleBlockControls.svelte';
 	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
+	import ScalePracticeControls from '$lib/components/ScalePracticeControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
 	import { installPracticeTestHooks } from '$lib/testing/practice-test-hooks';
+	import { installScalePracticeTestHooks } from '$lib/testing/scale-practice-test-hooks';
 	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
 
 	// Restore once on load; URL-shareable state only (root/mode/chord/display/
@@ -27,6 +29,7 @@
 		);
 		installLiveInputTestHooks();
 		installPracticeTestHooks();
+		installScalePracticeTestHooks();
 	}
 
 	$effect(() => {
@@ -60,6 +63,8 @@
 		<PathsControls />
 	{:else if fretfield.mode === 'scale-blocks'}
 		<ScaleBlockControls />
+	{:else if fretfield.mode === 'scale-practice'}
+		<ScalePracticeControls />
 	{:else}
 		<HarmonyControls />
 	{/if}

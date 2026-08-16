@@ -2,9 +2,9 @@
 
 > **Tagline:** See the harmonic field. Move through it.
 
-## 0. The five-field model (current product structure)
+## 0. The six-field model (current product structure)
 
-FretField answers five increasingly powerful questions, each a peer `FieldMode` selectable from the same fretboard and the same selected root:
+FretField answers six increasingly powerful questions, each a peer `FieldMode` selectable from the same fretboard and the same selected root:
 
 ```text
 Chord Field           "What can I play now?"          — full 12-role Harmonic Field over one chord
@@ -12,17 +12,18 @@ Progression Field      "Where can I go next?"           — resolve a progressio
 Voice-Leading Paths    "What route should I take?"      — ranked, complete fretted paths through the whole progression
 Local Fields           "Where on the neck should I play it?" — ranked, overlapping neck regions, usable as a lens under any of the above
 Scale Blocks           "What scales fit across this progression?" — up to 4 independently-configured chords, each with its own scale, overlaid on the neck at once
+Scale Practice          "Can you play this scale in time?" — a metronome drives a sequence of target notes through a chosen scale/key/fret zone, with on-beat feedback
 ```
 
-Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying harmonic selection. `?root=&mode=&chord=&display=&analysis=&progression=&chordIndex=&pathPreset=&region=` in the URL reproduces the same view (§7 Phase 7 originally scoped a narrower version of this; the shipped version covers all four original modes — Scale Blocks' `chordBlocks` state is deliberately session-only, see §20).
+Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying harmonic selection. `?root=&mode=&chord=&display=&analysis=&progression=&chordIndex=&pathPreset=&region=` in the URL reproduces the same view (§7 Phase 7 originally scoped a narrower version of this; the shipped version covers all four original modes — Scale Blocks' `chordBlocks` and Scale Practice's session state are both deliberately session-only, see §20/§21).
 
-Scale Blocks (§20) is structurally different from the other four: instead of one shared root/chord driving a single-chord analysis, it holds its own independent list of up to 4 chord blocks and shows all of their scales simultaneously. It's a genuine fifth mode, not a layer.
+Scale Blocks (§20) and Scale Practice (§21) are both structurally different from the other four: instead of one shared root/chord driving a single-chord analysis, each holds its own independent state (a list of chord blocks; a root/scale/zone/tempo session) unrelated to `root`/`chordId`/`progression`. Genuine modes, not layers.
 
-**Live Input** (§18) is an optional layer over all five modes — not a `FieldMode` itself. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it, rather than adding a separate harmonic system.
+**Live Input** (§18) is an optional layer over all six modes — not a `FieldMode` itself. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it, rather than adding a separate harmonic system.
 
-**Guided Practice** (§19) is a layer built entirely on top of Live Input and the four single-chord modes (it does not currently drive Scale Blocks): it turns each mode's existing answer into an exercise — propose a target, the player finds and plays it, Live Input detects it, the existing engine explains what happened. It owns no harmonic logic of its own and is not a `FieldMode` either.
+**Guided Practice** (§19) is a layer built entirely on top of Live Input and the four single-chord modes (it does not currently drive Scale Blocks or Scale Practice): it turns each mode's existing answer into an exercise — propose a target, the player finds and plays it, Live Input detects it, the existing engine explains what happened. It owns no harmonic logic of its own and is not a `FieldMode` either.
 
-Sections 1–25 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
+Sections 1–26 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
 
 ---
 
@@ -733,13 +734,39 @@ every fret on the neck shows which block(s)' scale contain its pitch class
 
 ---
 
-## 21. Future modes
+## 21. Scale Practice — metronome-driven zone drilling
+
+A genuine sixth `FieldMode`, like Scale Blocks: it needs its own root/scale/fret-zone/tempo state, unrelated to any chord or progression, so it can't reuse `root`/`chordId`. Unlike Guided Practice (§19), which is explicitly self-paced and excludes timing by design, Scale Practice's entire point is timing — so it lives in its own store (`scale-practice.svelte.ts`) rather than as a fifth `PracticeMode` inside Guided Practice's engine.
+
+```text
+pick a root + a scale + a fret zone (e.g. frets 0–12)
+        │
+        ▼
+a metronome (adjustable BPM, shown on screen) steps through the scale's
+notes within that zone, ascending then descending, looping
+        │
+        ▼
+each beat: the current target note is highlighted; the previous beat's
+result (correct/incorrect, on-time/off-time/missed) gets a marker
+```
+
+**Session state** (`ScalePracticeStore`): `root`, `scaleId`, `zone: { minFret, maxFret }`, `bpm` (30–240, default 80), `running`, `stepIndex`, `lastBeatResult`. Configured independently of every other mode — switching to another tab stops the session (component-unmount cleanup), but root/scale/zone/tempo choices persist for next time, session-only like Scale Blocks' `chordBlocks`.
+
+**The scheduler** is a self-correcting `setTimeout` loop driven by `Date.now()`, not `AudioContext.currentTime` — beat timestamps need to be directly comparable to `DetectedNote.timestampMs` (also `Date.now()`-based), so there's no clock correlation to get wrong. Each tick evaluates whatever was played since the previous beat, plays the click, and reschedules from the fixed beat grid (not from firing time) so drift doesn't accumulate.
+
+**Evaluation** has two independent dimensions per beat: pitch (`correct`/`incorrect`, a plain equality against that beat's single target — no harmonic strong/valid-alternative ranking needed, unlike Guided Practice) and timing (`on-time`/`off-time`/`missed`, judged against a tolerance window around the beat). A wrong note still gets an honest timing reading; a correct note played after the next beat already started counts as `missed` for that beat — the metronome doesn't wait.
+
+**The metronome click** (`$lib/audio/metronome.ts`) is the app's first audio _output_, not analysis — a short synthesized tick via a dedicated `AudioContext`, entirely separate from Live Input's capture context. Starting it happens inside the "Start" button's click handler, the same user-gesture requirement Live Input's `getUserMedia` call already lives under.
+
+**Fretboard rendering:** frets outside the chosen zone are dimmed (same treatment as Local Fields' `region-dimmed`, but independent state — not `fretfield.activeRegion`). The current target gets a pulsing dashed ring (re-triggered each beat); the last beat's result gets a marker — solid green for correct+on-time, solid amber for correct+off-time, dashed gray for incorrect, a fainter dotted marker for missed — reusing Guided Practice's own restrained, non-punitive color language (§23 accessibility non-color-signal rule; no red flash, ever).
+
+**Not built (yet):** subdivisions/swing/accented downbeats (quarter-note clicks only), tempo ramps (BPM is adjusted by hand), a mute toggle for the click, persistent session stats, and Live Input/Guided Practice driving this mode the way they drive the four single-chord modes.
+
+---
+
+## 22. Future modes
 
 Potential extensions:
-
-### Scale Overlay
-
-Show compatible scales while keeping chord roles visible.
 
 ### Blues Mode
 
@@ -775,7 +802,7 @@ Mirror fretboard orientation.
 
 ---
 
-## 22. Accessibility
+## 23. Accessibility
 
 Requirements:
 
@@ -795,7 +822,7 @@ A string, fret 3, C, root, interval 1
 
 ---
 
-## 23. Testing strategy
+## 24. Testing strategy
 
 ### Unit tests
 
@@ -832,7 +859,7 @@ click C → choose Dominant 7 → verify C/E/G/Bb roles → switch root to F →
 
 ---
 
-## 24. Non-goals for v1
+## 25. Non-goals for v1
 
 Do not add:
 
@@ -852,7 +879,7 @@ FretField should first become exceptionally good at one thing:
 
 ---
 
-## 25. Success criteria
+## 26. Success criteria
 
 The MVP succeeds when a bassist can:
 

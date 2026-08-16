@@ -1,7 +1,13 @@
 <script lang="ts">
-	import type { DisplayFretPosition, DisplayMode } from '$lib/stores/fretfield.svelte';
+	import {
+		fretfield,
+		type DisplayFretPosition,
+		type DisplayMode
+	} from '$lib/stores/fretfield.svelte';
 	import { roleStyleFor } from '$lib/config/roles';
 	import { practice } from '$lib/stores/practice.svelte';
+	import { scalePractice } from '$lib/stores/scale-practice.svelte';
+	import type { BeatResult } from '$lib/scale-practice/types';
 
 	interface Props {
 		position: DisplayFretPosition;
@@ -35,6 +41,39 @@
 		practice.lastPlayedPositions.some(isSamePosition) ? practice.lastResult : null
 	);
 
+	// Scale Practice's own layers: computed locally from the `scalePractice`
+	// store, same "independent store, no fretfield.svelte.ts fields" approach
+	// Guided Practice already uses above. Gated on the mode being active AND
+	// the session actually running — before Start there's no beat to target.
+	const isScalePracticeActive = $derived(
+		fretfield.mode === 'scale-practice' && scalePractice.running
+	);
+	const isScalePracticeTarget = $derived(
+		isScalePracticeActive && scalePractice.currentTargetPositions.some(isSamePosition)
+	);
+	const scalePracticeResult = $derived.by<BeatResult | null>(() => {
+		if (!isScalePracticeActive) return null;
+		const result = scalePractice.lastBeatResult;
+		if (result === null || !result.positions.some(isSamePosition)) return null;
+		return result;
+	});
+	const scalePracticeResultTier = $derived.by<
+		'correct-on-time' | 'correct-off-time' | 'incorrect' | 'missed' | null
+	>(() => {
+		const result = scalePracticeResult;
+		if (result === null) return null;
+		if (result.pitch === null) return 'missed';
+		if (result.pitch === 'incorrect') return 'incorrect';
+		return result.timing === 'on-time' ? 'correct-on-time' : 'correct-off-time';
+	});
+	// The zone is always defined (a sensible default even before Start), so
+	// dimming applies as soon as the tab is active — it previews where the
+	// player is about to practice, not just where they currently are.
+	const isScalePracticeZoneDimmed = $derived(
+		fretfield.mode === 'scale-practice' &&
+			(position.fret < scalePractice.zone.minFret || position.fret > scalePractice.zone.maxFret)
+	);
+
 	const label = $derived.by(() => {
 		if (position.interval === null) return position.noteName;
 		if (displayMode === 'notes') return position.noteName;
@@ -62,6 +101,10 @@
 			);
 		}
 		if (position.isScaleBlockCommonNote) parts.push('common to every block');
+		if (isScalePracticeTarget) parts.push('scale practice target');
+		if (scalePracticeResultTier !== null) {
+			parts.push(`scale practice result: ${scalePracticeResultTier.replace(/-/g, ' ')}`);
+		}
 		return parts.join(', ');
 	});
 </script>
@@ -79,8 +122,10 @@
 	class:live-next-target={position.isLiveNextTarget}
 	class:practice-target={isPracticeTarget}
 	class:scale-block-common={position.isScaleBlockCommonNote}
+	class:scale-practice-zone-dimmed={isScalePracticeZoneDimmed}
 	data-path-role={position.pathRole}
 	data-practice-result={practiceResult}
+	data-scale-practice-result={scalePracticeResultTier}
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
@@ -96,6 +141,18 @@
 	{/if}
 	{#if practiceResult !== null && practiceResult !== 'ignored'}
 		<span class="practice-result-marker" data-result={practiceResult} aria-hidden="true"></span>
+	{/if}
+	{#if isScalePracticeTarget}
+		{#key scalePractice.stepIndex}
+			<span class="scale-practice-target-marker" aria-hidden="true"></span>
+		{/key}
+	{/if}
+	{#if scalePracticeResultTier !== null}
+		<span
+			class="scale-practice-result-marker"
+			data-result={scalePracticeResultTier}
+			aria-hidden="true"
+		></span>
 	{/if}
 	<span class="pill" data-role={visibleRole} data-shape={roleStyle?.shape}>
 		<span class="label">{label}</span>
@@ -431,6 +488,57 @@
 
 	.chip[data-block='3'] {
 		background: var(--scale-block-4, #8b5cf6);
+	}
+
+	/*
+	 * Scale Practice layers: real elements, same reasoning as Guided
+	 * Practice's own target/result markers above (::before/::after already
+	 * spoken for) — but distinct classes and inset offsets so the two can
+	 * never visually collide if a Guided Practice session happens to still
+	 * be "active" while the Scale Practice tab is showing.
+	 */
+	.scale-practice-target-marker {
+		position: absolute;
+		inset: 5px;
+		border-radius: 6px;
+		border: 2px dashed var(--practice-target-accent, #10b981);
+		pointer-events: none;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.scale-practice-target-marker {
+			animation: live-pulse 700ms ease-out 1;
+		}
+	}
+
+	.scale-practice-result-marker {
+		position: absolute;
+		inset: 2px;
+		border-radius: 8px;
+		pointer-events: none;
+	}
+
+	.scale-practice-result-marker[data-result='correct-on-time'] {
+		border: 3px solid var(--practice-correct-accent, #10b981);
+	}
+
+	.scale-practice-result-marker[data-result='correct-off-time'] {
+		border: 3px solid var(--practice-caution-accent, #eab308);
+	}
+
+	/* Restrained on purpose, same precedent as Guided Practice's incorrect marker: no red flash. */
+	.scale-practice-result-marker[data-result='incorrect'] {
+		border: 2px dashed var(--practice-incorrect-accent, #94a3b8);
+	}
+
+	/* Nothing was played at all — fainter than a wrong note, not the same as one. */
+	.scale-practice-result-marker[data-result='missed'] {
+		border: 2px dotted var(--practice-incorrect-accent, #94a3b8);
+		opacity: 0.6;
+	}
+
+	.fret-cell.scale-practice-zone-dimmed .pill {
+		opacity: 0.35;
 	}
 
 	.label {

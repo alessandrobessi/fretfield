@@ -1,13 +1,28 @@
 <script lang="ts">
 	import { roleStyleFor } from '$lib/config/roles';
 	import { getChordDefinition } from '$lib/music/chords';
+	import { intervalCompoundLabel, intervalFromRoot } from '$lib/music/intervals';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { getScaleDefinition } from '$lib/music/scales';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
+	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	const inspected = $derived(fretfield.inspected);
 	const roleStyle = $derived(inspected ? roleStyleFor(inspected.role) : null);
 	const connection = $derived(fretfield.inspectedConnectionDisplay);
+
+	// Scale Practice has no chord/role to show — just where this note sits in
+	// the configured scale, if it's in it at all (hovering a fret outside the
+	// scale entirely is still valid, it just has nothing to report here).
+	const scalePracticeDegree = $derived.by(() => {
+		if (fretfield.mode !== 'scale-practice' || inspected === null) return null;
+		const root = scalePractice.root;
+		const scale = scalePractice.scale;
+		if (root === null || scale === null) return null;
+		const interval = intervalFromRoot(root, inspected.pitchClass);
+		if (!scale.intervals.includes(interval)) return null;
+		return `${intervalCompoundLabel(interval)} degree of ${defaultNoteName(root)} ${scale.label}`;
+	});
 </script>
 
 <div class="note-inspector" aria-live="polite">
@@ -49,6 +64,9 @@
 				</p>
 				<p class="connection-line">Next role: {connection.bestTargetRoleLabel}</p>
 			</div>
+		{/if}
+		{#if scalePracticeDegree}
+			<p class="scale-practice-degree">{scalePracticeDegree}</p>
 		{/if}
 		{#if inspected.scaleBlockMembership.length > 0}
 			<div class="scale-blocks">
@@ -155,6 +173,12 @@
 	.connection-line {
 		margin: 0.15rem 0;
 		font-size: 0.85rem;
+	}
+
+	.scale-practice-degree {
+		margin: 0.4rem 0 0;
+		font-size: 0.85rem;
+		opacity: 0.75;
 	}
 
 	.scale-blocks {

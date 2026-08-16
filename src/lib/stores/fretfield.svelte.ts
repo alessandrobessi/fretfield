@@ -51,7 +51,8 @@ export type DisplayMode = 'intervals' | 'notes' | 'both';
  * it's a simultaneous, multi-chord view rather than a single-chord lens, so
  * it owns its own `chordBlocks` state instead of reusing root/chordId.
  */
-export type FieldMode = 'chord' | 'progression' | 'paths' | 'local' | 'scale-blocks';
+export type FieldMode =
+	'chord' | 'progression' | 'paths' | 'local' | 'scale-blocks' | 'scale-practice';
 
 /**
  * One independently-configured chord in Scale Blocks mode: its own root,
@@ -256,9 +257,10 @@ class FretFieldStore {
 	/** The one call into the engine per relevant state change (AGENTS.md §19); everything else derives from this. */
 	readonly analyzed = $derived.by<AnalyzedFretPosition[] | null>(() => {
 		// Scale Blocks has no single shared chord to analyze roles against —
-		// each block has its own. The fallback branch below (plain note names,
-		// no role) is exactly right here, not a special case.
-		if (this.mode === 'scale-blocks') return null;
+		// each block has its own. Scale Practice has no chord at all, just a
+		// scale/key/zone. Both cases want the fallback branch below (plain
+		// note names, no role) rather than a special case.
+		if (this.mode === 'scale-blocks' || this.mode === 'scale-practice') return null;
 		if (this.mode === 'progression' || this.mode === 'paths') {
 			const chord = this.activeProgressionChord;
 			if (chord === null) return null;

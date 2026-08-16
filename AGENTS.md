@@ -14,7 +14,7 @@ Its central idea is:
 
 > The fretboard is a harmonic field, not merely a grid of note names.
 
-Every implementation decision should reinforce that idea. Concretely, the product answers five increasingly powerful questions, each a `FieldMode`:
+Every implementation decision should reinforce that idea. Concretely, the product answers six increasingly powerful questions, each a `FieldMode`:
 
 ```text
 Chord Field           "What can I play now?"
@@ -22,11 +22,12 @@ Progression Field      "Where can I go next?"
 Voice-Leading Paths    "What route should I take?"
 Local Fields           "Where on the neck should I play it?"
 Scale Blocks           "What scales fit across this progression?"
+Scale Practice          "Can you play this scale in time?"
 ```
 
 Local Fields is a spatial lens usable from any of the other three single-chord modes (region state lives in the store independent of `mode`), not an isolated feature. Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying selection.
 
-Scale Blocks is the one mode that doesn't fit that "shared root/chordId" model — it holds its own independent `chordBlocks` list (up to 4, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time. It's a genuine `FieldMode` like the other four, not a layer (contrast with Live Input/Guided Practice below, which explicitly are layers).
+Scale Blocks and Scale Practice are the two modes that don't fit that "shared root/chordId" model. Scale Blocks holds its own independent `chordBlocks` list (up to 4, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time. Scale Practice holds its own independent root/scale/fret-zone/tempo session (`scale-practice.svelte.ts`, not `fretfield.svelte.ts`) and drives a metronome — timing that Guided Practice deliberately excludes (§26). Both are genuine `FieldMode`s like the other four, not layers (contrast with Live Input/Guided Practice below, which explicitly are layers).
 
 ---
 
@@ -105,6 +106,8 @@ Must not know about, or import: chords, keys, `HarmonicRole`, progressions, Voic
 
 Must not depend on a real microphone for tests — real capture (`audio-input.ts`) and the deterministic test double (`fake-audio-source.ts`) both implement the same `LiveAudioSource` interface, so DSP logic is tested with synthetic buffers and integration is tested with the fake source.
 
+`metronome.ts` is this directory's one exception to "acoustic-pitch domain only": it's audio _output_ (Scale Practice's click), not analysis. It still must not import anything theory-related — it knows nothing about scales, beats-per-measure, or tempo semantics, only "play a tick now." It also uses its own `AudioContext`, entirely separate from the capture context `audio-input.ts` owns — the two must never be merged into one context.
+
 ### `src/lib/practice/`
 
 Pure TypeScript, Guided Practice's decision layer. Responsibilities: deciding what exercise is active (`exercise-generators.ts`), whether a played note satisfies it (`evaluation.ts`), and the session state machine (`practice-engine.ts`). Sits _above_ `src/lib/music/` and `src/lib/audio/` (it may import both — that boundary is the other direction, see above) but has no dependency on any Svelte store; a `PracticeContext` is plain data (root, chord, progression, selected path, active region) assembled by the caller, so generators/evaluation stay pure and directly testable.
@@ -112,6 +115,14 @@ Pure TypeScript, Guided Practice's decision layer. Responsibilities: deciding wh
 Must not duplicate harmonic logic: a Resolve Note target's role/interval comes from calling `analyzeConnection`/`connectionFor` (the same functions Progression Field uses), never a parallel scoring table. Find Chord Tone/Find Interval's "valid alternative" ranking reuses `roleStability`. If a new exercise needs a "how good is this note" judgment the existing engine doesn't already expose, extend `$lib/music`, not `$lib/practice`.
 
 Must not depend on a real microphone for tests, same reasoning as `src/lib/audio/` — exercise generation and evaluation are tested with synthetic `DetectedNote` objects; only the Playwright layer touches the injected `FakeAudioSource`.
+
+This module's own doctrine — self-paced, no timers, no tempo — is deliberate (§26). Do not add timing concepts here to support Scale Practice; that lives in `src/lib/scale-practice/` instead.
+
+### `src/lib/scale-practice/`
+
+Pure TypeScript, Scale Practice's decision layer — kept separate from `src/lib/practice/` specifically because its whole point (timing) is exactly what that module's doctrine excludes. Responsibilities: building the ascending-then-descending target sequence for a root/scale/fret-zone (`sequence.ts`), and per-beat pitch+timing evaluation (`evaluation.ts`). No dependency on any Svelte store, same reasoning as `src/lib/practice/` — pure functions, directly testable with fabricated timestamps.
+
+Must not duplicate scale theory: target pitch classes come from `scalePitchClasses`/`scaleContainsPitchClass` in `$lib/music/scales.ts`, never a re-derivation. Must not know about `AudioContext`/wall-clock scheduling itself — that lives in the store (`scale-practice.svelte.ts`), which is the one place `Date.now()`-based timing and `$lib/audio/metronome.ts`'s click meet.
 
 ### `src/lib/components/`
 
@@ -128,6 +139,8 @@ Do not duplicate derived harmonic logic here.
 `live-input.svelte.ts` is a deliberately separate store from `fretfield.svelte.ts`: it owns the Web Audio lifecycle (`AudioContext`, `MediaStream`, `AnalyserNode`, device selection). Those must never leak into the main music-theory store — it only ever consumes plain `DetectedNote`/`FretPosition` state from `live-input.svelte.ts`, the same way a component consumes analyzed music data.
 
 `practice.svelte.ts` is a third, separate store sitting above both: it's the only place that reads `fretfield` and `liveInput` together to build a `PracticeContext` and drive `$lib/practice`'s pure engine. It owns no harmonic or audio logic itself. `fretfield.svelte.ts` must never import `practice.svelte.ts` — that would be circular (practice already depends on fretfield); any fretboard visual layer Guided Practice needs is composed at the component level (`FretCell.svelte` reads both `fretfield` and `practice` directly) instead of being threaded through `DisplayFretPosition`. Svelte 5 reactivity note learned the hard way while building this: `$state` reads are tracked by call stack, not lexical scope, so a plain method call from inside `$effect` (e.g. `practice.handleDetectedNote(note)`) can silently capture deeply-nested store reads/writes as dependencies and self-retrigger; wrap such calls in `untrack(...)`, and never rely on `||`/`&&` short-circuiting to make multiple fields "tracked" — read each one into its own `const` first.
+
+`scale-practice.svelte.ts` follows the exact same independent-store shape as `practice.svelte.ts` (reads `liveInput` for detected notes, never imported by `fretfield.svelte.ts`, its own target/result markers composed directly in `FretCell.svelte`) but owns none of `practice.svelte.ts`'s state — it's a sibling, not an extension. It's also the one store allowed to touch `$lib/audio/metronome.ts` and run a `setTimeout` scheduler; no other store should grow timer-based logic. Its scheduler is a testability seam, not just an implementation detail: `stopSchedulerForTesting()`/`advanceBeatForTesting()` let Playwright drive beats deterministically without real BPM timing (see `scale-practice-test-hooks.ts`) — preserve this seam if the scheduler is ever reworked, since `start()` always arms the real timer and a test must explicitly silence it before calling `advanceBeat()`, or the two will race.
 
 ### `src/routes/`
 
@@ -597,11 +610,13 @@ Unless explicitly requested or scheduled in the roadmap, do not add:
 - analytics SDKs
 - advertising code
 
-Within Live Input specifically, also do not add: polyphonic pitch detection, chord recognition from audio, MIDI input, recording, audio playback, a metronome, ML-based pitch models, or automatic progression advancement — see `BLUEPRINT.md` §18 for the full exclusion list and why. Live Input stays a thin layer over the existing four modes; it is not the place to build a second product.
+Within Live Input specifically, also do not add: polyphonic pitch detection, chord recognition from audio, MIDI input, recording, audio playback, a metronome, ML-based pitch models, or automatic progression advancement — see `BLUEPRINT.md` §18 for the full exclusion list and why. Live Input stays a thin layer over the existing single-chord modes; it is not the place to build a second product. (Scale Practice's metronome click is a deliberately separate, single-purpose feature — see below — not an exception to this rule.)
 
 Within Guided Practice specifically, also do not add: a metronome, backing tracks, automatic chord timing, rhythm/duration/tempo scoring, persistent progress, user accounts, achievements, an adaptive AI teacher, spaced repetition, or generated bass lines — see `BLUEPRINT.md` §19. Session stats live only in memory for the current session; do not add a backend to persist them.
 
 Within Scale Blocks specifically, do not add: URL persistence for `chordBlocks` without discussing it first (deliberately session-only for v1, matching Guided Practice's precedent), or a fifth+ block beyond `MAX_CHORD_BLOCKS`. Don't make `suggestedScalesFor` filter/restrict the scale dropdown — it orders it, it never removes an option.
+
+Within Scale Practice specifically, also do not add: subdivisions, swing, or accented downbeats (quarter-note clicks only), automatic tempo ramps (BPM is adjusted by hand), a mute toggle, persistent session stats, or Live Input/Guided Practice driving this mode the way they drive the four single-chord modes — see `BLUEPRINT.md` §21. Don't move its `setTimeout` scheduler into `live-input.svelte.ts` or `practice.svelte.ts` — it stays in its own store (§4).
 
 Maintain product focus.
 
@@ -617,17 +632,23 @@ local-fields.ts progressions.ts connection-score.ts voice-leading.ts
 voice-leading-paths.ts absolute-pitch.ts live-position.ts scales.ts
 ```
 
-And in `src/lib/audio/` (Live Input's acoustic-pitch domain — see §4):
+And in `src/lib/audio/` (Live Input's acoustic-pitch domain, plus Scale Practice's click — see §4):
 
 ```text
 types.ts pitch-detector.ts pitch-tracker.ts note-mapping.ts
-audio-input.ts fake-audio-source.ts
+audio-input.ts fake-audio-source.ts metronome.ts
 ```
 
 And in `src/lib/practice/` (Guided Practice's decision layer — see §4):
 
 ```text
 types.ts evaluation.ts exercise-generators.ts practice-engine.ts presets.ts
+```
+
+And in `src/lib/scale-practice/` (Scale Practice's decision layer — see §4):
+
+```text
+types.ts sequence.ts evaluation.ts
 ```
 
 Future modules may include:
@@ -640,7 +661,7 @@ audio/playback.ts
 
 (`practice/walking-bass.ts` above would back a future Walking Bass practice mode — target root arrivals with chromatic-approach hints, per ROADMAP.md's Phase 10; Find Interval/Find Chord Tone's original "Interval Trainer"/"Chord-Tone Trainer" framing is already covered by `practice/exercise-generators.ts`.)
 
-(`audio/playback.ts` above is audio _output_ — playing selected notes/chords, per ROADMAP.md's Phase 11 — a distinct, still-unbuilt feature from Live Input's audio _input_/detection in `src/lib/audio/`.)
+(`audio/playback.ts` above is audio _output_ — playing selected notes/chords, per ROADMAP.md's Phase 11 — a distinct, still-unbuilt feature from both Live Input's audio _input_/detection and `metronome.ts`'s single fixed click, which has no note/chord awareness at all.)
 
 These must build on the existing pure music engine rather than replacing it with UI-specific logic. In particular, `progressions.ts` (declarative `ProgressionTemplate`s), `connection-score.ts` (pitch-class-level resolution scoring), and `voice-leading-paths.ts` (the exact-DP path search over `FretPosition`s) are three separate layers — new work should extend the layer that actually owns the concept rather than reaching across them.
 
