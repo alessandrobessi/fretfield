@@ -280,8 +280,23 @@
 		pointer-events: none;
 	}
 
+	/*
+	 * The single best-match position (as opposed to the wider set of
+	 * physically-possible candidates above) gets a bright fill, not just a
+	 * border — it's the one actual note being heard right now, so it should
+	 * read at a glance rather than require spotting an outline (product
+	 * spec §9/§15).
+	 */
+	.fret-cell.live-likely {
+		background: var(--live-accent, #06b6d4);
+	}
+
+	.fret-cell.live-likely:hover {
+		background: var(--live-accent-hover, #0891b2);
+	}
+
 	.fret-cell.live-likely::after {
-		border: 3px solid var(--live-accent, #06b6d4);
+		border: 3px solid var(--live-accent-strong, #0e7490);
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
