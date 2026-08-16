@@ -63,6 +63,32 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 
 </td>
 </tr>
+<tr>
+<td width="50%">
+
+**Scale Blocks** — up to 4 chords' scales overlaid at once
+
+<img src="./docs/screenshots/scale-blocks.jpg" alt="Scale Blocks showing three configured chord blocks for a Dm7-G7-Cmaj7 progression, with every fret numbered and colored by which block's scale it belongs to">
+
+</td>
+<td width="50%">
+
+**Live Input** — the actual note you played, lit up on the neck
+
+<img src="./docs/screenshots/live-input.jpg" alt="Live Input tracking a detected F note over G7 in Progression Field, with the confirmed fret filled in a bright accent color and its best resolution into E highlighted">
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Guided Practice** — an exercise loop with live feedback
+
+<img src="./docs/screenshots/guided-practice.jpg" alt="Guided Practice showing a Find Interval exercise for 2/9 relative to C, with the played note confirmed correct and a green result ring on the fretboard">
+
+</td>
+<td width="50%"></td>
+</tr>
 </table>
 
 ---
@@ -126,7 +152,7 @@ pnpm dev -- --open
 pnpm lint       # prettier + eslint
 pnpm check      # svelte-check / TypeScript
 pnpm test:unit  # vitest — the music engine's invariants live here
-pnpm test:e2e   # playwright — full user flows across all four modes and Guided Practice
+pnpm test:e2e   # playwright — full user flows across all five modes, Live Input, and Guided Practice
 pnpm build      # production build
 ```
 
