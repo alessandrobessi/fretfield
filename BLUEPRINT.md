@@ -727,6 +727,8 @@ every fret on the neck shows which block(s)' scale contain its pitch class
 
 **Fretboard rendering:** with no single shared chord, the base pill always shows a plain note name (the existing no-root fallback branch, not a new code path). Membership in each configured block's scale is shown as a small row of up to 4 numbered, colored chips per fret — the number identifies the block without relying on color alone (§22's non-color-signal rule), and a fret can carry multiple chips at once when its pitch class is in more than one block's scale (a common, musically expected case: e.g. D Dorian and G Mixolydian are different modes of the same seven notes).
 
+**Common tones:** with 2+ configured blocks, `ScaleBlockLegend` also lists the note names present in _every_ block's scale (the full intersection, not any pairwise overlap) and the fretboard fills those frets' background with a distinct accent color instead of just their chips — the "safe over the whole progression" notes should read at a glance, the same instinct behind Live Input's bright fill for the confirmed played position (§18).
+
 **Not built (yet):** URL persistence for `chordBlocks` (session-only, matching Guided Practice's own precedent), Local Field constraining of Scale Blocks, and Live Input/Guided Practice integration with this mode.
 
 ---

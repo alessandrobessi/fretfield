@@ -108,6 +108,8 @@ export interface DisplayFretPosition extends FretPosition {
 	isLiveNextTarget: boolean;
 	/** Scale Blocks: indices into `chordBlocks` of every fully-configured block whose scale contains this pitch class. Always empty outside `scale-blocks` mode. */
 	scaleBlockMembership: number[];
+	/** Scale Blocks: this pitch class is in every configured block's scale (never true with fewer than 2 configured blocks). */
+	isScaleBlockCommonNote: boolean;
 }
 
 /** A progression chord enriched with its display symbol, for the ProgressionStrip. */
@@ -319,6 +321,9 @@ class FretFieldStore {
 					)
 				)
 				.map(({ index }) => index);
+		const isScaleBlockCommonNoteFor = (position: FretPosition): boolean =>
+			activeChordBlocks.length >= 2 &&
+			scaleBlockMembershipFor(position).length === activeChordBlocks.length;
 
 		if (analyzed === null) {
 			return createFretboard(this.tuning, this.fretCount).map((position) => ({
@@ -340,7 +345,8 @@ class FretFieldStore {
 				isLivePlayed: isLivePlayedPosition(position),
 				isLiveLikely: isLiveLikelyPosition(position),
 				isLiveNextTarget: isLiveNextTargetPosition(position),
-				scaleBlockMembership: scaleBlockMembershipFor(position)
+				scaleBlockMembership: scaleBlockMembershipFor(position),
+				isScaleBlockCommonNote: isScaleBlockCommonNoteFor(position)
 			}));
 		}
 
@@ -398,7 +404,8 @@ class FretFieldStore {
 			isLivePlayed: isLivePlayedPosition(position),
 			isLiveLikely: isLiveLikelyPosition(position),
 			isLiveNextTarget: isLiveNextTargetPosition(position),
-			scaleBlockMembership: scaleBlockMembershipFor(position)
+			scaleBlockMembership: scaleBlockMembershipFor(position),
+			isScaleBlockCommonNote: isScaleBlockCommonNoteFor(position)
 		}));
 	});
 

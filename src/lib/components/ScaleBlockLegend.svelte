@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { getChordDefinition } from '$lib/music/chords';
 	import { defaultNoteName } from '$lib/music/pitch';
-	import { getScaleDefinition } from '$lib/music/scales';
+	import {
+		getScaleDefinition,
+		scaleContainsPitchClass,
+		scalePitchClasses
+	} from '$lib/music/scales';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 
 	const configuredBlocks = $derived(
@@ -11,6 +15,25 @@
 				({ block }) => block.root !== null && block.chordId !== null && block.scaleId !== null
 			)
 	);
+
+	// Ordered by the first block's own scale degrees (not chromatically) so
+	// e.g. a shared root reads first — every pitch class here is by
+	// definition already in every other configured block's scale too.
+	const commonNoteNames = $derived.by<string[]>(() => {
+		if (configuredBlocks.length < 2) return [];
+		const [first, ...rest] = configuredBlocks;
+		const firstPitchClasses = scalePitchClasses(
+			first.block.root!,
+			getScaleDefinition(first.block.scaleId!)
+		);
+		return firstPitchClasses
+			.filter((pitchClass) =>
+				rest.every(({ block }) =>
+					scaleContainsPitchClass(block.root!, getScaleDefinition(block.scaleId!), pitchClass)
+				)
+			)
+			.map(defaultNoteName);
+	});
 </script>
 
 {#if configuredBlocks.length > 0}
@@ -24,6 +47,16 @@
 			</li>
 		{/each}
 	</ul>
+{/if}
+{#if configuredBlocks.length >= 2}
+	<p class="scale-block-common-notes">
+		{#if commonNoteNames.length > 0}
+			<span class="common-swatch" aria-hidden="true"></span>
+			Common to every block: <strong>{commonNoteNames.join(', ')}</strong>
+		{:else}
+			No note is in every block's scale.
+		{/if}
+	</p>
 {/if}
 
 <style>
@@ -75,5 +108,22 @@
 
 	.chip[data-block='3'] {
 		background: var(--scale-block-4, #8b5cf6);
+	}
+
+	.scale-block-common-notes {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin: 0.5rem 0 0;
+		font-size: 0.85rem;
+		color: var(--fret-fg, #241a3d);
+	}
+
+	.common-swatch {
+		display: inline-block;
+		width: 0.7rem;
+		height: 0.7rem;
+		border-radius: 3px;
+		background: var(--scale-block-common, #10b981);
 	}
 </style>

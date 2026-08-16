@@ -66,9 +66,9 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 <tr>
 <td width="50%">
 
-**Scale Blocks** — up to 4 chords' scales overlaid at once
+**Scale Blocks** — up to 4 chords' scales overlaid at once, with shared notes called out
 
-<img src="./docs/screenshots/scale-blocks.jpg" alt="Scale Blocks showing three configured chord blocks for a Dm7-G7-Cmaj7 progression, with every fret numbered and colored by which block's scale it belongs to">
+<img src="./docs/screenshots/scale-blocks.jpg" alt="Scale Blocks showing two configured chord blocks, C Major Ionian and F# Diminished Locrian, with every fret numbered and colored by which block's scale it belongs to, and the five notes common to both scales filled in a shared accent color and listed in the legend">
 
 </td>
 <td width="50%">

@@ -38,6 +38,9 @@ test.describe('Scale Blocks', () => {
 
 		await expect(page.locator('.scale-block-legend')).toContainText('C');
 		await expect(page.locator('.scale-block-legend')).toContainText('Ionian');
+
+		// A single block has nothing to be "common" with.
+		await expect(page.locator('.scale-block-common-notes')).toHaveCount(0);
 	});
 
 	test('a second block shows exclusive and overlapping chips correctly', async ({ page }) => {
@@ -66,6 +69,31 @@ test.describe('Scale Blocks', () => {
 		// Bb (A string fret 1): in neither.
 		await expect(page.getByTestId('fret-A-1').locator('[data-block="0"]')).not.toBeVisible();
 		await expect(page.getByTestId('fret-A-1').locator('[data-block="1"]')).not.toBeVisible();
+	});
+
+	test('notes common to every configured block are shown in the legend and on the fretboard', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByRole('tab', { name: 'Scale Blocks' }).click();
+
+		await addBlock(page, 1, 'C', 'Major', 'Major (Ionian)');
+		await addBlock(page, 2, 'F#', 'Diminished', 'Locrian');
+
+		const commonNotes = page.locator('.scale-block-common-notes');
+		await expect(commonNotes).toContainText('Common to every block');
+		for (const note of ['G', 'A', 'B', 'D', 'E']) {
+			await expect(commonNotes).toContainText(note);
+		}
+
+		// G, A: in both blocks' scales.
+		await expect(page.getByTestId('fret-G-0')).toHaveClass(/scale-block-common/);
+		await expect(page.getByTestId('fret-A-0')).toHaveClass(/scale-block-common/);
+
+		// C: block 1 only, not common to both.
+		await expect(page.getByTestId('fret-A-3')).not.toHaveClass(/scale-block-common/);
+		// F#: block 2 only, not common to both.
+		await expect(page.getByTestId('fret-E-2')).not.toHaveClass(/scale-block-common/);
 	});
 
 	test('removing a block clears its chips and its row', async ({ page }) => {

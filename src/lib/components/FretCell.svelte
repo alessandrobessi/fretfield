@@ -61,6 +61,7 @@
 				`in scale for block ${position.scaleBlockMembership.map((i) => i + 1).join(', block ')}`
 			);
 		}
+		if (position.isScaleBlockCommonNote) parts.push('common to every block');
 		return parts.join(', ');
 	});
 </script>
@@ -77,6 +78,7 @@
 	class:live-likely={position.isLiveLikely}
 	class:live-next-target={position.isLiveNextTarget}
 	class:practice-target={isPracticeTarget}
+	class:scale-block-common={position.isScaleBlockCommonNote}
 	data-path-role={position.pathRole}
 	data-practice-result={practiceResult}
 	data-testid={`fret-${stringName}-${position.fret}`}
@@ -368,6 +370,21 @@
 		.practice-result-marker[data-result='strong-alternative'] {
 			animation: live-pulse 700ms ease-out 1;
 		}
+	}
+
+	/*
+	 * Scale Blocks: a note shared by every configured block's scale gets a
+	 * bright fill of its own, distinct from any single block's chip color
+	 * (blue/rose/amber/violet) so it reads as "common to all", not "in one
+	 * more block". The numbered chips still show underneath/around it —
+	 * this never replaces that per-block detail, only adds to it.
+	 */
+	.fret-cell.scale-block-common {
+		background: var(--scale-block-common, #10b981);
+	}
+
+	.fret-cell.scale-block-common:hover {
+		background: var(--scale-block-common-hover, #059669);
 	}
 
 	/*
