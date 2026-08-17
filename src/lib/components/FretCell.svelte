@@ -449,14 +449,18 @@
 	 * a real element (not a 3rd/4th pseudo-element) since ::before/::after
 	 * are already spoken for above, and a fret can belong to several blocks'
 	 * scales at once. The digit itself (not just color) identifies the
-	 * block, per AGENTS.md §7's non-color-signal rule.
+	 * block, per AGENTS.md §7's non-color-signal rule. Wraps onto a second
+	 * row past 4 chips — up to `MAX_CHORD_BLOCKS` (8) can theoretically
+	 * stack on one fret at once.
 	 */
 	.scale-block-chips {
 		position: absolute;
 		bottom: 2px;
-		left: 50%;
-		transform: translateX(-50%);
+		left: 2px;
+		right: 2px;
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
 		gap: 1px;
 		pointer-events: none;
 	}
@@ -465,10 +469,10 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 0.85rem;
-		height: 0.85rem;
+		width: 0.72rem;
+		height: 0.72rem;
 		border-radius: 50%;
-		font-size: 0.55rem;
+		font-size: 0.48rem;
 		font-weight: 700;
 		color: #fff;
 		line-height: 1;
@@ -488,6 +492,22 @@
 
 	.chip[data-block='3'] {
 		background: var(--scale-block-4, #8b5cf6);
+	}
+
+	.chip[data-block='4'] {
+		background: var(--scale-block-5, #14b8a6);
+	}
+
+	.chip[data-block='5'] {
+		background: var(--scale-block-6, #84cc16);
+	}
+
+	.chip[data-block='6'] {
+		background: var(--scale-block-7, #d946ef);
+	}
+
+	.chip[data-block='7'] {
+		background: var(--scale-block-8, #0ea5e9);
 	}
 
 	/*

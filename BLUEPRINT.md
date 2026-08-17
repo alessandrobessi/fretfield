@@ -11,7 +11,7 @@ Chord Field           "What can I play now?"          — full 12-role Harmonic 
 Progression Field      "Where can I go next?"           — resolve a progression template, see each note's best resolution into the next chord
 Voice-Leading Paths    "What route should I take?"      — ranked, complete fretted paths through the whole progression
 Local Fields           "Where on the neck should I play it?" — ranked, overlapping neck regions, usable as a lens under any of the above
-Scale Blocks           "What scales fit across this progression?" — up to 4 independently-configured chords, each with its own scale, overlaid on the neck at once
+Scale Blocks           "What scales fit across this progression?" — up to 8 independently-configured chords, each with its own scale, overlaid on the neck at once
 Scale Practice          "Can you play this scale in time?" — a metronome drives a sequence of target notes through a chosen scale/key/fret zone, with on-beat feedback
 ```
 
@@ -713,7 +713,7 @@ Follow Path             "Can you follow the selected voice-leading path?"       
 Unlike Live Input and Guided Practice, Scale Blocks is a genuine fifth `FieldMode`, not a layer: it shows several chords' scales at once rather than one chord's role field at a time, so it needed its own state (`chordBlocks`) rather than reusing `root`/`chordId`.
 
 ```text
-build up to 4 chord blocks
+build up to 8 chord blocks
         │
         ▼
 each block: its own root + chord quality + a scale that fits it
@@ -722,11 +722,11 @@ each block: its own root + chord quality + a scale that fits it
 every fret on the neck shows which block(s)' scale contain its pitch class
 ```
 
-**Chord blocks** (`ChordBlock { id, root, chordId, scaleId }`, capped at `MAX_CHORD_BLOCKS = 4`): fully independent of each other — no shared key or tonic is enforced, though in practice a bassist usually builds blocks from one progression (e.g. a ii–V–I). Edited via per-block root/chord/scale dropdowns, never by clicking a fret (clicking a fret still sets the _global_ selected root, exactly as it already does in every other mode — see AGENTS.md §9).
+**Chord blocks** (`ChordBlock { id, root, chordId, scaleId }`, capped at `MAX_CHORD_BLOCKS = 8`): fully independent of each other — no shared key or tonic is enforced, though in practice a bassist usually builds blocks from one progression (e.g. a ii–V–I). Edited via per-block root/chord/scale dropdowns, never by clicking a fret (clicking a fret still sets the _global_ selected root, exactly as it already does in every other mode — see AGENTS.md §9).
 
 **`src/lib/music/scales.ts`:** the first place scale theory enters the engine. A `ScaleDefinition` is just a named `IntervalId[]`, defined the same way chord formulas already are — no new pitch arithmetic. `suggestedScalesFor(chordId)` is family-keyed (mirrors `FAMILY_DEFAULT_ROLES` in `harmony.ts`'s exact pattern) and only orders/groups the scale dropdown; every scale stays pickable for every chord, consistent with §24's "no wrong note" framing.
 
-**Fretboard rendering:** with no single shared chord, the base pill always shows a plain note name (the existing no-root fallback branch, not a new code path). Membership in each configured block's scale is shown as a small row of up to 4 numbered, colored chips per fret — the number identifies the block without relying on color alone (§22's non-color-signal rule), and a fret can carry multiple chips at once when its pitch class is in more than one block's scale (a common, musically expected case: e.g. D Dorian and G Mixolydian are different modes of the same seven notes).
+**Fretboard rendering:** with no single shared chord, the base pill always shows a plain note name (the existing no-root fallback branch, not a new code path). Membership in each configured block's scale is shown as a small row of up to 8 numbered, colored chips per fret (wrapping onto a second row past 4) — the number identifies the block without relying on color alone (§22's non-color-signal rule), and a fret can carry multiple chips at once when its pitch class is in more than one block's scale (a common, musically expected case: e.g. D Dorian and G Mixolydian are different modes of the same seven notes).
 
 **Common tones:** with 2+ configured blocks, `ScaleBlockLegend` also lists the note names present in _every_ block's scale (the full intersection, not any pairwise overlap) and the fretboard fills those frets' background with a distinct accent color instead of just their chips — the "safe over the whole progression" notes should read at a glance, the same instinct behind Live Input's bright fill for the confirmed played position (§18).
 

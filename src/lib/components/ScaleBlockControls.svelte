@@ -211,6 +211,22 @@
 		background: var(--scale-block-4, #8b5cf6);
 	}
 
+	.badge[data-block='4'] {
+		background: var(--scale-block-5, #14b8a6);
+	}
+
+	.badge[data-block='5'] {
+		background: var(--scale-block-6, #84cc16);
+	}
+
+	.badge[data-block='6'] {
+		background: var(--scale-block-7, #d946ef);
+	}
+
+	.badge[data-block='7'] {
+		background: var(--scale-block-8, #0ea5e9);
+	}
+
 	.field {
 		display: flex;
 		flex-direction: column;

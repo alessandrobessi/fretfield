@@ -67,7 +67,7 @@ export interface ChordBlock {
 	scaleId: string | null;
 }
 
-export const MAX_CHORD_BLOCKS = 4;
+export const MAX_CHORD_BLOCKS = 8;
 
 /**
  * Chord Field has two views over the same analysis: 'chord-tones' shows only

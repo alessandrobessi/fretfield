@@ -110,6 +110,22 @@
 		background: var(--scale-block-4, #8b5cf6);
 	}
 
+	.chip[data-block='4'] {
+		background: var(--scale-block-5, #14b8a6);
+	}
+
+	.chip[data-block='5'] {
+		background: var(--scale-block-6, #84cc16);
+	}
+
+	.chip[data-block='6'] {
+		background: var(--scale-block-7, #d946ef);
+	}
+
+	.chip[data-block='7'] {
+		background: var(--scale-block-8, #0ea5e9);
+	}
+
 	.scale-block-common-notes {
 		display: flex;
 		align-items: center;

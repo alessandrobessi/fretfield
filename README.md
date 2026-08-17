@@ -16,14 +16,14 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 | ➡️ **Progression Field**   | _Where can I go next?_                     | Resolve a progression template (ii–V–I, I–vi–ii–V, 12-bar blues, …) from the selected root and see each note's best resolution into the next chord, derived from interval math — not a hardcoded lookup table. |
 | 🧭 **Voice-Leading Paths** | _What route should I take?_                | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.         |
 | 📍 **Local Fields**        | _Where on the neck should I play it?_      | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                   |
-| 🧩 **Scale Blocks**        | _What scales fit across this progression?_ | Build up to 4 independent chord "blocks" — each its own root, quality, and scale — and see all of them at once: every fret numbered/colored by which block's scale it belongs to, overlaps included.           |
+| 🧩 **Scale Blocks**        | _What scales fit across this progression?_ | Build up to 8 independent chord "blocks" — each its own root, quality, and scale — and see all of them at once: every fret numbered/colored by which block's scale it belongs to, overlaps included.           |
 | 🥁 **Scale Practice**      | _Can you play this scale in time?_         | Pick a root, a scale, and a fret zone, then a metronome (adjustable BPM) steps a target note through it — ascending, then descending — with on-beat visual feedback on every note you play.                    |
 
 **Live Input** is an optional layer over all six modes, not a `FieldMode` itself: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch and highlights every fret that physically produces it everywhere, including Scale Blocks and Scale Practice; the deeper explanation — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note — is available for those three modes specifically. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
 
 **Guided Practice** turns the four single-chord modes into exercises, closing the loop: FretField proposes a target (find an interval, find a chord tone, resolve a note into the next chord, or follow a voice-leading path one step at a time), you find and play it, Live Input detects it, and FretField explains what happened — exact, a strong or valid alternative, or not quite, never a flat right/wrong. Not a `FieldMode` either; it's built entirely on the existing questions and the same harmonic engine, and doesn't currently drive Scale Blocks or Scale Practice.
 
-**Scale Blocks** _is_ its own mode (the "🧩" row above) — a genuinely different, simultaneous view rather than a layer over the other four: build up to 4 independent chord blocks and see every one of their scales overlaid on the neck at once, each fret numbered and colored by which block(s) it belongs to.
+**Scale Blocks** _is_ its own mode (the "🧩" row above) — a genuinely different, simultaneous view rather than a layer over the other four: build up to 8 independent chord blocks and see every one of their scales overlaid on the neck at once, each fret numbered and colored by which block(s) it belongs to.
 
 **Scale Practice** _is_ its own mode too (the "🥁" row above) — the app's first audio _output_, not just analysis: a real metronome click, entirely independent of every other mode's root/chord/progression state. It's built specifically because Guided Practice deliberately excludes timing (self-paced by design); Scale Practice's whole point is timing.
 
@@ -69,7 +69,7 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 <tr>
 <td width="50%">
 
-**Scale Blocks** — up to 4 chords' scales overlaid at once, with shared notes called out
+**Scale Blocks** — up to 8 chords' scales overlaid at once, with shared notes called out
 
 <img src="./docs/screenshots/scale-blocks.jpg" alt="Scale Blocks showing two configured chord blocks, C Major Ionian and F# Diminished Locrian, with every fret numbered and colored by which block's scale it belongs to, and the five notes common to both scales filled in a shared accent color and listed in the legend">
 
