@@ -9,6 +9,7 @@
 	import Legend from '$lib/components/Legend.svelte';
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
+	import PracticeHome from '$lib/components/practice/PracticeHome.svelte';
 	import ProgressionWorkspace from '$lib/components/explore/ProgressionWorkspace.svelte';
 	import ScaleBlockControls from '$lib/components/ScaleBlockControls.svelte';
 	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
@@ -76,9 +77,7 @@
 		<NoteInspector />
 		<LocalFieldControls />
 	{:else if navigation.destination === 'practice'}
-		<p class="destination-stub">
-			Practice is being rebuilt as its own home — for now, everything still lives under Explore.
-		</p>
+		<PracticeHome />
 	{:else}
 		<p class="destination-stub">Progress tracking is coming soon.</p>
 	{/if}
