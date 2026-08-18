@@ -628,6 +628,11 @@ class FretFieldStore {
 		this.selectedRootPosition = position;
 	}
 
+	/** Sets the root by pitch class alone, with no specific fret in mind — same pattern `restoreFromURLState` already uses. For callers (Practice Presets) that care which note is the root, not which string/fret represents it. */
+	setRootPitchClass(root: PitchClass | null): void {
+		this.root = root;
+	}
+
 	inspect(position: FretPosition): void {
 		this.inspectedPosition = position;
 	}
