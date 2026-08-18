@@ -4,7 +4,6 @@
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import AnalysisModeToggle from './AnalysisModeToggle.svelte';
 	import ChordSelector from './ChordSelector.svelte';
-	import DisplayModeToggle from './DisplayModeToggle.svelte';
 
 	const rootLabel = $derived(fretfield.root === null ? '—' : defaultNoteName(fretfield.root));
 	const chordLabel = $derived(getChordDefinition(fretfield.chordId).label);
@@ -18,7 +17,6 @@
 	<div class="controls">
 		<ChordSelector />
 		<AnalysisModeToggle />
-		<DisplayModeToggle />
 	</div>
 </div>
 

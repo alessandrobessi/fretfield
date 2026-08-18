@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
+	import AppHeader from '$lib/components/shell/AppHeader.svelte';
 	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import GuidedPracticeControls from '$lib/components/GuidedPracticeControls.svelte';
@@ -15,6 +16,7 @@
 	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
 	import ScalePracticeControls from '$lib/components/ScalePracticeControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
+	import { navigation } from '$lib/stores/navigation.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
 	import { installPracticeTestHooks } from '$lib/testing/practice-test-hooks';
 	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
@@ -51,27 +53,37 @@
 		</div>
 	</header>
 
-	<FieldModeSwitcher />
-	<LiveInputControls />
-	<GuidedPracticeControls />
+	<AppHeader />
 
-	{#if fretfield.mode === 'progression'}
-		<ProgressionControls />
-	{:else if fretfield.mode === 'paths'}
-		<PathsControls />
-	{:else if fretfield.mode === 'scale-blocks'}
-		<ScaleBlockControls />
-	{:else if fretfield.mode === 'scale-practice'}
-		<ScalePracticeControls />
+	{#if navigation.destination === 'explore'}
+		<FieldModeSwitcher />
+		<LiveInputControls />
+		<GuidedPracticeControls />
+
+		{#if fretfield.mode === 'progression'}
+			<ProgressionControls />
+		{:else if fretfield.mode === 'paths'}
+			<PathsControls />
+		{:else if fretfield.mode === 'scale-blocks'}
+			<ScaleBlockControls />
+		{:else if fretfield.mode === 'scale-practice'}
+			<ScalePracticeControls />
+		{:else}
+			<HarmonyControls />
+		{/if}
+
+		<Fretboard />
+		<Legend />
+		<ScaleBlockLegend />
+		<NoteInspector />
+		<LocalFieldControls />
+	{:else if navigation.destination === 'practice'}
+		<p class="destination-stub">
+			Practice is being rebuilt as its own home — for now, everything still lives under Explore.
+		</p>
 	{:else}
-		<HarmonyControls />
+		<p class="destination-stub">Progress tracking is coming soon.</p>
 	{/if}
-
-	<Fretboard />
-	<Legend />
-	<ScaleBlockLegend />
-	<NoteInspector />
-	<LocalFieldControls />
 </main>
 
 <style>
@@ -128,5 +140,15 @@
 		color: #fff;
 		opacity: 0.9;
 		font-weight: 500;
+	}
+
+	.destination-stub {
+		margin: 0;
+		padding: 2rem 1.5rem;
+		text-align: center;
+		background: var(--fret-bg, #fff);
+		border: 1px dashed var(--fret-border, #ddd3f7);
+		border-radius: 14px;
+		opacity: 0.7;
 	}
 </style>

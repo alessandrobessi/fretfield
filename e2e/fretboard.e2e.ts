@@ -57,6 +57,7 @@ test.describe('core scenario: click root, choose harmony, explore the field', ()
 
 		await expect(cell).toHaveText('1');
 
+		await page.getByRole('button', { name: 'Settings' }).click();
 		await page.getByRole('radio', { name: 'Notes' }).click();
 		await expect(cell).toHaveText('C');
 
@@ -205,6 +206,7 @@ test.describe('Unified interaction: shared state persists across mode switches',
 
 		// Set up state in Chord Field: root C, Notes display mode.
 		await page.getByTestId('fret-A-3').click();
+		await page.getByRole('button', { name: 'Settings' }).click();
 		await page.getByRole('radio', { name: 'Notes' }).click();
 		await expect(page.getByTestId('fret-A-3')).toHaveText('C');
 
@@ -249,6 +251,7 @@ test.describe('URL state: a shared link restores the same view', () => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
 		await page.getByLabel('Chord').selectOption({ label: 'Dominant 7' });
+		await page.getByRole('button', { name: 'Settings' }).click();
 		await page.getByRole('radio', { name: 'Both' }).click();
 
 		await expect(page).toHaveURL(/root=C/);
@@ -259,6 +262,7 @@ test.describe('URL state: a shared link restores the same view', () => {
 
 		await expect(page.locator('.status')).toContainText('Root: C');
 		await expect(page.locator('.status')).toContainText('Dominant 7');
+		await page.getByRole('button', { name: 'Settings' }).click();
 		await expect(page.getByRole('radio', { name: 'Both', exact: true })).toHaveAttribute(
 			'aria-checked',
 			'true'

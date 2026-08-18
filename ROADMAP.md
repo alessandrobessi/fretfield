@@ -31,6 +31,8 @@ Phase 9.5 (Live Input — real-time bass pitch detection layered over all six mo
 
 Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (remaining practice modes — Ear Training, Groove Navigation, Walking Bass — audio playback beyond the metronome click, alternate tunings, educational integration).
 
+**Feature freeze — 1.0 restructure in progress.** The six peer modes above have grown into a product that no longer reads as one coherent instrument. FretField is mid-way through a navigation/IA restructure (Explore / Practice / Progress, with harmonic context, harmonic lens, spatial position, and live bass as cross-cutting dimensions instead of six parallel tabs) — see the milestone plan for the current build order. No new user-facing capability should be added on top of the six-mode structure until this restructure lands; the restructure itself does not add capability, it reorganizes what already exists. Everything beyond the roadmap's own "1.0 boundary" (local persistence, a harmonic-fluency model, daily practice planning, a saved-material library, donations, a full accessibility/responsive pass, alternate tunings) is deliberately deferred to a later planning effort.
+
 ---
 
 # Phase 0 — Repository foundation
