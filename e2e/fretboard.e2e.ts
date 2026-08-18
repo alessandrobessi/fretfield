@@ -196,6 +196,22 @@ test.describe('Local Fields: region navigator and neck ruler', () => {
 		await expect(ruler.locator('.overlap-bar')).toHaveCount(9);
 		await expect(ruler.locator('.overlap-bar.active')).toHaveCount(1);
 	});
+
+	test('a custom fret range sets the region directly, independent of the suggested-region cycle', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click(); // root C
+		await page.getByRole('tab', { name: 'Local Fields' }).click();
+
+		await page.getByLabel('Position start fret').fill('7');
+		await page.getByLabel('Position end fret').fill('11');
+		await page.getByLabel('Position end fret').blur();
+
+		await expect(page.getByTestId('fret-A-9')).toHaveClass(/region-active/);
+		await expect(page.getByTestId('fret-A-20')).toHaveClass(/region-dimmed/);
+		await expect(page.locator('.summary .range')).toHaveText('Frets 7–11');
+	});
 });
 
 test.describe('Unified interaction: shared state persists across mode switches', () => {

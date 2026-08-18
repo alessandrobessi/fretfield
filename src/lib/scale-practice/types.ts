@@ -1,10 +1,9 @@
+import type { FretRange } from '$lib/music/fret-range';
+
 /**
- * A single contiguous fret range, deliberately not `FretboardRegion`
- * (`$lib/music/local-fields.ts`) — this feature keeps its own zone state
- * rather than sharing `fretfield.activeRegion`, so a running session never
- * fights with whatever Local Field region is set elsewhere.
+ * Scale Practice's own zone state. A `FretRange` by shape, but deliberately
+ * never shares `fretfield.svelte.ts`'s `activeRegion` state — a running
+ * practice session should never fight with whatever Local Field region is
+ * set elsewhere.
  */
-export interface PracticeZone {
-	minFret: number;
-	maxFret: number;
-}
+export type PracticeZone = FretRange;

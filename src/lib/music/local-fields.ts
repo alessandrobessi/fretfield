@@ -1,17 +1,17 @@
 import type { AnalyzedFretPosition } from './harmony';
 import type { FretPosition } from './fretboard';
+import type { FretRange } from './fret-range';
 
 /**
  * A bounded, contiguous span of frets — a "local view" of the harmonic
  * field, not a fixed CAGED-style shape. Regions are meant to overlap: the
  * same pitch reachable in two adjacent regions is what makes them feel
  * connected rather than disconnected boxes (BLUEPRINT.md / ROADMAP.md
- * Local Fields goal).
+ * Local Fields goal). Builds on the shared `FretRange` shape, plus the
+ * identity/anchor fields specific to a ranked, nameable region.
  */
-export interface FretboardRegion {
+export interface FretboardRegion extends FretRange {
 	id: string;
-	minFret: number;
-	maxFret: number;
 	anchor?: FretPosition;
 }
 

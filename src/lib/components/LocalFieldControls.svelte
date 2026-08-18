@@ -1,4 +1,6 @@
 <script lang="ts">
+	import PositionRangeInputs from '$lib/components/shared/PositionRangeInputs.svelte';
+	import type { FretRange } from '$lib/music/fret-range';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 
 	let showOverlap = $state(false);
@@ -26,6 +28,18 @@
 		const width = percent(maxFret - minFret + 1);
 		return `left: ${left}%; width: ${width}%;`;
 	}
+
+	const customRange = $derived<FretRange>(
+		fretfield.activeRegion ?? { minFret: 0, maxFret: fretCount }
+	);
+
+	function handleCustomRangeChange(range: FretRange): void {
+		fretfield.setRegion({
+			id: `region-${range.minFret}-${range.maxFret}`,
+			minFret: range.minFret,
+			maxFret: range.maxFret
+		});
+	}
 </script>
 
 <div class="local-field-controls">
@@ -40,9 +54,9 @@
 		<div class="nav">
 			<button type="button" onclick={() => fretfield.previousRegion()}>◂ Previous</button>
 			<div class="summary">
-				{#if activeAnalysis}
+				{#if fretfield.activeRegion}
 					<span class="range"
-						>Frets {activeAnalysis.region.minFret}–{activeAnalysis.region.maxFret}</span
+						>Frets {fretfield.activeRegion.minFret}–{fretfield.activeRegion.maxFret}</span
 					>
 					{#if rank}<span class="rank">#{rank} of {fretfield.rankedRegions.length}</span>{/if}
 				{:else}
@@ -70,6 +84,13 @@
 			</button>
 		</div>
 
+		<PositionRangeInputs
+			range={customRange}
+			{fretCount}
+			label="Position"
+			onChange={handleCustomRangeChange}
+		/>
+
 		{#if activeAnalysis}
 			<dl class="coverage">
 				<div>
@@ -96,10 +117,10 @@
 				</div>
 			{:else}
 				<div class="ruler-track">
-					{#if activeAnalysis}
+					{#if fretfield.activeRegion}
 						<div
 							class="region-bracket"
-							style={barStyle(activeAnalysis.region.minFret, activeAnalysis.region.maxFret)}
+							style={barStyle(fretfield.activeRegion.minFret, fretfield.activeRegion.maxFret)}
 						></div>
 					{/if}
 				</div>

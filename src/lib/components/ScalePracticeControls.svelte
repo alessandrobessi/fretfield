@@ -1,5 +1,7 @@
 <script lang="ts">
+	import PositionRangeInputs from '$lib/components/shared/PositionRangeInputs.svelte';
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
+	import type { FretRange } from '$lib/music/fret-range';
 	import { listScales } from '$lib/music/scales';
 	import { DEFAULT_FRET_COUNT } from '$lib/music/tuning';
 	import { liveInput } from '$lib/stores/live-input.svelte';
@@ -33,14 +35,8 @@
 		scalePractice.setScaleId(value === '' ? null : value);
 	}
 
-	function handleMinFretChange(event: Event): void {
-		const value = Number((event.currentTarget as HTMLInputElement).value);
-		scalePractice.setZone(value, Math.max(value, scalePractice.zone.maxFret));
-	}
-
-	function handleMaxFretChange(event: Event): void {
-		const value = Number((event.currentTarget as HTMLInputElement).value);
-		scalePractice.setZone(Math.min(scalePractice.zone.minFret, value), value);
+	function handleZoneChange(range: FretRange): void {
+		scalePractice.setZone(range.minFret, range.maxFret);
 	}
 
 	function handleBpmChange(event: Event): void {
@@ -88,28 +84,12 @@
 				{/each}
 			</select>
 		</label>
-		<label class="field">
-			<span class="field-label">From fret</span>
-			<input
-				type="number"
-				aria-label="Zone start fret"
-				min="0"
-				max={DEFAULT_FRET_COUNT}
-				value={scalePractice.zone.minFret}
-				onchange={handleMinFretChange}
-			/>
-		</label>
-		<label class="field">
-			<span class="field-label">To fret</span>
-			<input
-				type="number"
-				aria-label="Zone end fret"
-				min="0"
-				max={DEFAULT_FRET_COUNT}
-				value={scalePractice.zone.maxFret}
-				onchange={handleMaxFretChange}
-			/>
-		</label>
+		<PositionRangeInputs
+			range={scalePractice.zone}
+			fretCount={DEFAULT_FRET_COUNT}
+			label="Zone"
+			onChange={handleZoneChange}
+		/>
 	</div>
 
 	{#if zoneExcludesScale}
