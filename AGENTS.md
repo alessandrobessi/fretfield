@@ -27,7 +27,7 @@ Scale Practice          "Can you play this scale in time?"
 
 Local Fields is a spatial lens usable from any of the other three single-chord modes (region state lives in the store independent of `mode`), not an isolated feature. Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying selection.
 
-Scale Blocks and Scale Practice are the two modes that don't fit that "shared root/chordId" model. Scale Blocks holds its own independent `chordBlocks` list (up to `MAX_CHORD_BLOCKS`, currently 8, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time. Scale Practice holds its own independent root/scale/fret-zone/tempo session (`scale-practice.svelte.ts`, not `fretfield.svelte.ts`) and drives a metronome — timing that Guided Practice deliberately excludes (§26). Both are genuine `FieldMode`s like the other four, not layers (contrast with Live Input/Guided Practice below, which explicitly are layers).
+Scale Blocks and Scale Practice are the two modes that don't fit that "shared root/chordId" model. Scale Blocks holds its own independent `chordBlocks` list (up to `MAX_CHORD_BLOCKS`, currently 8, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time. Scale Practice holds its own independent root/scale/fret-zone/tempo session (`scale-practice.svelte.ts`, not `fretfield.svelte.ts`): every note of the scale is highlighted at once, whatever's played is highlighted live, and a metronome (Start/Stop) plays a click independently of both — timing that Guided Practice deliberately excludes (§26). Both are genuine `FieldMode`s like the other four, not layers (contrast with Live Input/Guided Practice below, which explicitly are layers).
 
 ---
 
@@ -120,9 +120,9 @@ This module's own doctrine — self-paced, no timers, no tempo — is deliberate
 
 ### `src/lib/scale-practice/`
 
-Pure TypeScript, Scale Practice's decision layer — kept separate from `src/lib/practice/` specifically because its whole point (timing) is exactly what that module's doctrine excludes. Responsibilities: building the ascending-then-descending target sequence for a root/scale/fret-zone (`sequence.ts`), and per-beat pitch+timing evaluation (`evaluation.ts`). No dependency on any Svelte store, same reasoning as `src/lib/practice/` — pure functions, directly testable with fabricated timestamps.
+Pure TypeScript, Scale Practice's fretboard-position layer (`positions.ts`): `scalePositions(root, scale, zone, tuning, fretCount)` — every position in the zone belonging to the scale, the whole scale shown at once — and `positionsForPitchClass`, reused by the store for the live "what's currently played" lookup. No dependency on any Svelte store, same reasoning as `src/lib/practice/` — pure functions, directly testable. Deliberately has no evaluation/grading logic at all — Scale Practice doesn't judge correctness or timing (see §26); it only reports which positions match a pitch class.
 
-Must not duplicate scale theory: target pitch classes come from `scalePitchClasses`/`scaleContainsPitchClass` in `$lib/music/scales.ts`, never a re-derivation. Must not know about `AudioContext`/wall-clock scheduling itself — that lives in the store (`scale-practice.svelte.ts`), which is the one place `Date.now()`-based timing and `$lib/audio/metronome.ts`'s click meet.
+Must not duplicate scale theory: pitch classes come from `scalePitchClasses` in `$lib/music/scales.ts`, never a re-derivation. Must not know about `AudioContext`/wall-clock scheduling — that lives in the store (`scale-practice.svelte.ts`), the one place `$lib/audio/metronome.ts`'s click gets used.
 
 ### `src/lib/components/`
 
@@ -140,7 +140,7 @@ Do not duplicate derived harmonic logic here.
 
 `practice.svelte.ts` is a third, separate store sitting above both: it's the only place that reads `fretfield` and `liveInput` together to build a `PracticeContext` and drive `$lib/practice`'s pure engine. It owns no harmonic or audio logic itself. `fretfield.svelte.ts` must never import `practice.svelte.ts` — that would be circular (practice already depends on fretfield); any fretboard visual layer Guided Practice needs is composed at the component level (`FretCell.svelte` reads both `fretfield` and `practice` directly) instead of being threaded through `DisplayFretPosition`. Svelte 5 reactivity note learned the hard way while building this: `$state` reads are tracked by call stack, not lexical scope, so a plain method call from inside `$effect` (e.g. `practice.handleDetectedNote(note)`) can silently capture deeply-nested store reads/writes as dependencies and self-retrigger; wrap such calls in `untrack(...)`, and never rely on `||`/`&&` short-circuiting to make multiple fields "tracked" — read each one into its own `const` first.
 
-`scale-practice.svelte.ts` follows the exact same independent-store shape as `practice.svelte.ts` (reads `liveInput` for detected notes, never imported by `fretfield.svelte.ts`, its own target/result markers composed directly in `FretCell.svelte`) but owns none of `practice.svelte.ts`'s state — it's a sibling, not an extension. It's also the one store allowed to touch `$lib/audio/metronome.ts` and run a `setTimeout` scheduler; no other store should grow timer-based logic. Its scheduler is a testability seam, not just an implementation detail: `stopSchedulerForTesting()`/`advanceBeatForTesting()` let Playwright drive beats deterministically without real BPM timing (see `scale-practice-test-hooks.ts`) — preserve this seam if the scheduler is ever reworked, since `start()` always arms the real timer and a test must explicitly silence it before calling `advanceBeat()`, or the two will race.
+`scale-practice.svelte.ts` follows the same independent-store shape as `practice.svelte.ts` (never imported by `fretfield.svelte.ts`, its own layers composed directly in `FretCell.svelte`) but owns none of `practice.svelte.ts`'s state — it's a sibling, not an extension. Unlike `practice.svelte.ts`, it reads `liveInput.detectedNote` directly inside a `$derived` (`playedPositions`) rather than through an onset-gated effect — there's no "one attempt per note" bookkeeping to do here, just "what's sounding right now," so a live, continuously-updating derived is the right shape, not an event. It's also the one store allowed to touch `$lib/audio/metronome.ts` and run a `setTimeout` scheduler; no other store should grow timer-based logic. That scheduler drives the click only — it must never gain a target/evaluation concept again (§26); `scalePositions`/`playedPositions` are computed independently of `running` on purpose, and touching that decoupling needs a product conversation first, not just a refactor.
 
 ### `src/routes/`
 
@@ -616,7 +616,7 @@ Within Guided Practice specifically, also do not add: a metronome, backing track
 
 Within Scale Blocks specifically, do not add: URL persistence for `chordBlocks` without discussing it first (deliberately session-only for v1, matching Guided Practice's precedent), or a block beyond `MAX_CHORD_BLOCKS`. Don't make `suggestedScalesFor` filter/restrict the scale dropdown — it orders it, it never removes an option. Each new block color (`--scale-block-1` through `--scale-block-8`) must stay defined everywhere a block chip/badge renders (`FretCell.svelte`, `ScaleBlockControls.svelte`, `ScaleBlockLegend.svelte`, `NoteInspector.svelte`) — the digit is the primary signal (§7), but the color still needs to exist.
 
-Within Scale Practice specifically, also do not add: subdivisions, swing, or accented downbeats (quarter-note clicks only), automatic tempo ramps (BPM is adjusted by hand), a mute toggle, persistent session stats, or Live Input/Guided Practice driving this mode the way they drive the four single-chord modes — see `BLUEPRINT.md` §21. Don't move its `setTimeout` scheduler into `live-input.svelte.ts` or `practice.svelte.ts` — it stays in its own store (§4).
+Within Scale Practice specifically, also do not add: subdivisions, swing, or accented downbeats (quarter-note clicks only), automatic tempo ramps (BPM is adjusted by hand), a mute toggle, persistent session stats, per-beat pitch/timing grading (removed by explicit product direction — see `BLUEPRINT.md` §21's revision note — don't reintroduce a target/evaluation concept), or Live Input/Guided Practice driving this mode the way they drive the four single-chord modes. Don't move its `setTimeout` scheduler into `live-input.svelte.ts` or `practice.svelte.ts` — it stays in its own store (§4). Don't gate `scalePositions`/`playedPositions` on `running` — the metronome and the highlighting are deliberately independent.
 
 Maintain product focus.
 
@@ -648,7 +648,7 @@ types.ts evaluation.ts exercise-generators.ts practice-engine.ts presets.ts
 And in `src/lib/scale-practice/` (Scale Practice's decision layer — see §4):
 
 ```text
-types.ts sequence.ts evaluation.ts
+types.ts positions.ts
 ```
 
 Future modules may include:

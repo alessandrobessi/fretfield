@@ -734,33 +734,41 @@ every fret on the neck shows which block(s)' scale contain its pitch class
 
 ---
 
-## 21. Scale Practice — metronome-driven zone drilling
+## 21. Scale Practice — a highlighted scale plus a free-standing metronome
 
-A genuine sixth `FieldMode`, like Scale Blocks: it needs its own root/scale/fret-zone/tempo state, unrelated to any chord or progression, so it can't reuse `root`/`chordId`. Unlike Guided Practice (§19), which is explicitly self-paced and excludes timing by design, Scale Practice's entire point is timing — so it lives in its own store (`scale-practice.svelte.ts`) rather than as a fifth `PracticeMode` inside Guided Practice's engine.
+A genuine sixth `FieldMode`, like Scale Blocks: it needs its own root/scale/fret-zone/tempo state, unrelated to any chord or progression, so it can't reuse `root`/`chordId`. Unlike Guided Practice (§19), which is explicitly self-paced and excludes timing by design, this mode's metronome is exactly the timing concept Guided Practice excludes — so it lives in its own store (`scale-practice.svelte.ts`) rather than as a fifth `PracticeMode` inside Guided Practice's engine.
+
+Two independent pieces, not one drill loop:
 
 ```text
 pick a root + a scale + a fret zone (e.g. frets 0–12)
         │
         ▼
-a metronome (adjustable BPM, shown on screen) steps through the scale's
-notes within that zone, ascending then descending, looping
+every note of that scale within the zone is highlighted at once — no
+target stepping, no per-beat grading
         │
         ▼
-each beat: the current target note is highlighted; the previous beat's
-result (correct/incorrect, on-time/off-time/missed) gets a marker
+play anything: whatever Live Input hears is highlighted live, in real
+time, whether or not it's in the scale
+        │
+        ▼
+Start/Stop (the "Metronome" panel) only starts/stops an audible click at
+the chosen BPM — it has no effect on what's highlighted either way
 ```
 
-**Session state** (`ScalePracticeStore`): `root`, `scaleId`, `zone: { minFret, maxFret }`, `bpm` (30–240, default 80), `running`, `stepIndex`, `lastBeatResult`. Configured independently of every other mode — switching to another tab stops the session (component-unmount cleanup), but root/scale/zone/tempo choices persist for next time, session-only like Scale Blocks' `chordBlocks`.
+**Session state** (`ScalePracticeStore`): `root`, `scaleId`, `zone: { minFret, maxFret }`, `bpm` (30–240, default 80), `running` (the metronome only). Configured independently of every other mode — switching to another tab stops the metronome (component-unmount cleanup), but root/scale/zone/tempo choices persist for next time, session-only like Scale Blocks' `chordBlocks`.
 
-**The scheduler** is a self-correcting `setTimeout` loop driven by `Date.now()`, not `AudioContext.currentTime` — beat timestamps need to be directly comparable to `DetectedNote.timestampMs` (also `Date.now()`-based), so there's no clock correlation to get wrong. Each tick evaluates whatever was played since the previous beat, plays the click, and reschedules from the fixed beat grid (not from firing time) so drift doesn't accumulate.
+**`scalePositions`** (derived): every fret position in the zone whose pitch class is in the configured scale — the whole scale, shown at once, computed fresh whenever root/scale/zone change. **`playedPositions`** (derived): reads `liveInput.detectedNote` directly and returns every zone position matching its pitch class — no onset gating, no store-to-store event wiring, it just tracks whatever's currently sounding and clears the instant Live Input stops detecting a note. Neither derived depends on `running` at all — this is the core of the mode's design: configuring root/scale/zone and playing along works identically whether or not the metronome is going.
 
-**Evaluation** has two independent dimensions per beat: pitch (`correct`/`incorrect`, a plain equality against that beat's single target — no harmonic strong/valid-alternative ranking needed, unlike Guided Practice) and timing (`on-time`/`off-time`/`missed`, judged against a tolerance window around the beat). A wrong note still gets an honest timing reading; a correct note played after the next beat already started counts as `missed` for that beat — the metronome doesn't wait.
+**The metronome** (`start()`/`stop()`) is a self-correcting `setTimeout` loop that only does one thing: play a click via `$lib/audio/metronome.ts` (the app's first audio _output_, not analysis — a short synthesized tick via a dedicated `AudioContext`, entirely separate from Live Input's capture context) and reschedule from the fixed beat grid so drift doesn't accumulate over a long session. It carries no target, no evaluation, no per-beat state. Starting it happens inside the "Start Metronome" button's click handler, the same user-gesture requirement Live Input's `getUserMedia` call already lives under.
 
-**The metronome click** (`$lib/audio/metronome.ts`) is the app's first audio _output_, not analysis — a short synthesized tick via a dedicated `AudioContext`, entirely separate from Live Input's capture context. Starting it happens inside the "Start" button's click handler, the same user-gesture requirement Live Input's `getUserMedia` call already lives under.
+**Fretboard rendering:** frets outside the chosen zone are dimmed (same treatment as Local Fields' `region-dimmed`, but independent state — not `fretfield.activeRegion`). Every in-scale, in-zone fret gets a soft, permanent background tint. Whatever's currently played gets its own ring on top — the two compose (tint + ring for an in-scale note actually played; ring alone for a note played outside the scale, deliberately not treated as "wrong" per AGENTS.md §22's no-wrong-note framing).
 
-**Fretboard rendering:** frets outside the chosen zone are dimmed (same treatment as Local Fields' `region-dimmed`, but independent state — not `fretfield.activeRegion`). The current target gets a pulsing dashed ring (re-triggered each beat); the last beat's result gets a marker — solid green for correct+on-time, solid amber for correct+off-time, dashed gray for incorrect, a fainter dotted marker for missed — reusing Guided Practice's own restrained, non-punitive color language (§23 accessibility non-color-signal rule; no red flash, ever).
+**The UI** (`ScalePracticeControls.svelte`) visually separates the root/scale/zone fields (which drive the highlight, and take effect immediately) from a distinct "Metronome" sub-panel below a divider (BPM + Start/Stop) — the separation itself is the point: nothing about Start/Stop should read as gating the highlight.
 
-**Not built (yet):** subdivisions/swing/accented downbeats (quarter-note clicks only), tempo ramps (BPM is adjusted by hand), a mute toggle for the click, persistent session stats, and Live Input/Guided Practice driving this mode the way they drive the four single-chord modes.
+**Not built (yet):** subdivisions/swing/accented downbeats (quarter-note clicks only), tempo ramps (BPM is adjusted by hand), a mute toggle for the click, persistent session stats, any notion of "correct"/"on time" grading (deliberately removed — see below), and Live Input/Guided Practice driving this mode the way they drive the four single-chord modes.
+
+**Revision note:** an earlier version of this mode stepped through the scale one target note at a time, synced to the metronome, and graded each beat's pitch and timing. It was replaced with the always-on/real-time model above per explicit product direction — the metronome and the highlighting are more useful decoupled than combined into a graded drill.
 
 ---
 

@@ -635,24 +635,26 @@ FretField answers, across several chords at once:
 
 ## Goal
 
-Let the player pick a root, a scale, and a fret zone, then drill it against a real, adjustable-BPM metronome — a target note lit up each beat, on-beat/pitch feedback after. See `BLUEPRINT.md` §21. Pulls the `metronome` item forward from Phase 11's backlog, but ships as its own `FieldMode` rather than bolted onto Live Input or Guided Practice — both of those explicitly exclude timing by design (§18/§19), confirmed with the user before implementation.
+Let the player pick a root, a scale, and a fret zone: every note of that scale is highlighted at once, whatever they actually play is highlighted live, and an independent, adjustable-BPM metronome keeps time alongside it, decoupled from the highlighting entirely. See `BLUEPRINT.md` §21. Pulls the `metronome` item forward from Phase 11's backlog, but ships as its own `FieldMode` rather than bolted onto Live Input or Guided Practice — both of those explicitly exclude timing by design (§18/§19), confirmed with the user before implementation.
 
 ## Tasks
 
-- [x] `src/lib/scale-practice/`: `types.ts` (`PracticeZone`, `BeatResult`), `sequence.ts` (`buildScaleSequence` — ascending-then-descending through a zone, looping), `evaluation.ts` (`evaluateBeat` — independent pitch/timing verdicts, no harmonic ranking needed)
+- [x] `src/lib/scale-practice/`: `types.ts` (`PracticeZone`), `positions.ts` (`scalePositions` — every position a root/scale/zone covers; `positionsForPitchClass` — reused for the live played-note lookup)
 - [x] `src/lib/audio/metronome.ts`: a short synthesized click via a dedicated `AudioContext`, separate from Live Input's capture context — the app's first audio output
-- [x] `src/lib/stores/scale-practice.svelte.ts`: root/scale/zone/BPM state, a self-correcting `Date.now()`-based `setTimeout` scheduler, onset-gated note handling (same wiring as Guided Practice), and a testability seam (`stopSchedulerForTesting`/`advanceBeatForTesting`) so Playwright never depends on real BPM timing
+- [x] `src/lib/stores/scale-practice.svelte.ts`: root/scale/zone/BPM state; `scalePositions`/`playedPositions` derived independently of `running`; a self-correcting `Date.now()`-based `setTimeout` scheduler that only plays the click
 - [x] `fretfield.svelte.ts`: `FieldMode` gains `'scale-practice'`; `analyzed` forced to `null` in this mode, same fallback path Scale Blocks already established
-- [x] `FretCell.svelte`: current-target pulsing ring, last-beat result marker (correct-on-time/correct-off-time/incorrect/missed), and zone dimming — composed independently from the `scalePractice` store, same pattern as Guided Practice's own layers
-- [x] `ScalePracticeControls.svelte` (root/scale dropdowns, zone fret-range inputs, BPM control, Start/Stop, status line) wired into `FieldModeSwitcher.svelte`/`+page.svelte`; `NoteInspector.svelte` shows a hovered note's scale degree
-- [x] unit tests for `sequence.ts`/`evaluation.ts` (concrete up-down cycles, zone-exclusion, all pitch/timing tiers) and Playwright e2e coverage (sequence progression, correct/incorrect/missed feedback, stop clears markers, tab-switch stops the session)
-- [x] manually verified in the browser: real-time scheduling at several BPMs, audible click firing without console errors, and both a fully-overlapping and a genuinely partial-overlap scale/zone example
+- [x] `FretCell.svelte`: a permanent scale-tint layer and a live played-note ring, both gated only on the mode being active (not on the metronome running), plus zone dimming
+- [x] `ScalePracticeControls.svelte` (root/scale dropdowns, zone fret-range inputs) wired into `FieldModeSwitcher.svelte`/`+page.svelte`, visually separated from a distinct "Metronome" sub-panel (BPM + Start/Stop) so the button reads unambiguously as click-only; `NoteInspector.svelte` shows a hovered note's scale degree
+- [x] unit tests for `positions.ts` and Playwright e2e coverage (scale highlighted on configure, played note highlighted live regardless of metronome state, Start/Stop toggling doesn't touch the highlight, zone-exclusion hint, tab-switch stops the metronome)
+- [x] manually verified in the browser: the audible click firing without console errors, the live played-note ring composing on top of the scale tint, and Live Input's own generic highlighting still working independently alongside it outside the zone
+
+**Revision:** the first version of this mode stepped through the scale one target note at a time in sync with the metronome and graded each beat's pitch/timing. Replaced with the always-on/real-time model above per explicit product direction — decoupling the metronome from the highlighting turned out to be more useful than a graded drill.
 
 ## Exit criteria
 
-FretField answers, in time:
+FretField answers:
 
-> “Can you play this scale, in this zone, on the beat?”
+> “What does this scale look like on the neck, and what am I actually playing?” — with a metronome available alongside it, not gating it.
 
 ---
 

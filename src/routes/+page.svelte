@@ -17,7 +17,6 @@
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
 	import { installPracticeTestHooks } from '$lib/testing/practice-test-hooks';
-	import { installScalePracticeTestHooks } from '$lib/testing/scale-practice-test-hooks';
 	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
 
 	// Restore once on load; URL-shareable state only (root/mode/chord/display/
@@ -29,7 +28,6 @@
 		);
 		installLiveInputTestHooks();
 		installPracticeTestHooks();
-		installScalePracticeTestHooks();
 	}
 
 	$effect(() => {

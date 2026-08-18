@@ -17,7 +17,7 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 | 🧭 **Voice-Leading Paths** | _What route should I take?_                | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.         |
 | 📍 **Local Fields**        | _Where on the neck should I play it?_      | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                   |
 | 🧩 **Scale Blocks**        | _What scales fit across this progression?_ | Build up to 8 independent chord "blocks" — each its own root, quality, and scale — and see all of them at once: every fret numbered/colored by which block's scale it belongs to, overlaps included.           |
-| 🥁 **Scale Practice**      | _Can you play this scale in time?_         | Pick a root, a scale, and a fret zone, then a metronome (adjustable BPM) steps a target note through it — ascending, then descending — with on-beat visual feedback on every note you play.                    |
+| 🥁 **Scale Practice**      | _Can you play this scale in time?_         | Pick a root, a scale, and a fret zone: every note of that scale lights up at once, whatever you actually play is highlighted live, and an independent metronome (adjustable BPM) keeps time alongside it.      |
 
 **Live Input** is an optional layer over all six modes, not a `FieldMode` itself: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch and highlights every fret that physically produces it everywhere, including Scale Blocks and Scale Practice; the deeper explanation — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note — is available for those three modes specifically. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
 
@@ -25,7 +25,7 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 
 **Scale Blocks** _is_ its own mode (the "🧩" row above) — a genuinely different, simultaneous view rather than a layer over the other four: build up to 8 independent chord blocks and see every one of their scales overlaid on the neck at once, each fret numbered and colored by which block(s) it belongs to.
 
-**Scale Practice** _is_ its own mode too (the "🥁" row above) — the app's first audio _output_, not just analysis: a real metronome click, entirely independent of every other mode's root/chord/progression state. It's built specifically because Guided Practice deliberately excludes timing (self-paced by design); Scale Practice's whole point is timing.
+**Scale Practice** _is_ its own mode too (the "🥁" row above) — the app's first audio _output_, not just analysis: a real metronome click, entirely independent of every other mode's root/chord/progression state, and deliberately decoupled from the scale highlighting itself. Configuring a root/scale/zone lights up the whole scale and highlights whatever you play immediately; Start/Stop only starts or stops the click. Built because Guided Practice deliberately excludes timing (self-paced by design) — this mode is where that missing metronome finally lives, on its own terms.
 
 **Try it live:** https://alessandrobessi.github.io/fretfield/
 
@@ -92,9 +92,9 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 </td>
 <td width="50%">
 
-**Scale Practice** — a metronome drills a scale through a fret zone
+**Scale Practice** — the whole scale highlighted, plus a free-standing metronome
 
-<img src="./docs/screenshots/scale-practice.jpg" alt="Scale Practice showing A Dorian at 96 BPM within frets 0-12, with a solid result ring on the just-played root note and a dashed target ring on the next target note B, and frets outside the zone dimmed">
+<img src="./docs/screenshots/scale-practice.jpg" alt="Scale Practice showing A Dorian highlighted across frets 0-12 with frets outside the zone dimmed, a live-played note ringed on top of the scale tint, and a separate Metronome panel below with its own Start/Stop button">
 
 </td>
 </tr>
@@ -139,16 +139,15 @@ src/lib/practice/
 └── presets.ts                  mode labels, default settings/thresholds
 
 src/lib/scale-practice/
-├── types.ts                   PracticeZone, BeatResult — deliberately separate from $lib/practice's types
-├── sequence.ts                 builds the ascending-then-descending target sequence for a root/scale/zone
-└── evaluation.ts                per-beat pitch + timing evaluation, no harmonic ranking needed
+├── types.ts                   PracticeZone — deliberately separate from $lib/practice's types
+└── positions.ts                every fret position a scale/root/zone covers — no grading, just positions
 ```
 
 `src/lib/audio/` only ever knows about acoustic pitch — frequency, MIDI, confidence. It has no concept of a chord, a key, or a role; that meaning is layered on afterward by `src/lib/stores/live-input.svelte.ts` and the main store, which combine a detected note with whatever `src/lib/music/` analysis is already on screen.
 
 `src/lib/practice/` decides what exercise is active and whether a played note satisfies it — it never re-implements harmonic theory itself. A Resolve Note exercise's "F resolves to E" target comes from calling the same `analyzeConnection`/`connectionFor` functions Progression Field already uses; a Follow Path exercise reuses whichever `VoiceLeadingPath` is already selected, unchanged for the whole exercise.
 
-`src/lib/scale-practice/` is kept separate from `src/lib/practice/` on purpose: Guided Practice's engine and its doctrine (see `AGENTS.md`) are both explicitly self-paced and timer-free, while Scale Practice's entire point is timing. Its `ScalePracticeStore` (`src/lib/stores/scale-practice.svelte.ts`) runs a self-correcting `setTimeout` scheduler keyed to `Date.now()` — the same basis `DetectedNote.timestampMs` already uses — so a played note's timing never needs reconciling against a separate audio clock.
+`src/lib/scale-practice/` is kept separate from `src/lib/practice/` on purpose: Guided Practice's engine and its doctrine (see `AGENTS.md`) are both explicitly self-paced and timer-free, and this mode's metronome is exactly the timing concept that doctrine excludes. Its `ScalePracticeStore` (`src/lib/stores/scale-practice.svelte.ts`) exposes two things independently of each other: `scalePositions` (every note of the configured scale within the zone, always on) and `playedPositions` (a live derived reading `liveInput.detectedNote` directly — whatever's currently sounding, highlighted in real time). The metronome (`start()`/`stop()`, a self-correcting `setTimeout` loop) only plays a click; it has no effect on either derived.
 
 Every non-trivial harmonic claim in the engine is checked against a concrete example from the product spec rather than "the tests pass" alone — e.g. the full Harmonic Field over C7 is asserted against BLUEPRINT.md's own worked table, and G7→Cmaj7's guide-tone resolutions (F→E, B→C) are asserted by name.
 
