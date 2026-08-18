@@ -43,6 +43,11 @@
 	const progressionInterpretation = $derived(fretfield.liveProgressionInterpretation);
 	const pathMatch = $derived(fretfield.livePathMatch);
 
+	// Same auto-reveal LiveInputControls always had: the detail dropdown
+	// shows itself whenever there's something to show (connected or errored),
+	// with no separate manual open/close state to keep in sync.
+	const showDetails = $derived(liveInput.enabled || liveInput.error !== null);
+
 	async function toggle(): Promise<void> {
 		pending = true;
 		try {
@@ -67,20 +72,24 @@
 	}
 </script>
 
-<div class="live-input" class:enabled={liveInput.enabled}>
-	<div class="top-row">
-		<span class="title">Live Input</span>
-		{#if supported}
-			<button type="button" class="toggle" disabled={pending} onclick={toggle}>
-				{liveInput.enabled ? 'Disable' : 'Enable'} Live Input
-			</button>
-		{:else}
-			<span class="unsupported">Not supported in this browser</span>
-		{/if}
-	</div>
+<div class="bass-connection">
+	{#if supported}
+		<button
+			type="button"
+			class="bass-toggle"
+			class:enabled={liveInput.enabled}
+			disabled={pending}
+			onclick={toggle}
+		>
+			<span class="dot" aria-hidden="true">{liveInput.enabled ? '●' : '○'}</span>
+			{liveInput.enabled ? 'Disable' : 'Enable'} Live Input
+		</button>
+	{:else}
+		<span class="unsupported">Bass not supported in this browser</span>
+	{/if}
 
-	{#if liveInput.enabled || liveInput.error}
-		<div class="details">
+	{#if showDetails}
+		<div class="live-input">
 			{#if liveInput.devices.length > 0}
 				<label class="device-picker">
 					Input:
@@ -138,58 +147,48 @@
 			{#if liveInput.error}
 				<p class="error" role="alert">{liveInput.error}</p>
 			{/if}
+
+			<p class="privacy">
+				Audio is analyzed locally in your browser and is not recorded or uploaded.
+			</p>
 		</div>
 	{/if}
-
-	<p class="privacy">Audio is analyzed locally in your browser and is not recorded or uploaded.</p>
 </div>
 
 <style>
-	.live-input {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-		background: var(--fret-bg, #fff);
-		border: 1px solid var(--fret-border, #ddd3f7);
-		border-radius: 14px;
-		padding: 0.85rem 1.1rem;
-		font-size: 0.85rem;
+	.bass-connection {
+		position: relative;
 	}
 
-	.top-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-
-	.title {
-		font-weight: 700;
-		text-transform: uppercase;
-		font-size: 0.7rem;
-		letter-spacing: 0.05em;
-		opacity: 0.7;
-	}
-
-	.toggle {
+	.bass-toggle {
 		font: inherit;
-		font-weight: 700;
-		padding: 0.4rem 0.9rem;
+		font-weight: 600;
+		font-size: 0.85rem;
+		padding: 0.4rem 0.8rem;
 		border-radius: 999px;
-		border: 1px solid var(--live-accent, #06b6d4);
-		background: transparent;
+		border: 2px solid var(--live-accent, #06b6d4);
+		background: var(--fret-bg, #fff);
 		color: var(--live-accent, #06b6d4);
 		cursor: pointer;
 	}
 
-	.live-input.enabled .toggle {
+	.bass-toggle.enabled {
 		background: var(--live-accent, #06b6d4);
 		color: #fff;
 	}
 
-	.toggle:disabled {
+	.bass-toggle:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
+	}
+
+	.bass-toggle:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
+	.dot {
+		margin-right: 0.2rem;
 	}
 
 	.unsupported {
@@ -197,10 +196,21 @@
 		opacity: 0.7;
 	}
 
-	.details {
+	.live-input {
+		position: absolute;
+		top: calc(100% + 0.5rem);
+		right: 0;
+		z-index: 10;
+		width: 20rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
+		gap: 0.5rem;
+		background: var(--fret-bg, #fff);
+		border: 1px solid var(--fret-border, #ddd3f7);
+		border-radius: 12px;
+		padding: 0.85rem 1.1rem;
+		box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+		font-size: 0.85rem;
 	}
 
 	.device-picker {
@@ -256,14 +266,12 @@
 
 	.detected {
 		margin: 0;
-		font-size: 0.85rem;
 	}
 
 	.interpretation {
 		margin: 0;
 		padding-top: 0.35rem;
 		border-top: 1px dashed var(--fret-border, #ddd3f7);
-		font-size: 0.85rem;
 	}
 
 	.interpretation[data-matched='true'] {

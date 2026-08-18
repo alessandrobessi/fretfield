@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DisplayModeToggle from '$lib/components/DisplayModeToggle.svelte';
+	import BassConnection from '$lib/components/shell/BassConnection.svelte';
 	import { navigation, type Destination } from '$lib/stores/navigation.svelte';
 
 	const DESTINATIONS: { id: Destination; label: string }[] = [
@@ -27,12 +28,7 @@
 	</div>
 
 	<div class="utilities">
-		<span
-			class="bass-status"
-			title="Bass connection is moving here — for now, use Live Input below"
-		>
-			○ Bass
-		</span>
+		<BassConnection />
 		<div class="settings">
 			<button
 				type="button"
@@ -93,15 +89,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-	}
-
-	.bass-status {
-		font-size: 0.85rem;
-		font-weight: 600;
-		opacity: 0.55;
-		padding: 0.4rem 0.7rem;
-		border-radius: 999px;
-		border: 2px dashed var(--fret-border, #ddd3f7);
 	}
 
 	.settings {

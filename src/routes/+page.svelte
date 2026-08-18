@@ -7,7 +7,6 @@
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import GuidedPracticeControls from '$lib/components/GuidedPracticeControls.svelte';
 	import Legend from '$lib/components/Legend.svelte';
-	import LiveInputControls from '$lib/components/LiveInputControls.svelte';
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
 	import ProgressionWorkspace from '$lib/components/explore/ProgressionWorkspace.svelte';
@@ -57,7 +56,6 @@
 
 	{#if navigation.destination === 'explore'}
 		<FieldModeSwitcher />
-		<LiveInputControls />
 		<GuidedPracticeControls />
 
 		{#if fretfield.mode === 'progression' || fretfield.mode === 'paths' || fretfield.mode === 'progression-scales'}
