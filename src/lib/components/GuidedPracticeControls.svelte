@@ -4,14 +4,15 @@
 	import { intervalCompoundLabel } from '$lib/music/intervals';
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
 	import { PRACTICE_MODE_STYLES } from '$lib/practice/presets';
-	import type { HintLevel, PracticePrompt, PracticeResult } from '$lib/practice/types';
+	import type {
+		HintLevel,
+		PracticeMode,
+		PracticePrompt,
+		PracticeResult
+	} from '$lib/practice/types';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { liveInput } from '$lib/stores/live-input.svelte';
 	import { practice } from '$lib/stores/practice.svelte';
-
-	let selectedMode = $state<'find-interval' | 'find-chord-tone' | 'resolve-note' | 'follow-path'>(
-		'find-interval'
-	);
 
 	// Live Input's `noteOnsetId` must be the ONLY tracked dependency here.
 	// Svelte tracks `$state` reads by call stack, not lexical scope — reading
@@ -88,20 +89,9 @@
 		return `Target interval: ${intervalCompoundLabel(target.interval)}`;
 	});
 
-	function toggle(): void {
-		if (practice.session.status === 'idle') {
-			practice.start(selectedMode);
-		} else {
-			practice.stop();
-		}
-	}
-
 	function handleModeChange(event: Event): void {
-		const mode = (event.currentTarget as HTMLSelectElement).value as typeof selectedMode;
-		selectedMode = mode;
-		if (practice.session.status !== 'idle') {
-			practice.start(mode);
-		}
+		const mode = (event.currentTarget as HTMLSelectElement).value as PracticeMode;
+		practice.start(mode);
 	}
 
 	function handleHintChange(event: Event): void {
@@ -109,25 +99,35 @@
 	}
 </script>
 
-<div class="guided-practice" class:active={practice.session.status !== 'idle'}>
-	<div class="top-row">
-		<span class="title">Guided Practice</span>
-		<div class="controls">
-			<label class="mode-picker">
-				Mode:
-				<select aria-label="Practice mode" value={selectedMode} onchange={handleModeChange}>
-					{#each Object.values(PRACTICE_MODE_STYLES) as style (style.mode)}
-						<option value={style.mode}>{style.label}</option>
-					{/each}
-				</select>
-			</label>
-			<button type="button" class="toggle" onclick={toggle}>
-				{practice.session.status === 'idle' ? 'Start' : 'Stop'}
-			</button>
+<!--
+	Session-driven, not always-visible: starting a session is now
+	PracticeHome's job (the Quick Start cards under the Practice
+	destination) — this panel only appears once one is actually running, so
+	it stops cluttering Explore's default view for anyone not mid-exercise.
+	The mode-picker/Stop button that remain here are for switching modes or
+	stopping without a trip back to Practice, not a second entry point.
+-->
+{#if practice.session.status !== 'idle'}
+	<div class="guided-practice active">
+		<div class="top-row">
+			<span class="title">Guided Practice</span>
+			<div class="controls">
+				<label class="mode-picker">
+					Mode:
+					<select
+						aria-label="Practice mode"
+						value={practice.session.mode}
+						onchange={handleModeChange}
+					>
+						{#each Object.values(PRACTICE_MODE_STYLES) as style (style.mode)}
+							<option value={style.mode}>{style.label}</option>
+						{/each}
+					</select>
+				</label>
+				<button type="button" class="toggle" onclick={() => practice.stop()}>Stop</button>
+			</div>
 		</div>
-	</div>
 
-	{#if practice.session.status !== 'idle'}
 		<div class="details">
 			<label class="hint-picker">
 				Hint:
@@ -193,8 +193,8 @@
 				· Completed: {practice.stats.exercisesCompleted}
 			</p>
 		</div>
-	{/if}
-</div>
+	</div>
+{/if}
 
 <style>
 	.guided-practice {

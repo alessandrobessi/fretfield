@@ -27,9 +27,7 @@ test.describe('Practice home', () => {
 		await expect(page.locator('.guided-practice')).toHaveClass(/active/);
 	});
 
-	test('starting the Scales card jumps to Explore with Scale Practice active', async ({
-		page
-	}) => {
+	test('starting the Scales card jumps to Explore with Scale Practice active', async ({ page }) => {
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 
@@ -39,8 +37,9 @@ test.describe('Practice home', () => {
 			'aria-selected',
 			'true'
 		);
-		await expect(
-			page.getByRole('tab', { name: 'Scale Practice' })
-		).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Scale Practice' })).toHaveAttribute(
+			'aria-selected',
+			'true'
+		);
 	});
 });
