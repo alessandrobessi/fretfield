@@ -114,7 +114,7 @@ test.describe('Scale Blocks', () => {
 		await page.getByRole('tab', { name: 'Scale Blocks' }).click();
 		await addBlock(page, 1, 'C', 'Major', 'Major (Ionian)');
 
-		await page.getByRole('tab', { name: 'Chord Field' }).click();
+		await page.getByRole('tab', { name: 'Chord' }).click();
 		await page.getByRole('tab', { name: 'Scale Blocks' }).click();
 
 		await expect(page.getByLabel('Block 1 root')).toHaveValue(/./);

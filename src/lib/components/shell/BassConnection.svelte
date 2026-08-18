@@ -82,7 +82,7 @@
 			onclick={toggle}
 		>
 			<span class="dot" aria-hidden="true">{liveInput.enabled ? '●' : '○'}</span>
-			{liveInput.enabled ? 'Disable' : 'Enable'} Live Input
+			{liveInput.enabled ? 'Disconnect' : 'Connect'} Bass
 		</button>
 	{:else}
 		<span class="unsupported">Bass not supported in this browser</span>

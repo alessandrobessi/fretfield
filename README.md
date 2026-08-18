@@ -8,30 +8,44 @@
   <a href="https://alessandrobessi.github.io/fretfield/"><img src="https://img.shields.io/badge/live%20app-alessandrobessi.github.io%2Ffretfield-7c3aed" alt="Live app"></a>
 </p>
 
-FretField is an interactive bass-fretboard application that teaches the neck as a spatial field of harmonic possibilities — not a grid of shapes to memorize. Click any fret to set a root, and it answers six increasingly powerful questions:
+FretField is an interactive bass-fretboard application that teaches the neck as a spatial field of harmonic possibilities — not a grid of shapes to memorize. It's organized around three destinations, not a flat list of modes:
 
-|                            |                                            |                                                                                                                                                                                                                                         |
-| -------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🎯 **Chord Field**         | _What can I play now?_                     | The full 12-tone Harmonic Field over the current chord — root, structural, stable, extension, color, tension, alteration, chromatic-approach, avoid — or a simplified Chord Tones view for quick reference.                             |
-| ➡️ **Progression Field**   | _Where can I go next?_                     | Resolve a progression template (ii–V–I, I–vi–ii–V, 12-bar blues, …) from the selected root and see each note's best resolution into the next chord, derived from interval math — not a hardcoded lookup table.                          |
-| 🧭 **Voice-Leading Paths** | _What route should I take?_                | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.                                  |
-| 📍 **Local Fields**        | _Where on the neck should I play it?_      | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                                            |
-| 🧩 **Scale Blocks**        | _What scales fit across this progression?_ | Build up to 8 independent chord "blocks" — each its own root, quality, and scale — and see all of them at once: every fret numbered/colored by which block's scale it belongs to, overlaps included.                                    |
-| 🥁 **Scale Practice**      | _Can you play this scale in time?_         | Pick a root, a scale, and a fret zone: every fret shows its interval plus note name relative to that root, the scale's own notes light up, whatever you play is highlighted live, and an independent metronome keeps time alongside it. |
+|                 |                                                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 🔎 **Explore**  | Click any fret to set a root and ask what's true about the neck right now — one chord, a whole progression, or a scale on its own. |
+| 🎯 **Practice** | Turn any of those questions into an exercise, or open a curated Preset and start immediately, without configuring anything first.  |
+| 📈 **Progress** | Coming soon.                                                                                                                       |
 
-**Live Input** is an optional layer over all six modes, not a `FieldMode` itself: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch and highlights every fret that physically produces it everywhere, including Scale Blocks and Scale Practice; the deeper explanation — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note — is available for those three modes specifically. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
+**Explore** answers three increasingly wide questions, each its own lens rather than a separate page:
 
-**Guided Practice** turns the four single-chord modes into exercises, closing the loop: FretField proposes a target (find an interval, find a chord tone, resolve a note into the next chord, or follow a voice-leading path one step at a time), you find and play it, Live Input detects it, and FretField explains what happened — exact, a strong or valid alternative, or not quite, never a flat right/wrong. Not a `FieldMode` either; it's built entirely on the existing questions and the same harmonic engine, and doesn't currently drive Scale Blocks or Scale Practice.
+|                       |                                              |                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🎯 **Chord**          | _What can I play now?_                       | The full 12-tone Harmonic Field over the current chord — root, structural, stable, extension, color, tension, alteration, chromatic-approach, avoid — or a simplified Chord Tones view for quick reference.                                                                                                                                                                                                        |
+| ➡️ **Progression**    | _Where can I go next?_                       | One workspace, three lenses on a resolved progression template (ii–V–I, I–vi–ii–V, 12-bar blues, …): **Connections** (each note's best resolution into the next chord), **Paths** (ranked complete fretted routes through the whole progression, with Balanced / Minimal Movement / Guide Tones presets), and **Scales** (an auto-suggested scale per chord, overridable, with a "common to every chord" callout). |
+| 🧭 **Scale Explorer** | _What does this scale look like on its own?_ | A single root + scale, highlighted on the neck, independent of any chord or progression.                                                                                                                                                                                                                                                                                                                           |
 
-**Scale Blocks** _is_ its own mode (the "🧩" row above) — a genuinely different, simultaneous view rather than a layer over the other four: build up to 8 independent chord blocks and see every one of their scales overlaid on the neck at once, each fret numbered and colored by which block(s) it belongs to.
+**Position** (where on the neck to play something — ranked suggested regions or a typed-in fret range) and **Bass** (an optional live-pitch-detection layer: play your bass through a USB interface or mic and FretField highlights what you actually played) are both global capabilities, not destinations of their own — Position works from every Explore lens and Practice activity, Bass is a single header toggle. Audio is analyzed locally in your browser and never recorded or uploaded.
 
-**Scale Practice** _is_ its own mode too (the "🥁" row above) — the app's first audio _output_, not just analysis: a real metronome click, entirely independent of every other mode's root/chord/progression state, and deliberately decoupled from the scale highlighting itself. Configuring a root/scale/zone lights up the whole scale and highlights whatever you play immediately; Start/Stop only starts or stops the click. Built because Guided Practice deliberately excludes timing (self-paced by design) — this mode is where that missing metronome finally lives, on its own terms.
+**Practice** covers five activities plus a curated Presets library:
+
+|                     |                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Find Interval**   | Locate a given interval relative to the root, anywhere on the neck.                                                                                                                         |
+| **Find Chord Tone** | Locate a structural note of the current chord.                                                                                                                                              |
+| **Resolve Note**    | Given a note, find a strong resolution into the next chord.                                                                                                                                 |
+| **Follow Path**     | Follow a selected voice-leading path through a progression, one step at a time.                                                                                                             |
+| **Scales**          | Pick a root, a scale, and a fret zone; every fret shows its interval plus note name, scale notes light up, whatever you play is highlighted live, and a free-standing metronome keeps time. |
+| **Presets**         | Fifteen curated one-click sessions (Essential / Voice Leading / Scales) that configure everything above and start immediately.                                                              |
+
+The first four are Guided Practice: FretField proposes a target, you find and play it, Bass detects it, and FretField explains what happened — exact, a strong or valid alternative, or not quite, never a flat right/wrong. Scales is a separate, deliberately timer-driven engine (Guided Practice is self-paced by design; this is where the metronome lives instead) — start/stop only ever controls the click, never the highlighting.
 
 **Try it live:** https://alessandrobessi.github.io/fretfield/
 
 ---
 
 ## Screenshots
+
+_Pending a refresh for the Explore/Practice/Progress shell — these still show the pre-restructure six-tab layout, though every feature they depict is unchanged, just relocated._
 
 <table>
 <tr>
@@ -145,7 +159,7 @@ src/lib/scale-practice/
 
 `src/lib/audio/` only ever knows about acoustic pitch — frequency, MIDI, confidence. It has no concept of a chord, a key, or a role; that meaning is layered on afterward by `src/lib/stores/live-input.svelte.ts` and the main store, which combine a detected note with whatever `src/lib/music/` analysis is already on screen.
 
-`src/lib/practice/` decides what exercise is active and whether a played note satisfies it — it never re-implements harmonic theory itself. A Resolve Note exercise's "F resolves to E" target comes from calling the same `analyzeConnection`/`connectionFor` functions Progression Field already uses; a Follow Path exercise reuses whichever `VoiceLeadingPath` is already selected, unchanged for the whole exercise.
+`src/lib/practice/` decides what exercise is active and whether a played note satisfies it — it never re-implements harmonic theory itself. A Resolve Note exercise's "F resolves to E" target comes from calling the same `analyzeConnection`/`connectionFor` functions the Progression workspace's Connections lens already uses; a Follow Path exercise reuses whichever `VoiceLeadingPath` is already selected, unchanged for the whole exercise.
 
 `src/lib/scale-practice/` is kept separate from `src/lib/practice/` on purpose: Guided Practice's engine and its doctrine (see `AGENTS.md`) are both explicitly self-paced and timer-free, and this mode's metronome is exactly the timing concept that doctrine excludes. Its `ScalePracticeStore` (`src/lib/stores/scale-practice.svelte.ts`) exposes two things independently of each other: `scalePositions` (every note of the configured scale within the zone, always on) and `playedPositions` (a live derived reading `liveInput.detectedNote` directly — whatever's currently sounding, highlighted in real time). The metronome (`start()`/`stop()`, a self-correcting `setTimeout` loop) only plays a click; it has no effect on either derived.
 
@@ -168,7 +182,7 @@ pnpm dev -- --open
 pnpm lint       # prettier + eslint
 pnpm check      # svelte-check / TypeScript
 pnpm test:unit  # vitest — the music engine's invariants live here
-pnpm test:e2e   # playwright — full user flows across all six modes, Live Input, and Guided Practice
+pnpm test:e2e   # playwright — full user flows across Explore's lenses, Practice's activities and presets, Bass, and onboarding
 pnpm build      # production build
 ```
 

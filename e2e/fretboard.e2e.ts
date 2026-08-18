@@ -122,7 +122,7 @@ test.describe('Progression Field: resolved chords and transition-aware inspector
 	}) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 
 		const strip = page.locator('.chords');
@@ -158,7 +158,8 @@ test.describe('Voice-Leading Paths: ranked paths and fretboard path markers', ()
 	}) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Voice-Leading Paths' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
+		await page.getByRole('tab', { name: 'Paths', exact: true }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 
 		const paths = page.locator('.paths');
@@ -225,7 +226,7 @@ test.describe('Unified interaction: shared state persists across mode switches',
 		await expect(page.getByTestId('fret-A-3')).toHaveText('C');
 
 		// Progression Field: pick a template.
-		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
 		await expect(page.locator('.status')).toContainText('Tonic: C');
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 		await expect(page.locator('.chords')).toContainText('Dm7');
@@ -234,7 +235,8 @@ test.describe('Unified interaction: shared state persists across mode switches',
 		await expect(page.getByTestId('fret-E-0')).toHaveText('E');
 
 		// Voice-Leading Paths: same progression is already selected (shared state, not re-chosen).
-		await page.getByRole('tab', { name: 'Voice-Leading Paths' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
+		await page.getByRole('tab', { name: 'Paths', exact: true }).click();
 		await expect(page.locator('.chords')).toContainText('Dm7');
 		await expect(page.locator('.paths .path')).toHaveCount(3);
 
@@ -244,7 +246,7 @@ test.describe('Unified interaction: shared state persists across mode switches',
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/region-active/);
 
 		// Back to Chord Field: root, chord, display mode, and the region lens are all still active.
-		await page.getByRole('tab', { name: 'Chord Field' }).click();
+		await page.getByRole('tab', { name: 'Chord' }).click();
 		await expect(page.locator('.status')).toContainText('Root: C');
 		await expect(page.getByRole('radio', { name: 'Notes', exact: true })).toHaveAttribute(
 			'aria-checked',
@@ -253,7 +255,7 @@ test.describe('Unified interaction: shared state persists across mode switches',
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/region-active/);
 
 		// And the progression template chosen back in Progression Field is still selected there.
-		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
 		await expect(page.locator('.chords')).toContainText('Dm7');
 	});
 });

@@ -80,7 +80,7 @@ test.describe('Guided Practice: Resolve Note', () => {
 	}) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 		await page.getByRole('button', { name: 'G7', exact: true }).click();
 
@@ -103,7 +103,8 @@ test.describe('Guided Practice: Follow Path', () => {
 	}) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Voice-Leading Paths' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
+		await page.getByRole('tab', { name: 'Paths', exact: true }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 
 		await enableFakeInput(page);
@@ -134,7 +135,8 @@ test.describe('Guided Practice: Follow Path', () => {
 	test('a repeated wrong note does not skip past the current step', async ({ page }) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Voice-Leading Paths' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
+		await page.getByRole('tab', { name: 'Paths', exact: true }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 
 		await enableFakeInput(page);
@@ -157,7 +159,7 @@ test.describe('Guided Practice: stale context reset', () => {
 	test('switching the progression mid-exercise resets the stale exercise', async ({ page }) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 		await page.getByRole('button', { name: 'G7', exact: true }).click();
 

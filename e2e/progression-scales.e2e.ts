@@ -15,7 +15,7 @@ import { expect, test } from '@playwright/test';
 async function setUpProgression(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByTestId('fret-A-3').click(); // root C
-	await page.getByRole('tab', { name: 'Progression Field' }).click();
+	await page.getByRole('tab', { name: /^Progression/ }).click();
 	await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 	await page.getByRole('tab', { name: 'Scales', exact: true }).click();
 }
@@ -67,7 +67,7 @@ test.describe('Progression Scales', () => {
 
 	test('with no progression chosen yet, the lens explains what to do first', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
 		await page.getByRole('tab', { name: 'Scales', exact: true }).click();
 
 		await expect(

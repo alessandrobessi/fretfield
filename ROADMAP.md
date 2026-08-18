@@ -31,7 +31,14 @@ Phase 9.5 (Live Input — real-time bass pitch detection layered over all six mo
 
 Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base chord qualities) and Phase 7 (shareable state polish beyond the URL state already shipped) remain open, along with everything from Phase 10 onward (remaining practice modes — Ear Training, Groove Navigation, Walking Bass — audio playback beyond the metronome click, alternate tunings, educational integration).
 
-**Feature freeze — 1.0 restructure in progress.** The six peer modes above have grown into a product that no longer reads as one coherent instrument. FretField is mid-way through a navigation/IA restructure (Explore / Practice / Progress, with harmonic context, harmonic lens, spatial position, and live bass as cross-cutting dimensions instead of six parallel tabs) — see the milestone plan for the current build order. No new user-facing capability should be added on top of the six-mode structure until this restructure lands; the restructure itself does not add capability, it reorganizes what already exists. Everything beyond the roadmap's own "1.0 boundary" (local persistence, a harmonic-fluency model, daily practice planning, a saved-material library, donations, a full accessibility/responsive pass, alternate tunings) is deliberately deferred to a later planning effort.
+**1.0 restructure — Phases 0–13 complete.** The six peer modes above had grown into a product that no longer read as one coherent instrument. FretField is now organized around three destinations — **Explore** (Chord / Progression, with Connections/Paths/Scales lenses / Scale Explorer), **Practice** (the four Guided Practice activities, Scales, and a 15-entry curated Presets library), and **Progress** (stub, out of scope for 1.0) — with **Position** and **Bass** as global capabilities rather than modes of their own. See `/Users/alessandro/.claude/plans/ancient-soaring-squid.md` for the full milestone-by-milestone build log.
+
+Two things intentionally didn't move as part of this restructure and remain open follow-up work, not oversights:
+
+- **Scale Blocks** (the manual multi-block editor) still has no new home — the roadmap wants it folded into Progression's auto-suggested Scales lens as the primary experience (done) and Scale Blocks itself repositioned as a later "Custom Scale Map" advanced mode, which hasn't been designed yet. It's still reachable exactly as before, just without a defined place in the new IA's vocabulary.
+- **`FieldModeSwitcher`** wasn't fully retired — only the two tabs that earned real new homes were removed (Scale Practice, Local Fields). It still covers Chord/Progression/Scale Blocks/Scale Explorer. Retiring it fully depends on Scale Blocks getting a real destination first.
+
+Everything beyond the roadmap's own "1.0 boundary" (local persistence, a harmonic-fluency model, daily practice planning, a saved-material library, donations, a full accessibility/responsive pass, alternate tunings) remains deliberately out of scope, to be picked up in a later planning effort.
 
 ---
 

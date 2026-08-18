@@ -51,7 +51,7 @@ test.describe('Live Input: Chord Field, played-pitch highlighting', () => {
 		});
 
 		await expect(page.getByTestId('fret-E-12')).not.toHaveClass(/live-played/);
-		await expect(page.getByRole('button', { name: 'Enable Live Input' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Connect Bass' })).toBeVisible();
 	});
 });
 
@@ -61,7 +61,7 @@ test.describe('Live Input: Progression Field, existing connection engine', () =>
 	}) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Progression Field' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 		await page.getByRole('button', { name: 'G7', exact: true }).click();
 
@@ -85,7 +85,8 @@ test.describe('Live Input: Voice-Leading Paths, target matching', () => {
 	test('playing the current step’s expected note shows a matched state', async ({ page }) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Voice-Leading Paths' }).click();
+		await page.getByRole('tab', { name: /^Progression/ }).click();
+		await page.getByRole('tab', { name: 'Paths', exact: true }).click();
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 
 		// Dm7 is active; the top path's first step is E (open E string).

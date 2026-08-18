@@ -44,7 +44,7 @@
 
 <div class="local-field-controls">
 	<div class="heading">
-		<h2>Local Fields</h2>
+		<h2>Position</h2>
 		<p>Where on the neck should I play it?</p>
 	</div>
 
