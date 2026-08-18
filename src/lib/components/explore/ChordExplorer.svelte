@@ -1,15 +1,15 @@
 <script lang="ts">
+	import AnalysisModeToggle from '$lib/components/AnalysisModeToggle.svelte';
+	import ChordSelector from '$lib/components/ChordSelector.svelte';
 	import { getChordDefinition } from '$lib/music/chords';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
-	import AnalysisModeToggle from './AnalysisModeToggle.svelte';
-	import ChordSelector from './ChordSelector.svelte';
 
 	const rootLabel = $derived(fretfield.root === null ? '—' : defaultNoteName(fretfield.root));
 	const chordLabel = $derived(getChordDefinition(fretfield.chordId).label);
 </script>
 
-<div class="harmony-controls">
+<div class="chord-explorer">
 	<div class="status" aria-live="polite">
 		<span class="chip root-chip"><span class="field-label">Root:</span> {rootLabel}</span>
 		<span class="chip chord-chip"><span class="field-label">Chord:</span> {chordLabel}</span>
@@ -21,7 +21,7 @@
 </div>
 
 <style>
-	.harmony-controls {
+	.chord-explorer {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;

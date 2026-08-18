@@ -2,10 +2,10 @@
 	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
 	import AppHeader from '$lib/components/shell/AppHeader.svelte';
+	import ChordExplorer from '$lib/components/explore/ChordExplorer.svelte';
 	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import GuidedPracticeControls from '$lib/components/GuidedPracticeControls.svelte';
-	import HarmonyControls from '$lib/components/HarmonyControls.svelte';
 	import Legend from '$lib/components/Legend.svelte';
 	import LiveInputControls from '$lib/components/LiveInputControls.svelte';
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
@@ -69,7 +69,7 @@
 		{:else if fretfield.mode === 'scale-practice'}
 			<ScalePracticeControls />
 		{:else}
-			<HarmonyControls />
+			<ChordExplorer />
 		{/if}
 
 		<Fretboard />
