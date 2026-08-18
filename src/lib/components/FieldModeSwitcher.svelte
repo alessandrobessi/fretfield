@@ -1,19 +1,21 @@
 <script lang="ts">
 	import { fretfield, type FieldMode } from '$lib/stores/fretfield.svelte';
 
-	// The Local Field *lens* (region dimming) already works from any mode —
-	// this tab just brings its navigator to the front as the primary focus.
+	// Local Fields isn't listed here: the Local Field *lens* (region dimming,
+	// LocalFieldControls) already works and renders from every mode below, so
+	// a dedicated tab for it never showed anything a tab switch would change
+	// (its content branch always fell through to Chord Field's). Scale
+	// Practice isn't listed either — it moved to Practice -> Scales (M10);
+	// this switcher only covers Explore's own lenses now.
 	const MODES: { id: FieldMode; label: string; question: string }[] = [
 		{ id: 'chord', label: 'Chord Field', question: 'What can I play now?' },
 		{ id: 'progression', label: 'Progression Field', question: 'Where can I go next?' },
 		{ id: 'paths', label: 'Voice-Leading Paths', question: 'What route should I take?' },
-		{ id: 'local', label: 'Local Fields', question: 'Where on the neck should I play it?' },
 		{
 			id: 'scale-blocks',
 			label: 'Scale Blocks',
 			question: 'What scales fit across this progression?'
 		},
-		{ id: 'scale-practice', label: 'Scale Practice', question: 'Can you play this scale in time?' },
 		{
 			id: 'scale',
 			label: 'Scale Explorer',

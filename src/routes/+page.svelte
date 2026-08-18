@@ -10,11 +10,11 @@
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
 	import PracticeHome from '$lib/components/practice/PracticeHome.svelte';
+	import ScalePracticeSession from '$lib/components/practice/ScalePracticeSession.svelte';
 	import ProgressionWorkspace from '$lib/components/explore/ProgressionWorkspace.svelte';
 	import ScaleBlockControls from '$lib/components/ScaleBlockControls.svelte';
 	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
 	import ScaleExplorer from '$lib/components/explore/ScaleExplorer.svelte';
-	import ScalePracticeControls from '$lib/components/ScalePracticeControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { navigation } from '$lib/stores/navigation.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
@@ -63,8 +63,6 @@
 			<ProgressionWorkspace />
 		{:else if fretfield.mode === 'scale-blocks'}
 			<ScaleBlockControls />
-		{:else if fretfield.mode === 'scale-practice'}
-			<ScalePracticeControls />
 		{:else if fretfield.mode === 'scale'}
 			<ScaleExplorer />
 		{:else}
@@ -77,7 +75,11 @@
 		<NoteInspector />
 		<LocalFieldControls />
 	{:else if navigation.destination === 'practice'}
-		<PracticeHome />
+		{#if fretfield.mode === 'scale-practice'}
+			<ScalePracticeSession />
+		{:else}
+			<PracticeHome />
+		{/if}
 	{:else}
 		<p class="destination-stub">Progress tracking is coming soon.</p>
 	{/if}

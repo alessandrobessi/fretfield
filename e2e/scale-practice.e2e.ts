@@ -12,7 +12,8 @@ async function selectScalePractice(
 	root: string,
 	scale: string
 ): Promise<void> {
-	await page.getByRole('tab', { name: 'Scale Practice' }).click();
+	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+	await page.getByRole('button', { name: /^Scales/ }).click();
 	await page.getByLabel('Scale Practice root').selectOption({ label: root });
 	await page.getByLabel('Scale Practice scale').selectOption({ label: scale });
 }
@@ -148,8 +149,8 @@ test.describe('Scale Practice', () => {
 			page.locator('.scale-practice-controls').getByRole('button', { name: 'Stop Metronome' })
 		).toBeVisible();
 
-		await page.getByRole('tab', { name: 'Chord Field' }).click();
-		await page.getByRole('tab', { name: 'Scale Practice' }).click();
+		await page.getByRole('button', { name: '← Back to Practice' }).click();
+		await page.getByRole('button', { name: /^Scales/ }).click();
 
 		await expect(
 			page.locator('.scale-practice-controls').getByRole('button', { name: 'Start Metronome' })

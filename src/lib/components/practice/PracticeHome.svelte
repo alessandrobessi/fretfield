@@ -5,10 +5,11 @@
 	import { navigation } from '$lib/stores/navigation.svelte';
 	import { practice } from '$lib/stores/practice.svelte';
 
-	// Guided Practice/Scale Practice's engines and UI still live under Explore
-	// (see the plan's M2-M9 "relocate the engine, cut the navigation chrome
-	// over once at M10" sequencing note) -- starting a session from here jumps
-	// the user there, rather than duplicating a second copy of either UI.
+	// Guided Practice's engine/UI still lives under Explore (see the plan's
+	// M2-M9 sequencing note) -- starting a session from here jumps the user
+	// there rather than duplicating a second copy of the UI. Scale Practice
+	// has its own fretboard rendered right here under Practice as of M10 (see
+	// +page.svelte), so starting it just changes the mode -- no navigation.
 	function startGuided(mode: PracticeMode): void {
 		practice.start(mode);
 		navigation.setDestination('explore');
@@ -16,7 +17,6 @@
 
 	function startScales(): void {
 		fretfield.setMode('scale-practice');
-		navigation.setDestination('explore');
 	}
 </script>
 

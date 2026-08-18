@@ -182,7 +182,6 @@ test.describe('Local Fields: region navigator and neck ruler', () => {
 	}) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Local Fields' }).click();
 		await page.getByRole('button', { name: 'Anchor to root' }).click();
 
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/region-active/);
@@ -202,7 +201,6 @@ test.describe('Local Fields: region navigator and neck ruler', () => {
 	}) => {
 		await page.goto('/');
 		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: 'Local Fields' }).click();
 
 		await page.getByLabel('Position start fret').fill('7');
 		await page.getByLabel('Position end fret').fill('11');
@@ -240,8 +238,8 @@ test.describe('Unified interaction: shared state persists across mode switches',
 		await expect(page.locator('.chords')).toContainText('Dm7');
 		await expect(page.locator('.paths .path')).toHaveCount(3);
 
-		// Local Fields: anchor a region.
-		await page.getByRole('tab', { name: 'Local Fields' }).click();
+		// Local Fields: anchor a region -- the lens works from whichever Explore
+		// tab is active, no dedicated tab needed.
 		await page.getByRole('button', { name: 'Anchor to root' }).click();
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/region-active/);
 
