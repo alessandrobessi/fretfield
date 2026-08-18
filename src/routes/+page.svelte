@@ -13,6 +13,7 @@
 	import ProgressionWorkspace from '$lib/components/explore/ProgressionWorkspace.svelte';
 	import ScaleBlockControls from '$lib/components/ScaleBlockControls.svelte';
 	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
+	import ScaleExplorer from '$lib/components/explore/ScaleExplorer.svelte';
 	import ScalePracticeControls from '$lib/components/ScalePracticeControls.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { navigation } from '$lib/stores/navigation.svelte';
@@ -59,12 +60,14 @@
 		<LiveInputControls />
 		<GuidedPracticeControls />
 
-		{#if fretfield.mode === 'progression' || fretfield.mode === 'paths'}
+		{#if fretfield.mode === 'progression' || fretfield.mode === 'paths' || fretfield.mode === 'progression-scales'}
 			<ProgressionWorkspace />
 		{:else if fretfield.mode === 'scale-blocks'}
 			<ScaleBlockControls />
 		{:else if fretfield.mode === 'scale-practice'}
 			<ScalePracticeControls />
+		{:else if fretfield.mode === 'scale'}
+			<ScaleExplorer />
 		{:else}
 			<ChordExplorer />
 		{/if}

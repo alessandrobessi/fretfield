@@ -2,6 +2,7 @@
 	import PathSelector from '$lib/components/PathSelector.svelte';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import ProgressionStrip from '$lib/components/ProgressionStrip.svelte';
+	import ProgressionScales from '$lib/components/explore/ProgressionScales.svelte';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 
@@ -12,7 +13,13 @@
 	// same as ChordExplorer's entry point. A dedicated navigation-store field
 	// only earns its keep once a lens choice needs to survive independent of
 	// fretfield.mode's other consumers (rankedPaths/currentTransition).
-	const lens = $derived(fretfield.mode === 'paths' ? 'paths' : 'connections');
+	const lens = $derived(
+		fretfield.mode === 'paths'
+			? 'paths'
+			: fretfield.mode === 'progression-scales'
+				? 'scales'
+				: 'connections'
+	);
 </script>
 
 <div class="progression-workspace">
@@ -47,10 +54,21 @@
 		>
 			Paths
 		</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected={lens === 'scales'}
+			class:active={lens === 'scales'}
+			onclick={() => fretfield.setMode('progression-scales')}
+		>
+			Scales
+		</button>
 	</div>
 
 	{#if lens === 'paths'}
 		<PathSelector />
+	{:else if lens === 'scales'}
+		<ProgressionScales />
 	{/if}
 </div>
 

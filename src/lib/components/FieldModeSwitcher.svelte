@@ -13,7 +13,12 @@
 			label: 'Scale Blocks',
 			question: 'What scales fit across this progression?'
 		},
-		{ id: 'scale-practice', label: 'Scale Practice', question: 'Can you play this scale in time?' }
+		{ id: 'scale-practice', label: 'Scale Practice', question: 'Can you play this scale in time?' },
+		{
+			id: 'scale',
+			label: 'Scale Explorer',
+			question: 'What does this scale look like on its own?'
+		}
 	];
 </script>
 

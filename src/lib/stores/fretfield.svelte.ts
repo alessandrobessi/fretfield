@@ -29,7 +29,7 @@ import {
 	getProgressionTemplate,
 	resolvedChordSymbol
 } from '$lib/music/progressions';
-import { getScaleDefinition, scaleContainsPitchClass } from '$lib/music/scales';
+import { getScaleDefinition, scaleContainsPitchClass, suggestedScalesFor } from '$lib/music/scales';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { type ChordTransition, analyzeTransition, connectionFor } from '$lib/music/voice-leading';
 import {
@@ -52,7 +52,14 @@ export type DisplayMode = 'intervals' | 'notes' | 'both';
  * it owns its own `chordBlocks` state instead of reusing root/chordId.
  */
 export type FieldMode =
-	'chord' | 'progression' | 'paths' | 'local' | 'scale-blocks' | 'scale-practice';
+	| 'chord'
+	| 'progression'
+	| 'paths'
+	| 'local'
+	| 'scale-blocks'
+	| 'scale-practice'
+	| 'progression-scales'
+	| 'scale';
 
 /**
  * One independently-configured chord in Scale Blocks mode: its own root,
@@ -188,6 +195,11 @@ class FretFieldStore {
 	pathPreset = $state<PathPreset>('balanced');
 	selectedPathIndex = $state<number | null>(null);
 	chordBlocks = $state<ChordBlock[]>([]);
+	/** Progression Scales lens: per-chord-index override, keyed by position in `resolvedProgression`. `undefined` (absent key) means "use the family-suggested default"; an explicit `null` means the user cleared it. */
+	progressionScaleOverrides = $state<Record<number, string | null>>({});
+	/** Explore -> Scale: a single freestanding root/scale, independent of any chord or progression — session-only, same precedent as Scale Blocks/Scale Practice. */
+	exploreScaleRoot = $state<PitchClass | null>(null);
+	exploreScaleId = $state<string | null>(null);
 
 	constructor() {
 		// Live Input needs Voice-Leading Path/Local Field context to disambiguate
@@ -215,6 +227,21 @@ class FretFieldStore {
 
 	readonly activeProgressionChord = $derived.by<DisplayResolvedChord | null>(() => {
 		return this.resolvedProgression[this.activeChordIndex] ?? null;
+	});
+
+	/** Progression Scales lens (§5 of the 1.0 restructure): one block per progression chord, defaulting to that chord family's top suggested scale, overridable per chord. Reuses the exact ChordBlock shape Scale Blocks already renders. */
+	readonly progressionScaleBlocks = $derived.by<ChordBlock[]>(() => {
+		return this.resolvedProgression.map((chord, index) => {
+			const override = this.progressionScaleOverrides[index];
+			const scaleId =
+				override !== undefined ? override : (suggestedScalesFor(chord.chordId)[0]?.id ?? null);
+			return {
+				id: `progression-scale-${index}`,
+				root: chord.root,
+				chordId: chord.chordId,
+				scaleId
+			};
+		});
 	});
 
 	/** The current->next transition, wrapping to the first chord after the last (a practice loop). */
@@ -256,11 +283,19 @@ class FretFieldStore {
 
 	/** The one call into the engine per relevant state change (AGENTS.md §19); everything else derives from this. */
 	readonly analyzed = $derived.by<AnalyzedFretPosition[] | null>(() => {
-		// Scale Blocks has no single shared chord to analyze roles against —
-		// each block has its own. Scale Practice has no chord at all, just a
-		// scale/key/zone. Both cases want the fallback branch below (plain
+		// Scale Blocks and Progression Scales have no single shared chord to
+		// analyze roles against — each block/chord has its own. Scale Practice
+		// and the standalone Scale explorer have no chord at all, just a
+		// scale/key(/zone). All four want the fallback branch below (plain
 		// note names, no role) rather than a special case.
-		if (this.mode === 'scale-blocks' || this.mode === 'scale-practice') return null;
+		if (
+			this.mode === 'scale-blocks' ||
+			this.mode === 'scale-practice' ||
+			this.mode === 'progression-scales' ||
+			this.mode === 'scale'
+		) {
+			return null;
+		}
 		if (this.mode === 'progression' || this.mode === 'paths') {
 			const chord = this.activeProgressionChord;
 			if (chord === null) return null;
@@ -287,6 +322,37 @@ class FretFieldStore {
 		return findUsefulLocalFields(analyzed, this.fretCount, this.regionWidth);
 	});
 
+	/**
+	 * The set of root+scale overlays currently active on the fretboard, from
+	 * whichever of the three sources is live: Scale Blocks' manually-built
+	 * blocks, Progression Scales' auto-suggested-per-chord blocks, or Explore
+	 * -> Scale's single freestanding root+scale. Consolidated here so
+	 * `positions` below has one membership/common-note computation instead of
+	 * three near-identical copies.
+	 */
+	readonly activeScaleOverlays = $derived.by<{ root: PitchClass; scaleId: string }[]>(() => {
+		if (this.mode === 'scale-blocks') {
+			return this.chordBlocks
+				.filter(
+					(block): block is ChordBlock & { root: PitchClass; scaleId: string } =>
+						block.root !== null && block.chordId !== null && block.scaleId !== null
+				)
+				.map((block) => ({ root: block.root, scaleId: block.scaleId }));
+		}
+		if (this.mode === 'progression-scales') {
+			return this.progressionScaleBlocks
+				.filter(
+					(block): block is ChordBlock & { root: PitchClass; scaleId: string } =>
+						block.root !== null && block.scaleId !== null
+				)
+				.map((block) => ({ root: block.root, scaleId: block.scaleId }));
+		}
+		if (this.mode === 'scale' && this.exploreScaleRoot !== null && this.exploreScaleId !== null) {
+			return [{ root: this.exploreScaleRoot, scaleId: this.exploreScaleId }];
+		}
+		return [];
+	});
+
 	readonly positions = $derived.by<DisplayFretPosition[]>(() => {
 		const analyzed = this.analyzed;
 		const region = this.activeRegion;
@@ -305,27 +371,21 @@ class FretFieldStore {
 		const isLiveNextTargetPosition = (position: FretPosition): boolean =>
 			liveNextTarget !== null && position.pitchClass === liveNextTarget;
 
-		const activeChordBlocks =
-			this.mode === 'scale-blocks'
-				? this.chordBlocks
-						.map((block, index) => ({ block, index }))
-						.filter(
-							({ block }) => block.root !== null && block.chordId !== null && block.scaleId !== null
-						)
-				: [];
+		const activeOverlays = this.activeScaleOverlays;
 		const scaleBlockMembershipFor = (position: FretPosition): number[] =>
-			activeChordBlocks
-				.filter(({ block }) =>
+			activeOverlays
+				.map((overlay, index) => ({ overlay, index }))
+				.filter(({ overlay }) =>
 					scaleContainsPitchClass(
-						block.root!,
-						getScaleDefinition(block.scaleId!),
+						overlay.root,
+						getScaleDefinition(overlay.scaleId),
 						position.pitchClass
 					)
 				)
 				.map(({ index }) => index);
 		const isScaleBlockCommonNoteFor = (position: FretPosition): boolean =>
-			activeChordBlocks.length >= 2 &&
-			scaleBlockMembershipFor(position).length === activeChordBlocks.length;
+			activeOverlays.length >= 2 &&
+			scaleBlockMembershipFor(position).length === activeOverlays.length;
 
 		if (analyzed === null) {
 			return createFretboard(this.tuning, this.fretCount).map((position) => ({
@@ -671,6 +731,25 @@ class FretFieldStore {
 		this.chordBlocks = this.chordBlocks.map((block) =>
 			block.id === id ? { ...block, scaleId } : block
 		);
+	}
+
+	/** Progression Scales state is intentionally session-only too, same precedent as Scale Blocks — resets on reload. */
+	setProgressionScaleOverride(chordIndex: number, scaleId: string | null): void {
+		this.progressionScaleOverrides = { ...this.progressionScaleOverrides, [chordIndex]: scaleId };
+	}
+
+	clearProgressionScaleOverride(chordIndex: number): void {
+		const next = { ...this.progressionScaleOverrides };
+		delete next[chordIndex];
+		this.progressionScaleOverrides = next;
+	}
+
+	setExploreScaleRoot(root: PitchClass | null): void {
+		this.exploreScaleRoot = root;
+	}
+
+	setExploreScaleId(scaleId: string | null): void {
+		this.exploreScaleId = scaleId;
 	}
 
 	/** A plain-data snapshot of the shareable fields, for URL serialization (src/lib/utils/url-state.ts). */
