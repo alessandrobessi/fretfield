@@ -83,6 +83,43 @@ test.describe('Scale Practice', () => {
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 	});
 
+	test('every fret shows its interval relative to the chosen root alongside the note name', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await selectScalePractice(page, 'C', 'Major Pentatonic');
+
+		// The root itself is labeled "R", not "1" — the app's usual convention elsewhere.
+		await expect(page.getByTestId('fret-A-3').locator('.label')).toHaveText('R\nC');
+		// The 2nd degree, in the scale.
+		await expect(page.getByTestId('fret-D-0').locator('.label')).toHaveText('2/9\nD');
+		// Bb (b7) is not in C major pentatonic, but its interval still shows —
+		// every fret is labeled, not just the ones in the scale.
+		await expect(page.getByTestId('fret-A-1').locator('.label')).toHaveText('b7\nBb');
+	});
+
+	test('every note of the scale is shown in bold, distinguishing it from chromatic notes', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await selectScalePractice(page, 'C', 'Major Pentatonic');
+
+		// C is in the scale.
+		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
+		const inScaleWeight = await page
+			.getByTestId('fret-A-3')
+			.locator('.label')
+			.evaluate((el) => getComputedStyle(el).fontWeight);
+		// Bb is not in the scale.
+		await expect(page.getByTestId('fret-A-1')).not.toHaveClass(/scale-practice-note/);
+		const outOfScaleWeight = await page
+			.getByTestId('fret-A-1')
+			.locator('.label')
+			.evaluate((el) => getComputedStyle(el).fontWeight);
+
+		expect(Number(inScaleWeight)).toBeGreaterThan(Number(outOfScaleWeight));
+	});
+
 	test('a zone that excludes every note of the scale shows a hint instead of highlighting nothing silently', async ({
 		page
 	}) => {

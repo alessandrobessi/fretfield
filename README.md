@@ -10,14 +10,14 @@
 
 FretField is an interactive bass-fretboard application that teaches the neck as a spatial field of harmonic possibilities — not a grid of shapes to memorize. Click any fret to set a root, and it answers six increasingly powerful questions:
 
-|                            |                                            |                                                                                                                                                                                                                |
-| -------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🎯 **Chord Field**         | _What can I play now?_                     | The full 12-tone Harmonic Field over the current chord — root, structural, stable, extension, color, tension, alteration, chromatic-approach, avoid — or a simplified Chord Tones view for quick reference.    |
-| ➡️ **Progression Field**   | _Where can I go next?_                     | Resolve a progression template (ii–V–I, I–vi–ii–V, 12-bar blues, …) from the selected root and see each note's best resolution into the next chord, derived from interval math — not a hardcoded lookup table. |
-| 🧭 **Voice-Leading Paths** | _What route should I take?_                | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.         |
-| 📍 **Local Fields**        | _Where on the neck should I play it?_      | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                   |
-| 🧩 **Scale Blocks**        | _What scales fit across this progression?_ | Build up to 8 independent chord "blocks" — each its own root, quality, and scale — and see all of them at once: every fret numbered/colored by which block's scale it belongs to, overlaps included.           |
-| 🥁 **Scale Practice**      | _Can you play this scale in time?_         | Pick a root, a scale, and a fret zone: every note of that scale lights up at once, whatever you actually play is highlighted live, and an independent metronome (adjustable BPM) keeps time alongside it.      |
+|                            |                                            |                                                                                                                                                                                                                                         |
+| -------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🎯 **Chord Field**         | _What can I play now?_                     | The full 12-tone Harmonic Field over the current chord — root, structural, stable, extension, color, tension, alteration, chromatic-approach, avoid — or a simplified Chord Tones view for quick reference.                             |
+| ➡️ **Progression Field**   | _Where can I go next?_                     | Resolve a progression template (ii–V–I, I–vi–ii–V, 12-bar blues, …) from the selected root and see each note's best resolution into the next chord, derived from interval math — not a hardcoded lookup table.                          |
+| 🧭 **Voice-Leading Paths** | _What route should I take?_                | A ranked list of complete fretted paths through the whole progression, scored by harmonic quality, physical movement, and position continuity, with Balanced / Minimal Movement / Guide Tones presets.                                  |
+| 📍 **Local Fields**        | _Where on the neck should I play it?_      | Ranked, overlapping regions of the neck — not fixed CAGED-style boxes — usable as a lens under any of the other three modes.                                                                                                            |
+| 🧩 **Scale Blocks**        | _What scales fit across this progression?_ | Build up to 8 independent chord "blocks" — each its own root, quality, and scale — and see all of them at once: every fret numbered/colored by which block's scale it belongs to, overlaps included.                                    |
+| 🥁 **Scale Practice**      | _Can you play this scale in time?_         | Pick a root, a scale, and a fret zone: every fret shows its interval plus note name relative to that root, the scale's own notes light up, whatever you play is highlighted live, and an independent metronome keeps time alongside it. |
 
 **Live Input** is an optional layer over all six modes, not a `FieldMode` itself: play your bass through a USB audio interface or mic and FretField reacts to what you actually play. It detects the pitch and highlights every fret that physically produces it everywhere, including Scale Blocks and Scale Practice; the deeper explanation — Chord Field's role, Progression Field's resolution into the next chord, or a Voice-Leading Path's expected next note — is available for those three modes specifically. Off by default; audio is analyzed locally in your browser and never recorded or uploaded.
 
@@ -71,7 +71,7 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 
 **Scale Blocks** — up to 8 chords' scales overlaid at once, with shared notes called out
 
-<img src="./docs/screenshots/scale-blocks.jpg" alt="Scale Blocks showing two configured chord blocks, C Major Ionian and F# Diminished Locrian, with every fret numbered and colored by which block's scale it belongs to, and the five notes common to both scales filled in a shared accent color and listed in the legend">
+<img src="./docs/screenshots/scale-blocks.jpg" alt="Scale Blocks showing six configured chord blocks in six distinct colors, with fret chips wrapping onto a second row where several blocks' scales overlap, and the note common to every block filled in a shared accent color and listed in the legend">
 
 </td>
 <td width="50%">
@@ -94,7 +94,7 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 
 **Scale Practice** — the whole scale highlighted, plus a free-standing metronome
 
-<img src="./docs/screenshots/scale-practice.jpg" alt="Scale Practice showing A Dorian highlighted across frets 0-12 with frets outside the zone dimmed, a live-played note ringed on top of the scale tint, and a separate Metronome panel below with its own Start/Stop button">
+<img src="./docs/screenshots/scale-practice.jpg" alt="Scale Practice showing A Dorian across frets 0-12, every fret labeled with its interval (R for the root) and note name relative to A, scale notes shown in bold, frets outside the zone dimmed, a live-played root note ringed on top of the scale tint, and a separate Metronome panel below with its own Start/Stop button">
 
 </td>
 </tr>

@@ -5,6 +5,11 @@
 		type DisplayMode
 	} from '$lib/stores/fretfield.svelte';
 	import { roleStyleFor } from '$lib/config/roles';
+	import {
+		intervalCompoundLabel,
+		intervalFromRoot,
+		noteNameForPosition
+	} from '$lib/music/intervals';
 	import { practice } from '$lib/stores/practice.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
@@ -61,8 +66,37 @@
 		isScalePracticeMode &&
 			(position.fret < scalePractice.zone.minFret || position.fret > scalePractice.zone.maxFret)
 	);
+	// Scale Practice has exactly one root (unlike Scale Blocks' several), so
+	// "interval relative to root" is well-defined here — computed locally
+	// against `scalePractice.root`, never `fretfield.root`, same
+	// independent-state reasoning as the layers above. Always shown
+	// alongside the note name (not gated on the shared Intervals/Notes/Both
+	// toggle) per the specific request: the interval should read in
+	// addition to the note name, not instead of it.
+	const scalePracticeInterval = $derived(
+		isScalePracticeMode && scalePractice.root !== null
+			? intervalFromRoot(scalePractice.root, position.pitchClass)
+			: null
+	);
+	const scalePracticeNoteName = $derived(
+		isScalePracticeMode && scalePractice.root !== null
+			? noteNameForPosition(scalePractice.root, position.pitchClass)
+			: null
+	);
+	// "R" for the root specifically (not "1") — the one deviation from the
+	// app's usual numeric-interval convention, per explicit request.
+	const scalePracticeIntervalLabel = $derived(
+		scalePracticeInterval === null
+			? null
+			: scalePracticeInterval === '1'
+				? 'R'
+				: intervalCompoundLabel(scalePracticeInterval)
+	);
 
 	const label = $derived.by(() => {
+		if (scalePracticeIntervalLabel !== null && scalePracticeNoteName !== null) {
+			return `${scalePracticeIntervalLabel}\n${scalePracticeNoteName}`;
+		}
 		if (position.interval === null) return position.noteName;
 		if (displayMode === 'notes') return position.noteName;
 		if (displayMode === 'both') return `${position.intervalLabel}\n${position.noteName}`;
@@ -70,8 +104,16 @@
 	});
 
 	const ariaLabel = $derived.by(() => {
-		const parts = [`${stringName} string`, `fret ${position.fret}`, position.noteName];
-		if (position.interval !== null) parts.push(`interval ${position.intervalLabel}`);
+		const parts = [
+			`${stringName} string`,
+			`fret ${position.fret}`,
+			scalePracticeNoteName ?? position.noteName
+		];
+		if (scalePracticeIntervalLabel !== null) {
+			parts.push(`interval ${scalePracticeIntervalLabel}`);
+		} else if (position.interval !== null) {
+			parts.push(`interval ${position.intervalLabel}`);
+		}
 		if (roleStyle !== null) parts.push(roleStyle.label.toLowerCase());
 		if (position.pathRole === 'current') parts.push('current path step');
 		else if (position.pathRole === 'previous') parts.push('previous path step');
@@ -496,6 +538,11 @@
 
 	.fret-cell.scale-practice-note:hover {
 		background: color-mix(in srgb, var(--scale-practice-note, #6366f1) 24%, var(--fret-bg, #fff));
+	}
+
+	/* Bold is a second, non-color signal for scale membership (AGENTS.md §7) — the tint alone shouldn't have to carry it. */
+	.fret-cell.scale-practice-note .label {
+		font-weight: 700;
 	}
 
 	/*
