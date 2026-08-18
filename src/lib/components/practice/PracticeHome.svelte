@@ -4,10 +4,19 @@
 	import type { PracticeMode } from '$lib/practice/types';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { navigation } from '$lib/stores/navigation.svelte';
+	import { onboarding } from '$lib/stores/onboarding.svelte';
 	import { practice } from '$lib/stores/practice.svelte';
 
 	let view = $state<'cards' | 'presets'>('cards');
 	const presets = listPracticePresets();
+
+	// Captured once at mount, not reactively: this hint should stay visible
+	// for this entire first visit even after markSeen() below flips the
+	// underlying flag, only disappearing on the *next* visit.
+	const showPracticeIntro = !onboarding.hasSeen('practice-intro');
+	$effect(() => {
+		onboarding.markSeen('practice-intro');
+	});
 
 	// Guided Practice's engine/UI still lives under Explore (see the plan's
 	// M2-M9 sequencing note) -- starting a session from here jumps the user
@@ -26,6 +35,9 @@
 
 <div class="practice-home">
 	{#if view === 'cards'}
+		{#if showPracticeIntro}
+			<p class="onboarding-hint">Connect a bass to practice with real notes.</p>
+		{/if}
 		<p class="intro">Pick something to practice.</p>
 		<div class="cards">
 			{#each Object.values(PRACTICE_MODE_STYLES) as style (style.mode)}
@@ -69,6 +81,17 @@
 	.intro {
 		margin: 0;
 		opacity: 0.65;
+	}
+
+	.onboarding-hint {
+		margin: 0;
+		padding: 0.75rem 1.1rem;
+		border-radius: 12px;
+		background: color-mix(in srgb, var(--nut, #7c3aed) 8%, var(--fret-bg, #fff));
+		border: 1px dashed var(--nut, #7c3aed);
+		color: var(--fret-fg, #241a3d);
+		font-size: 0.9rem;
+		line-height: 1.5;
 	}
 
 	.back {

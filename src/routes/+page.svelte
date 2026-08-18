@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import AppHeader from '$lib/components/shell/AppHeader.svelte';
 	import ChordExplorer from '$lib/components/explore/ChordExplorer.svelte';
+	import ExploreOnboarding from '$lib/components/explore/ExploreOnboarding.svelte';
 	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
 	import GuidedPracticeControls from '$lib/components/GuidedPracticeControls.svelte';
@@ -56,6 +57,7 @@
 	<AppHeader />
 
 	{#if navigation.destination === 'explore'}
+		<ExploreOnboarding />
 		<FieldModeSwitcher />
 		<GuidedPracticeControls />
 
