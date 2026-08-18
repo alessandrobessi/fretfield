@@ -10,8 +10,7 @@
 	import LiveInputControls from '$lib/components/LiveInputControls.svelte';
 	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
-	import PathsControls from '$lib/components/PathsControls.svelte';
-	import ProgressionControls from '$lib/components/ProgressionControls.svelte';
+	import ProgressionWorkspace from '$lib/components/explore/ProgressionWorkspace.svelte';
 	import ScaleBlockControls from '$lib/components/ScaleBlockControls.svelte';
 	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
 	import ScalePracticeControls from '$lib/components/ScalePracticeControls.svelte';
@@ -60,10 +59,8 @@
 		<LiveInputControls />
 		<GuidedPracticeControls />
 
-		{#if fretfield.mode === 'progression'}
-			<ProgressionControls />
-		{:else if fretfield.mode === 'paths'}
-			<PathsControls />
+		{#if fretfield.mode === 'progression' || fretfield.mode === 'paths'}
+			<ProgressionWorkspace />
 		{:else if fretfield.mode === 'scale-blocks'}
 			<ScaleBlockControls />
 		{:else if fretfield.mode === 'scale-practice'}
