@@ -77,6 +77,39 @@ test.describe('core scenario: click root, choose harmony, explore the field', ()
 	});
 });
 
+test.describe('Settings panel: dismissal', () => {
+	test('Escape closes the panel and returns focus to the Settings button', async ({ page }) => {
+		await page.goto('/');
+		const settingsButton = page.getByRole('button', { name: 'Settings' });
+		await settingsButton.click();
+		await expect(page.getByRole('radio', { name: 'Notes' })).toBeVisible();
+
+		await page.keyboard.press('Escape');
+
+		await expect(page.getByRole('radio', { name: 'Notes' })).not.toBeVisible();
+		await expect(settingsButton).toBeFocused();
+	});
+
+	test('clicking outside the panel closes it', async ({ page }) => {
+		await page.goto('/');
+		await page.getByRole('button', { name: 'Settings' }).click();
+		await expect(page.getByRole('radio', { name: 'Notes' })).toBeVisible();
+
+		await page.getByTestId('fret-A-3').click();
+
+		await expect(page.getByRole('radio', { name: 'Notes' })).not.toBeVisible();
+	});
+
+	test('clicking inside the panel does not close it', async ({ page }) => {
+		await page.goto('/');
+		await page.getByRole('button', { name: 'Settings' }).click();
+
+		await page.getByRole('radio', { name: 'Notes' }).click();
+
+		await expect(page.getByRole('radio', { name: 'Notes' })).toBeVisible();
+	});
+});
+
 test.describe('Chord Field: full Harmonic Field mode and the Note Inspector', () => {
 	test('Harmonic Field shows tension/chromatic-approach roles; Chord Tones suppresses them', async ({
 		page
@@ -248,6 +281,10 @@ test.describe('Unified interaction: shared state persists across mode switches',
 		// Back to Chord Field: root, chord, display mode, and the region lens are all still active.
 		await page.getByRole('tab', { name: 'Chord' }).click();
 		await expect(page.locator('.status')).toContainText('Root: C');
+		// The Settings panel itself closes on every click elsewhere (M3's
+		// click-outside-to-close) -- re-open it to confirm the underlying
+		// displayMode setting, not just the panel's visibility, survived.
+		await page.getByRole('button', { name: 'Settings' }).click();
 		await expect(page.getByRole('radio', { name: 'Notes', exact: true })).toHaveAttribute(
 			'aria-checked',
 			'true'

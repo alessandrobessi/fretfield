@@ -10,6 +10,43 @@
 	];
 
 	let settingsOpen = $state(false);
+	let settingsContainerEl: HTMLDivElement | undefined;
+	let settingsToggleEl: HTMLButtonElement | undefined;
+
+	function closeSettings(): void {
+		settingsOpen = false;
+		settingsToggleEl?.focus();
+	}
+
+	// Escape-to-close + click-outside-to-close: the app's first manual
+	// disclosure-widget dismissal (every other dropdown/panel in the app is
+	// either state-driven, not a user-toggled open/close, or doesn't exist
+	// yet) — listeners are only live while the panel is actually open, torn
+	// down automatically by $effect's own cleanup otherwise.
+	$effect(() => {
+		if (!settingsOpen) return;
+
+		function handleKeydown(event: KeyboardEvent): void {
+			if (event.key === 'Escape') closeSettings();
+		}
+		// Deliberately doesn't call closeSettings()/move focus here — an
+		// outside click already puts the user's attention/focus wherever they
+		// clicked, so forcing it back to the toggle button would be
+		// disruptive. Only keyboard (Escape) dismissal returns focus, since
+		// that's the expected keyboard-navigation flow.
+		function handleClickOutside(event: MouseEvent): void {
+			if (settingsContainerEl && !settingsContainerEl.contains(event.target as Node)) {
+				settingsOpen = false;
+			}
+		}
+
+		document.addEventListener('keydown', handleKeydown);
+		document.addEventListener('click', handleClickOutside);
+		return () => {
+			document.removeEventListener('keydown', handleKeydown);
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
 </script>
 
 <div class="app-header">
@@ -29,12 +66,13 @@
 
 	<div class="utilities">
 		<BassConnection />
-		<div class="settings">
+		<div class="settings" bind:this={settingsContainerEl}>
 			<button
 				type="button"
 				class="settings-toggle"
 				aria-expanded={settingsOpen}
 				aria-controls="settings-panel"
+				bind:this={settingsToggleEl}
 				onclick={() => (settingsOpen = !settingsOpen)}
 			>
 				⚙ Settings
