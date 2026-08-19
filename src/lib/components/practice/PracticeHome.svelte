@@ -6,9 +6,24 @@
 	import { navigation } from '$lib/stores/navigation.svelte';
 	import { onboarding } from '$lib/stores/onboarding.svelte';
 	import { practice } from '$lib/stores/practice.svelte';
+	import { practiceHistory } from '$lib/stores/practice-history.svelte';
 
 	let view = $state<'cards' | 'presets'>('cards');
 	const presets = listPracticePresets();
+
+	const streakLabel = $derived(
+		practiceHistory.currentStreak > 0
+			? `${practiceHistory.currentStreak}-day streak`
+			: 'No active streak'
+	);
+	const lastPracticedLabel = $derived.by(() => {
+		const lastPracticedAt = practiceHistory.stats.lastPracticedAt;
+		if (lastPracticedAt === null) return null;
+		return new Date(lastPracticedAt).toLocaleDateString(undefined, {
+			month: 'short',
+			day: 'numeric'
+		});
+	});
 
 	// Captured once at mount, not reactively: this hint should stay visible
 	// for this entire first visit even after markSeen() below flips the
@@ -38,6 +53,16 @@
 		{#if showPracticeIntro}
 			<p class="onboarding-hint">Connect a bass to practice with real notes.</p>
 		{/if}
+		{#if practiceHistory.stats.totalAttempts > 0}
+			<div class="history-summary">
+				<span class="streak">{streakLabel}</span>
+				<span class="stat">{practiceHistory.stats.totalExercisesCompleted} exercises completed</span
+				>
+				{#if lastPracticedLabel !== null}
+					<span class="stat">Last practiced {lastPracticedLabel}</span>
+				{/if}
+			</div>
+		{/if}
 		<p class="intro">Pick something to practice.</p>
 		<div class="cards">
 			{#each Object.values(PRACTICE_MODE_STYLES) as style (style.mode)}
@@ -63,7 +88,12 @@
 		<div class="cards presets">
 			{#each presets as preset (preset.id)}
 				<button type="button" class="card" onclick={() => openPreset(preset)}>
-					<span class="card-title">{preset.title}</span>
+					<span class="card-title">
+						{preset.title}
+						{#if practiceHistory.stats.presetsPracticed.includes(preset.id)}
+							<span class="practiced-badge">Practiced</span>
+						{/if}
+					</span>
 					<span class="card-question">{preset.description}</span>
 				</button>
 			{/each}
@@ -92,6 +122,23 @@
 		color: var(--fret-fg, #241a3d);
 		font-size: 0.9rem;
 		line-height: 1.5;
+	}
+
+	.history-summary {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.6rem 1.1rem;
+		font-size: 0.85rem;
+	}
+
+	.streak {
+		font-weight: 700;
+		color: var(--nut, #7c3aed);
+	}
+
+	.stat {
+		opacity: 0.65;
 	}
 
 	.back {
@@ -151,6 +198,18 @@
 	.card-title {
 		font-weight: 700;
 		font-size: 1rem;
+	}
+
+	.practiced-badge {
+		margin-left: 0.4rem;
+		padding: 0.1rem 0.5rem;
+		border-radius: 999px;
+		border: 1px solid var(--fret-border, #ddd3f7);
+		font-size: 0.65rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		opacity: 0.6;
 	}
 
 	.card-question {
