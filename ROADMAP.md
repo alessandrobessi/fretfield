@@ -35,7 +35,9 @@ Phase 6 (Chord builder — composable extensions/alterations beyond the 11 base 
 
 The one piece deliberately deferred out of that restructure — Scale Blocks (the manual multi-block editor) had no new home, which in turn kept `FieldModeSwitcher` from reaching its intended final shape — is now also done: Scale Blocks is reachable as **"Custom Scale Map"**, an advanced escape hatch nested inside Explore → Progression → Scales (a de-emphasized "Open Custom Scale Map" button below the auto-suggested per-chord scales, per the roadmap's own Phase 5 "should not be the default workflow" guidance), not a tab of its own. `FieldModeSwitcher` now covers exactly Explore's three primary lenses — Chord / Progression / Scale Explorer — its intended end state, not a temporary stepping stone.
 
-Everything beyond the roadmap's own "1.0 boundary" (local persistence, a harmonic-fluency model, daily practice planning, a saved-material library, donations, a full accessibility/responsive pass, alternate tunings) remains deliberately out of scope, to be picked up in a later planning effort.
+**Accessibility & Responsive release pass — done.** Keyboard fret navigation (roving-tabindex across the fretboard's 84-cell grid, and across all six radiogroup/tablist toggle controls), visible focus states everywhere, a real `:root` design-token system with AA-passing text contrast, non-color-only encoding for practice result markers, an `aria-live` announcement for Bass connection status, a dismissible (Escape/click-outside) Settings panel, and responsive fixes (BassConnection panel width, page padding, header and six control-row `flex-wrap`) verified via Playwright smoke coverage at tablet-portrait and phone-portrait viewports. See `/Users/alessandro/.claude/plans/ancient-soaring-squid.md` for the full milestone-by-milestone build log.
+
+Everything beyond the roadmap's own "1.0 boundary" (local persistence, a harmonic-fluency model, daily practice planning, a saved-material library, donations, alternate tunings) remains deliberately out of scope, to be picked up in a later planning effort.
 
 ---
 
