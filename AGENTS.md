@@ -21,13 +21,15 @@ Chord Field           "What can I play now?"
 Progression Field      "Where can I go next?"
 Voice-Leading Paths    "What route should I take?"
 Local Fields           "Where on the neck should I play it?"
-Scale Blocks           "What scales fit across this progression?"
+Scale Blocks           "What scales fit across this progression?" — nested inside Progression -> Scales as "Custom Scale Map", not a tab of its own
 Scale Practice          "Can you play this scale in time?"
 ```
 
+(This table predates the app's 1.0 navigation restructure into Explore/Practice/Progress destinations — see `ROADMAP.md`'s current-status note — and is kept here only to describe the six underlying `FieldMode` questions, not the current top-level tab layout.)
+
 Local Fields is a spatial lens usable from any of the other three single-chord modes (region state lives in the store independent of `mode`), not an isolated feature. Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying selection.
 
-Scale Blocks and Scale Practice are the two modes that don't fit that "shared root/chordId" model. Scale Blocks holds its own independent `chordBlocks` list (up to `MAX_CHORD_BLOCKS`, currently 8, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time. Scale Practice holds its own independent root/scale/fret-zone/tempo session (`scale-practice.svelte.ts`, not `fretfield.svelte.ts`): every note of the scale is highlighted at once, whatever's played is highlighted live, and a metronome (Start/Stop) plays a click independently of both — timing that Guided Practice deliberately excludes (§26). Both are genuine `FieldMode`s like the other four, not layers (contrast with Live Input/Guided Practice below, which explicitly are layers).
+Scale Blocks and Scale Practice are the two modes that don't fit that "shared root/chordId" model. Scale Blocks holds its own independent `chordBlocks` list (up to `MAX_CHORD_BLOCKS`, currently 8, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time — reached today as "Custom Scale Map", an advanced escape hatch nested inside Explore → Progression → Scales (`ProgressionScales.svelte`'s "Open Custom Scale Map" button, rendered via `CustomScaleMap.svelte`), not its own primary tab; the auto-suggested per-chord `progressionScaleBlocks` view is the default experience there instead. Scale Practice holds its own independent root/scale/fret-zone/tempo session (`scale-practice.svelte.ts`, not `fretfield.svelte.ts`): every note of the scale is highlighted at once, whatever's played is highlighted live, and a metronome (Start/Stop) plays a click independently of both — timing that Guided Practice deliberately excludes (§26). Both are genuine `FieldMode`s like the other four, not layers (contrast with Live Input/Guided Practice below, which explicitly are layers).
 
 ---
 

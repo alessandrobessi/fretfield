@@ -81,6 +81,21 @@
 			</p>
 		{/if}
 	{/if}
+
+	<!--
+		Advanced escape hatch (roadmap Phase 5): "should not be the default
+		workflow", so it renders as a de-emphasized, dashed-border link-style
+		button below the suggested scales rather than competing with them —
+		always visible, regardless of blocks.length, since manual blocks are
+		independent of any progression.
+	-->
+	<button
+		type="button"
+		class="custom-scale-map-link"
+		onclick={() => fretfield.setMode('scale-blocks')}
+	>
+		Open Custom Scale Map
+	</button>
 </div>
 
 <style>
@@ -212,5 +227,31 @@
 		height: 0.7rem;
 		border-radius: 3px;
 		background: var(--scale-block-common, #10b981);
+	}
+
+	.custom-scale-map-link {
+		align-self: flex-start;
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.8rem;
+		padding: 0.4rem 0.8rem;
+		margin-top: 0.25rem;
+		border-radius: 999px;
+		background: transparent;
+		border: 2px dashed var(--fret-border, #ddd3f7);
+		color: var(--fret-fg, #241a3d);
+		opacity: 0.75;
+		cursor: pointer;
+	}
+
+	.custom-scale-map-link:hover {
+		border-color: var(--nut, #7c3aed);
+		color: var(--nut, #7c3aed);
+		opacity: 1;
+	}
+
+	.custom-scale-map-link:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
 	}
 </style>

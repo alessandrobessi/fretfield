@@ -14,25 +14,17 @@
 	// own Connections/Paths/Scales lens switcher already covers what two
 	// separate outer tabs used to.
 	//
-	// Scale Blocks keeps its internal-architecture name here as a deliberate
-	// exception: the roadmap wants it user-facing-invisible, folded into
-	// Progression -> Scales, but that's only true for the auto-suggested
-	// per-chord experience (M5) — the manual multi-block editor itself still
-	// has no new home (explicitly deferred, see the plan's M5/M10 notes), so
-	// relabeling it without relocating it would just orphan a still-real
-	// capability under a name that no longer describes where to find it.
+	// Scale Blocks (the manual multi-block editor) isn't listed either
+	// anymore: it now lives as "Custom Scale Map", an advanced escape hatch
+	// nested inside Progression -> Scales (see ProgressionScales.svelte's
+	// "Open Custom Scale Map" button and ProgressionWorkspace.svelte), not a
+	// switcher tab of its own — per the roadmap's explicit instruction that
+	// this "should not be the default workflow" and its terminology should
+	// stay hidden from normal users. This switcher now covers exactly
+	// Explore's three primary lenses.
 	const MODES: { id: FieldMode; label: string; question: string }[] = [
 		{ id: 'chord', label: 'Chord', question: 'What can I play now?' },
 		{ id: 'progression', label: 'Progression', question: 'Where can I go next?' },
-		{
-			id: 'scale-blocks',
-			label: 'Scale Blocks',
-			question: 'What scales fit across this progression?'
-		},
-		// Kept as "Scale Explorer" rather than the bare approved term "Scale" —
-		// that collides with "Scale Blocks" above in any prefix/substring
-		// match, and Scale Blocks itself can't be renamed away from that name
-		// without a new home to rename it *to* (see the comment above).
 		{
 			id: 'scale',
 			label: 'Scale Explorer',
@@ -40,15 +32,17 @@
 		}
 	];
 
-	// The Progression tab covers three internal FieldMode values now (its own
-	// Connections/Paths/Scales lens switcher, see ProgressionWorkspace.svelte)
-	// — it should read as active for all three, not just 'progression'.
+	// The Progression tab covers four internal FieldMode values now (its own
+	// Connections/Paths/Scales lens switcher, plus Custom Scale Map nested
+	// inside Scales — see ProgressionWorkspace.svelte) — it should read as
+	// active for all four, not just 'progression'.
 	function isActive(id: FieldMode): boolean {
 		if (id === 'progression') {
 			return (
 				fretfield.mode === 'progression' ||
 				fretfield.mode === 'paths' ||
-				fretfield.mode === 'progression-scales'
+				fretfield.mode === 'progression-scales' ||
+				fretfield.mode === 'scale-blocks'
 			);
 		}
 		return fretfield.mode === id;

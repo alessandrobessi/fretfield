@@ -13,8 +13,6 @@
 	import PracticeHome from '$lib/components/practice/PracticeHome.svelte';
 	import ScalePracticeSession from '$lib/components/practice/ScalePracticeSession.svelte';
 	import ProgressionWorkspace from '$lib/components/explore/ProgressionWorkspace.svelte';
-	import ScaleBlockControls from '$lib/components/ScaleBlockControls.svelte';
-	import ScaleBlockLegend from '$lib/components/ScaleBlockLegend.svelte';
 	import ScaleExplorer from '$lib/components/explore/ScaleExplorer.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { navigation } from '$lib/stores/navigation.svelte';
@@ -61,10 +59,8 @@
 		<FieldModeSwitcher />
 		<GuidedPracticeControls />
 
-		{#if fretfield.mode === 'progression' || fretfield.mode === 'paths' || fretfield.mode === 'progression-scales'}
+		{#if fretfield.mode === 'progression' || fretfield.mode === 'paths' || fretfield.mode === 'progression-scales' || fretfield.mode === 'scale-blocks'}
 			<ProgressionWorkspace />
-		{:else if fretfield.mode === 'scale-blocks'}
-			<ScaleBlockControls />
 		{:else if fretfield.mode === 'scale'}
 			<ScaleExplorer />
 		{:else}
@@ -73,7 +69,6 @@
 
 		<Fretboard />
 		<Legend />
-		<ScaleBlockLegend />
 		<NoteInspector />
 		<LocalFieldControls />
 	{:else if navigation.destination === 'practice'}

@@ -49,7 +49,9 @@ export type DisplayMode = 'intervals' | 'notes' | 'both';
  * switches — each mode is a different lens on the same selection, not a
  * separate page with its own state. `scale-blocks` is the one exception:
  * it's a simultaneous, multi-chord view rather than a single-chord lens, so
- * it owns its own `chordBlocks` state instead of reusing root/chordId.
+ * it owns its own `chordBlocks` state instead of reusing root/chordId. It's
+ * reached via a button nested inside Progression -> Scales ("Custom Scale
+ * Map"), not its own top-level tab in `FieldModeSwitcher.svelte`.
  */
 export type FieldMode =
 	| 'chord'

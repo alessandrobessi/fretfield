@@ -29,7 +29,7 @@
 
 <div class="scale-block-controls">
 	<div class="header">
-		<span class="field-label">Scale Blocks</span>
+		<span class="field-label">Custom Scale Map</span>
 		<button
 			type="button"
 			class="add"

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CustomScaleMap from '$lib/components/explore/CustomScaleMap.svelte';
 	import PathSelector from '$lib/components/PathSelector.svelte';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import ProgressionStrip from '$lib/components/ProgressionStrip.svelte';
@@ -13,10 +14,13 @@
 	// same as ChordExplorer's entry point. A dedicated navigation-store field
 	// only earns its keep once a lens choice needs to survive independent of
 	// fretfield.mode's other consumers (rankedPaths/currentTransition).
+	// 'scale-blocks' (Custom Scale Map) folds into the 'scales' lens too — it's
+	// reached via a button inside ProgressionScales, not its own switcher tab,
+	// so the Scales sub-tab should keep reading as active while it's open.
 	const lens = $derived(
 		fretfield.mode === 'paths'
 			? 'paths'
-			: fretfield.mode === 'progression-scales'
+			: fretfield.mode === 'progression-scales' || fretfield.mode === 'scale-blocks'
 				? 'scales'
 				: 'connections'
 	);
@@ -68,7 +72,11 @@
 	{#if lens === 'paths'}
 		<PathSelector />
 	{:else if lens === 'scales'}
-		<ProgressionScales />
+		{#if fretfield.mode === 'scale-blocks'}
+			<CustomScaleMap />
+		{:else}
+			<ProgressionScales />
+		{/if}
 	{/if}
 </div>
 

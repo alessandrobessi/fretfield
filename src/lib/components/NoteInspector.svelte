@@ -23,6 +23,26 @@
 		if (!scale.intervals.includes(interval)) return null;
 		return `${intervalCompoundLabel(interval)} degree of ${defaultNoteName(root)} ${scale.label}`;
 	});
+
+	// `inspected.scaleBlockMembership` indices are computed against whichever
+	// array `fretfield.activeScaleOverlays` used for the current mode (see
+	// fretfield.svelte.ts): `chordBlocks` in 'scale-blocks' mode,
+	// `progressionScaleBlocks` in 'progression-scales' mode. Reading the
+	// wrong one — or reading either at all while in Explore -> Scale
+	// Explorer, which has no ChordBlock-shaped data whatsoever — throws on
+	// `block.root!` for an out-of-bounds index. Mirror the same branch
+	// `activeScaleOverlays` uses, and only render this section in the two
+	// modes that genuinely have block data to show.
+	const scaleOverlayBlocks = $derived(
+		fretfield.mode === 'progression-scales'
+			? fretfield.progressionScaleBlocks
+			: fretfield.chordBlocks
+	);
+	const showScaleBlocks = $derived(
+		(fretfield.mode === 'scale-blocks' || fretfield.mode === 'progression-scales') &&
+			inspected !== null &&
+			inspected.scaleBlockMembership.length > 0
+	);
 </script>
 
 <div class="note-inspector" aria-live="polite">
@@ -68,10 +88,10 @@
 		{#if scalePracticeDegree}
 			<p class="scale-practice-degree">{scalePracticeDegree}</p>
 		{/if}
-		{#if inspected.scaleBlockMembership.length > 0}
+		{#if showScaleBlocks}
 			<div class="scale-blocks">
 				{#each inspected.scaleBlockMembership as blockIndex (blockIndex)}
-					{@const block = fretfield.chordBlocks[blockIndex]}
+					{@const block = scaleOverlayBlocks[blockIndex]}
 					<p class="scale-block-line">
 						<span class="chip" data-block={blockIndex} aria-hidden="true">{blockIndex + 1}</span>
 						In block {blockIndex + 1}: {defaultNoteName(block.root!)}{getChordDefinition(
