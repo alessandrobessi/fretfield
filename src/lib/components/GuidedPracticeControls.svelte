@@ -313,7 +313,12 @@
 	}
 
 	.feedback[data-result='valid-alternative'] .result-label {
-		color: var(--practice-caution-accent, #b45309);
+		/* --practice-caution-accent (#eab308, defined in app.css) is FretCell's
+		   fretboard border/fill color -- too light to also use directly as
+		   text (1.92:1 against white), so darken it here the same way
+		   NoteInspector.svelte's role colors are darkened for text use,
+		   rather than defining a second, disconnected token. */
+		color: color-mix(in srgb, var(--practice-caution-accent, #eab308) 70%, black);
 	}
 
 	.feedback[data-result='incorrect'] .result-label {

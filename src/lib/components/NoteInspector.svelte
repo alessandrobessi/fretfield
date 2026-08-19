@@ -145,26 +145,35 @@
 		letter-spacing: 0.04em;
 	}
 
+	/*
+	 * Six of these nine role colors fail WCAG AA (4.5:1) used directly as
+	 * small text against a white background (as low as 2.15:1 for root) --
+	 * darkened via color-mix, the same pattern ProgressionWorkspace.svelte's
+	 * chord chip already uses, rather than picking new hex values by hand.
+	 * structural/chromatic-approach/avoid already pass AA as-is (6.29:1,
+	 * 4.76:1, 4.8:1) and are left untouched. The brighter tokens themselves
+	 * are unchanged -- this only affects their use as *text* here.
+	 */
 	.role[data-role='root'] {
-		color: var(--role-root, #f59e0b);
+		color: color-mix(in srgb, var(--role-root, #f59e0b) 70%, black);
 	}
 	.role[data-role='structural'] {
 		color: var(--role-structural, #4f46e5);
 	}
 	.role[data-role='stable'] {
-		color: var(--role-stable, #10b981);
+		color: color-mix(in srgb, var(--role-stable, #10b981) 70%, black);
 	}
 	.role[data-role='extension'] {
-		color: var(--role-extension, #a855f7);
+		color: color-mix(in srgb, var(--role-extension, #a855f7) 70%, black);
 	}
 	.role[data-role='color'] {
-		color: var(--role-color, #ec4899);
+		color: color-mix(in srgb, var(--role-color, #ec4899) 70%, black);
 	}
 	.role[data-role='tension'] {
-		color: var(--role-tension, #f97316);
+		color: color-mix(in srgb, var(--role-tension, #f97316) 70%, black);
 	}
 	.role[data-role='alteration'] {
-		color: var(--role-alteration, #ef4444);
+		color: color-mix(in srgb, var(--role-alteration, #ef4444) 70%, black);
 	}
 	.role[data-role='chromatic-approach'] {
 		color: var(--role-chromatic-approach, #64748b);

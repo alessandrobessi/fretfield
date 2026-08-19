@@ -28,6 +28,32 @@
 	--role-alteration: #ef4444;
 	--role-chromatic-approach: #64748b;
 	--role-avoid: #78716c;
+
+	/* Guided Practice feedback colors. --practice-caution-accent is also
+	   FretCell's valid-alternative marker border/fill — components that use
+	   it as *text* darken it with color-mix rather than defining a second
+	   token (see NoteInspector.svelte/GuidedPracticeControls.svelte). */
+	--practice-target-accent: #10b981;
+	--practice-correct-accent: #10b981;
+	--practice-caution-accent: #eab308;
+	--practice-incorrect-accent: #94a3b8;
+
+	/* Scale Blocks / Custom Scale Map chip colors — up to MAX_CHORD_BLOCKS (8). */
+	--scale-block-1: #3b82f6;
+	--scale-block-2: #f43f5e;
+	--scale-block-3: #eab308;
+	--scale-block-4: #8b5cf6;
+	--scale-block-5: #14b8a6;
+	--scale-block-6: #84cc16;
+	--scale-block-7: #d946ef;
+	--scale-block-8: #0ea5e9;
+	--scale-block-common: #10b981;
+
+	/* Live Input / Bass connection colors. */
+	--live-accent: #06b6d4;
+	--live-accent-hover: #0891b2;
+	--live-accent-strong: #0e7490;
+	--live-target-accent: #10b981;
 }
 
 * {
