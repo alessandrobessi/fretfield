@@ -105,7 +105,7 @@
 				</label>
 			{/if}
 
-			<p class="status-line">
+			<p class="status-line" aria-live="polite">
 				Status: <span data-status={liveInput.status}>{statusLabel}</span>
 				<span class="level" data-level={liveInput.inputLevel}>{inputLevelLabel}</span>
 			</p>
