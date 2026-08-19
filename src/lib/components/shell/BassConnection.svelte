@@ -201,7 +201,7 @@
 		top: calc(100% + 0.5rem);
 		right: 0;
 		z-index: 10;
-		width: 20rem;
+		width: min(20rem, calc(100vw - 3rem));
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;

@@ -87,7 +87,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
-		padding: 1.5rem;
+		padding: clamp(0.75rem, 4vw, 1.5rem);
 		/* Wide enough that the full 21-fret board (row label + 21 × 3.25rem
 		   cells = 70.25rem) fits without horizontal scrolling on a typical
 		   desktop viewport — narrower viewports still fall back to the
@@ -99,6 +99,7 @@
 	header {
 		display: flex;
 		align-items: center;
+		flex-wrap: wrap;
 		gap: 1.1rem;
 		padding: 2rem 1.75rem;
 		border-radius: 16px;
