@@ -37,7 +37,9 @@ The one piece deliberately deferred out of that restructure — Scale Blocks (th
 
 **Accessibility & Responsive release pass — done.** Keyboard fret navigation (roving-tabindex across the fretboard's 84-cell grid, and across all six radiogroup/tablist toggle controls), visible focus states everywhere, a real `:root` design-token system with AA-passing text contrast, non-color-only encoding for practice result markers, an `aria-live` announcement for Bass connection status, a dismissible (Escape/click-outside) Settings panel, and responsive fixes (BassConnection panel width, page padding, header and six control-row `flex-wrap`) verified via Playwright smoke coverage at tablet-portrait and phone-portrait viewports. See `/Users/alessandro/.claude/plans/ancient-soaring-squid.md` for the full milestone-by-milestone build log.
 
-Everything beyond the roadmap's own "1.0 boundary" (local persistence, a harmonic-fluency model, daily practice planning, a saved-material library, donations, alternate tunings) remains deliberately out of scope, to be picked up in a later planning effort.
+**Local Practice Persistence — done.** Guided Practice's current exercise/hint level/attempts, Scale Practice's root/scale/zone/tempo, and the last-visited Explore/Practice/Progress destination all now survive a reload via localStorage (the URL only ever covered Explore's shareable state — none of Practice's was persisted before this). A lightweight lifetime history store (`practiceHistory`) tracks total attempts/exercises completed, a practiced-dates set for streak math, and which curated presets have been opened at least once, surfaced as a small summary + "Practiced" badges on Practice home — no new destination page; **Progress** stays the intentional 1.0-boundary stub. See `/Users/alessandro/.claude/plans/ancient-soaring-squid.md` for the full milestone-by-milestone build log.
+
+Everything beyond the roadmap's own "1.0 boundary" (a harmonic-fluency model, daily practice planning, a saved-material library, donations, alternate tunings) remains deliberately out of scope, to be picked up in a later planning effort.
 
 ---
 
