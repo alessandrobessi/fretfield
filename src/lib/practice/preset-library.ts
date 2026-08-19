@@ -4,6 +4,7 @@ import { normalizePitchClass, type PitchClass } from '$lib/music/pitch';
 import { fretfield, type PathPreset } from '$lib/stores/fretfield.svelte';
 import { navigation } from '$lib/stores/navigation.svelte';
 import { practice } from '$lib/stores/practice.svelte';
+import { practiceHistory } from '$lib/stores/practice-history.svelte';
 import { scalePractice } from '$lib/stores/scale-practice.svelte';
 import type { HintLevel, PracticeMode } from './types';
 
@@ -171,6 +172,8 @@ export function listPracticePresets(): readonly PracticePreset[] {
 
 /** Configures every relevant store field from `preset`, then starts the session it describes. */
 export function openPreset(preset: PracticePreset): void {
+	practiceHistory.recordPresetPracticed(preset.id);
+
 	fretfield.setRootPitchClass(preset.context.root);
 
 	if (preset.position) {

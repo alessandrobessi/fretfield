@@ -24,6 +24,7 @@ import {
 	type PracticeStats
 } from '$lib/practice/types';
 import { fretfield } from '$lib/stores/fretfield.svelte';
+import { practiceHistory } from '$lib/stores/practice-history.svelte';
 import { readJSON, writeJSON } from '$lib/utils/local-storage';
 
 const STORAGE_KEY = 'fretfield-practice-session';
@@ -121,6 +122,8 @@ class PracticeStore {
 	/** Called by the UI layer whenever Live Input confirms a genuinely new note — never on raw audio frames (see `liveInput.noteOnsetId`). */
 	handleDetectedNote(note: DetectedNote): void {
 		this.session = recordAttempt(this.session, note);
+		const result = this.session.lastEvaluation?.result;
+		if (result !== undefined) practiceHistory.recordAttempt(result);
 		this.persist();
 	}
 
