@@ -246,6 +246,12 @@
 		border: 1px solid var(--fret-border, #ddd3f7);
 	}
 
+	select:focus-visible,
+	.local-field-toggle input:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 1px;
+	}
+
 	.toggle {
 		font: inherit;
 		font-weight: 700;
@@ -255,6 +261,11 @@
 		background: transparent;
 		color: var(--practice-target-accent, #10b981);
 		cursor: pointer;
+	}
+
+	.toggle:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
 	}
 
 	.guided-practice.active .toggle {
@@ -346,6 +357,11 @@
 		background: var(--nut, #7c3aed);
 		color: #fff;
 		cursor: pointer;
+	}
+
+	.next:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
 	}
 
 	.stats {

@@ -159,6 +159,11 @@
 		cursor: not-allowed;
 	}
 
+	.add:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
 	.empty {
 		margin: 0;
 		opacity: 0.6;
@@ -270,5 +275,10 @@
 
 	.remove:hover {
 		border-color: var(--role-alteration, #ef4444);
+	}
+
+	.remove:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
 	}
 </style>

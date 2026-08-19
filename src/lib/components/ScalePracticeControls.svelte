@@ -232,6 +232,11 @@
 		color: #fff;
 	}
 
+	.toggle:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
 	.beat-readout {
 		font-size: 0.85rem;
 		font-weight: 600;
