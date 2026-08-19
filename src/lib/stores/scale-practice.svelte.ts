@@ -6,10 +6,27 @@ import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/
 import { positionsForPitchClass, scalePositions } from '$lib/scale-practice/positions';
 import type { PracticeZone } from '$lib/scale-practice/types';
 import { liveInput } from '$lib/stores/live-input.svelte';
+import { readJSON, writeJSON } from '$lib/utils/local-storage';
 
 const DEFAULT_BPM = 80;
 const MIN_BPM = 30;
 const MAX_BPM = 240;
+
+const STORAGE_KEY = 'fretfield-scale-practice';
+
+interface PersistedScalePracticeConfig {
+	root: PitchClass | null;
+	scaleId: string | null;
+	zone: PracticeZone;
+	bpm: number;
+}
+
+const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
+	root: null,
+	scaleId: null,
+	zone: { minFret: 0, maxFret: 12 },
+	bpm: DEFAULT_BPM
+};
 
 function msPerBeat(bpm: number): number {
 	return 60_000 / bpm;
@@ -34,10 +51,14 @@ function clampBpm(bpm: number): number {
  * timing anymore.
  */
 export class ScalePracticeStore {
-	root = $state<PitchClass | null>(null);
-	scaleId = $state<string | null>(null);
-	zone = $state<PracticeZone>({ minFret: 0, maxFret: 12 });
-	bpm = $state(DEFAULT_BPM);
+	private readonly persisted = readJSON(STORAGE_KEY, DEFAULT_CONFIG);
+
+	root = $state<PitchClass | null>(this.persisted.root);
+	scaleId = $state<string | null>(this.persisted.scaleId);
+	zone = $state<PracticeZone>(this.persisted.zone);
+	bpm = $state(this.persisted.bpm);
+	// Never restored true — the metronome, like Live Input's mic, always
+	// requires an explicit restart rather than resuming audio on load.
 	running = $state(false);
 
 	private readonly tuning: Tuning;
@@ -70,18 +91,31 @@ export class ScalePracticeStore {
 
 	setRoot(root: PitchClass | null): void {
 		this.root = root;
+		this.persist();
 	}
 
 	setScaleId(scaleId: string | null): void {
 		this.scaleId = scaleId;
+		this.persist();
 	}
 
 	setZone(minFret: number, maxFret: number): void {
 		this.zone = { minFret, maxFret };
+		this.persist();
 	}
 
 	setBpm(bpm: number): void {
 		this.bpm = clampBpm(bpm);
+		this.persist();
+	}
+
+	private persist(): void {
+		writeJSON<PersistedScalePracticeConfig>(STORAGE_KEY, {
+			root: this.root,
+			scaleId: this.scaleId,
+			zone: this.zone,
+			bpm: this.bpm
+		});
 	}
 
 	/** Starts (or stops) only the metronome click — has no effect on which notes are highlighted. */
