@@ -449,8 +449,9 @@
 		border: 3px solid var(--practice-correct-accent, #10b981);
 	}
 
+	/* Double border (vs. exact/strong-alternative's solid, incorrect's dashed) so the distinction doesn't rely on color alone (AGENTS.md §7). */
 	.practice-result-marker[data-result='valid-alternative'] {
-		border: 3px solid var(--practice-caution-accent, #eab308);
+		border: 4px double var(--practice-caution-accent, #eab308);
 	}
 
 	/* Restrained on purpose (product spec §10/§21): no red flash, just a calm, dismissable outline. */
