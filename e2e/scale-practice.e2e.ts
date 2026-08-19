@@ -35,6 +35,27 @@ test.describe('Scale Practice', () => {
 		).toBeVisible();
 	});
 
+	test('the root gets its own color, distinct from the rest of the scale', async ({ page }) => {
+		await page.goto('/');
+		await selectScalePractice(page, 'C', 'Major Pentatonic');
+
+		// C (the root) is in the scale AND gets the root-specific class.
+		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
+		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-root/);
+
+		// D is in the scale but is not the root.
+		await expect(page.getByTestId('fret-D-0')).toHaveClass(/scale-practice-note/);
+		await expect(page.getByTestId('fret-D-0')).not.toHaveClass(/scale-practice-root/);
+
+		const rootBackground = await page
+			.getByTestId('fret-A-3')
+			.evaluate((el) => getComputedStyle(el).backgroundColor);
+		const nonRootBackground = await page
+			.getByTestId('fret-D-0')
+			.evaluate((el) => getComputedStyle(el).backgroundColor);
+		expect(rootBackground).not.toBe(nonRootBackground);
+	});
+
 	test('playing a note highlights it in real time, independent of the metronome', async ({
 		page
 	}) => {

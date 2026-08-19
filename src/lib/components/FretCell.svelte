@@ -59,6 +59,14 @@
 	const isScalePracticeJustPlayed = $derived(
 		isScalePracticeMode && scalePractice.playedPositions.some(isSamePosition)
 	);
+	// The root gets its own color among the scale's notes — same --role-root
+	// amber the rest of the app already uses for "root" everywhere else
+	// (Chord Field's star pill, the root chip), so the color reads
+	// consistently across modes even though Scale Practice has no shared
+	// role-classification pill of its own.
+	const isScalePracticeRoot = $derived(
+		isScalePracticeMode && scalePractice.root !== null && position.pitchClass === scalePractice.root
+	);
 	// The zone is always defined (a sensible default even before configuring a
 	// scale), so dimming applies as soon as the tab is active — it previews
 	// where the player is about to practice, not just where they currently are.
@@ -151,6 +159,7 @@
 	class:practice-target={isPracticeTarget}
 	class:scale-block-common={position.isScaleBlockCommonNote}
 	class:scale-practice-note={isScalePracticeNote}
+	class:scale-practice-root={isScalePracticeRoot}
 	class:scale-practice-just-played={isScalePracticeJustPlayed}
 	class:scale-practice-zone-dimmed={isScalePracticeZoneDimmed}
 	data-path-role={position.pathRole}
@@ -543,6 +552,24 @@
 	/* Bold is a second, non-color signal for scale membership (AGENTS.md §7) — the tint alone shouldn't have to carry it. */
 	.fret-cell.scale-practice-note .label {
 		font-weight: 700;
+	}
+
+	/*
+	 * The root gets its own color, distinct from the rest of the scale —
+	 * same --role-root amber the app already uses for "root" everywhere else
+	 * (Chord Field's star pill, the root chip in HarmonyControls/
+	 * ProgressionWorkspace). Same-specificity selector placed after
+	 * .scale-practice-note above, so it wins on source order for the one
+	 * fret that's both. The "R" label (scalePracticeIntervalLabel) and bold
+	 * weight are the non-color signals already carrying this distinction
+	 * (AGENTS.md §7) — color is a third, reinforcing one, not the only one.
+	 */
+	.fret-cell.scale-practice-root {
+		background: color-mix(in srgb, var(--role-root, #f59e0b) 20%, var(--fret-bg, #fff));
+	}
+
+	.fret-cell.scale-practice-root:hover {
+		background: color-mix(in srgb, var(--role-root, #f59e0b) 30%, var(--fret-bg, #fff));
 	}
 
 	/*
