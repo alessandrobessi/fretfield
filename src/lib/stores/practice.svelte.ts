@@ -24,6 +24,9 @@ import {
 	type PracticeStats
 } from '$lib/practice/types';
 import { fretfield } from '$lib/stores/fretfield.svelte';
+import { readJSON, writeJSON } from '$lib/utils/local-storage';
+
+const STORAGE_KEY = 'fretfield-practice-session';
 
 /**
  * Guided Practice's orchestration layer: the only place that reads
@@ -40,7 +43,19 @@ import { fretfield } from '$lib/stores/fretfield.svelte';
  * changes.
  */
 class PracticeStore {
-	session = $state<PracticeSession>(createIdleSession());
+	session = $state<PracticeSession>(readJSON(STORAGE_KEY, createIdleSession()));
+
+	constructor() {
+		// Restored from a previous visit: fretfield.mode (URL-persisted) may
+		// not agree with which lens this exercise actually needs, since the
+		// two are restored independently. `start()` already guarantees this
+		// alignment for a fresh session — give a restored one the same
+		// guarantee once, up front.
+		if (this.session.status === 'active' && this.session.currentExercise !== null) {
+			this.syncFieldMode(this.session.mode);
+			this.syncActiveChordIndex();
+		}
+	}
 
 	readonly stats = $derived.by<PracticeStats>(() => computePracticeStats(this.session.attempts));
 
@@ -78,29 +93,35 @@ class PracticeStore {
 		});
 		this.syncFieldMode(mode);
 		this.syncActiveChordIndex();
+		this.persist();
 	}
 
 	stop(): void {
 		this.session = stopSession(this.session.settings);
+		this.persist();
 	}
 
 	next(): void {
 		const context = this.buildContext();
 		this.session = advanceToNextExercise(this.session, context, { path: fretfield.selectedPath });
 		this.syncActiveChordIndex();
+		this.persist();
 	}
 
 	setHintLevel(level: HintLevel): void {
 		this.session = updateSettings(this.session, { hintLevel: level });
+		this.persist();
 	}
 
 	setLocalFieldOnly(value: boolean): void {
 		this.session = updateSettings(this.session, { localFieldOnly: value });
+		this.persist();
 	}
 
 	/** Called by the UI layer whenever Live Input confirms a genuinely new note — never on raw audio frames (see `liveInput.noteOnsetId`). */
 	handleDetectedNote(note: DetectedNote): void {
 		this.session = recordAttempt(this.session, note);
+		this.persist();
 	}
 
 	/** Called by the UI layer when the harmonic context Guided Practice is watching (root/progression) might have changed underneath the current exercise. Regenerates rather than silently evaluating against a stale target (product spec §13). */
@@ -114,7 +135,12 @@ class PracticeStore {
 				path: fretfield.selectedPath
 			});
 			this.syncActiveChordIndex();
+			this.persist();
 		}
+	}
+
+	private persist(): void {
+		writeJSON(STORAGE_KEY, this.session);
 	}
 
 	private buildContext(): PracticeContext {
