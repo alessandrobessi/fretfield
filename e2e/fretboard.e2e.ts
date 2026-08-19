@@ -110,6 +110,68 @@ test.describe('Settings panel: dismissal', () => {
 	});
 });
 
+test.describe('Roving-tabindex arrow-key navigation', () => {
+	test('ArrowRight/ArrowLeft move and select within a radiogroup, wrapping at the ends', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click();
+		await page.getByRole('button', { name: 'Settings' }).click();
+
+		const intervals = page.getByRole('radio', { name: 'Intervals', exact: true });
+		const notes = page.getByRole('radio', { name: 'Notes', exact: true });
+		const both = page.getByRole('radio', { name: 'Both', exact: true });
+		await intervals.focus();
+
+		await page.keyboard.press('ArrowRight');
+		await expect(notes).toBeFocused();
+		await expect(notes).toHaveAttribute('aria-checked', 'true');
+
+		await page.keyboard.press('ArrowRight');
+		await expect(both).toBeFocused();
+		await expect(both).toHaveAttribute('aria-checked', 'true');
+
+		// Wraps back to the first option past the last.
+		await page.keyboard.press('ArrowRight');
+		await expect(intervals).toBeFocused();
+		await expect(intervals).toHaveAttribute('aria-checked', 'true');
+
+		// ArrowLeft from the first option wraps to the last.
+		await page.keyboard.press('ArrowLeft');
+		await expect(both).toBeFocused();
+		await expect(both).toHaveAttribute('aria-checked', 'true');
+	});
+
+	test('arrow keys switch Explore destinations and Field mode tabs, each their own single Tab stop', async ({
+		page
+	}) => {
+		await page.goto('/');
+
+		const explore = page.getByRole('tab', { name: 'Explore', exact: true });
+		const practice = page.getByRole('tab', { name: 'Practice', exact: true });
+		await explore.focus();
+		await expect(explore).toHaveAttribute('tabindex', '0');
+		await expect(practice).toHaveAttribute('tabindex', '-1');
+
+		await page.keyboard.press('ArrowRight');
+		await expect(practice).toBeFocused();
+		await expect(practice).toHaveAttribute('aria-selected', 'true');
+		await expect(practice).toHaveAttribute('tabindex', '0');
+		await expect(explore).toHaveAttribute('tabindex', '-1');
+
+		// Back to Explore, then switch Field mode tabs the same way.
+		await page.keyboard.press('ArrowLeft');
+		await expect(explore).toBeFocused();
+
+		const chord = page.getByRole('tab', { name: /^Chord/ });
+		const progression = page.getByRole('tab', { name: /^Progression/ });
+		await chord.focus();
+		await page.keyboard.press('ArrowRight');
+		await expect(progression).toBeFocused();
+		await expect(progression).toHaveAttribute('aria-selected', 'true');
+	});
+});
+
 test.describe('Chord Field: full Harmonic Field mode and the Note Inspector', () => {
 	test('Harmonic Field shows tension/chromatic-approach roles; Chord Tones suppresses them', async ({
 		page

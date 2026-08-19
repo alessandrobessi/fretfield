@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fretfield, type PathPreset } from '$lib/stores/fretfield.svelte';
+	import { nextRovingIndex } from '$lib/utils/roving-index';
 
 	const PRESETS: { id: PathPreset; label: string }[] = [
 		{ id: 'balanced', label: 'Balanced' },
@@ -8,16 +9,35 @@
 	];
 
 	const activeIndex = $derived(fretfield.selectedPathIndex ?? 0);
+
+	const activePresetIndex = $derived(
+		PRESETS.findIndex((preset) => preset.id === fretfield.pathPreset)
+	);
+
+	function handlePresetKeydown(event: KeyboardEvent): void {
+		const next = nextRovingIndex(event.key, activePresetIndex, PRESETS.length);
+		if (next === null) return;
+		event.preventDefault();
+		fretfield.setPathPreset(PRESETS[next].id);
+		(event.currentTarget as HTMLElement).querySelectorAll('button')[next]?.focus();
+	}
 </script>
 
 <div class="path-selector">
-	<div class="presets" role="radiogroup" aria-label="Path preset">
-		{#each PRESETS as preset (preset.id)}
+	<div
+		class="presets"
+		role="radiogroup"
+		aria-label="Path preset"
+		tabindex="-1"
+		onkeydown={handlePresetKeydown}
+	>
+		{#each PRESETS as preset, index (preset.id)}
 			<button
 				type="button"
 				role="radio"
 				aria-checked={fretfield.pathPreset === preset.id}
 				class:active={fretfield.pathPreset === preset.id}
+				tabindex={index === activePresetIndex ? 0 : -1}
 				onclick={() => fretfield.setPathPreset(preset.id)}
 			>
 				{preset.label}

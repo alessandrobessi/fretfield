@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fretfield, type FieldMode } from '$lib/stores/fretfield.svelte';
+	import { nextRovingIndex } from '$lib/utils/roving-index';
 
 	// Terminology follows the roadmap's Phase 12 approved list (Chord,
 	// Progression, Scale) — "Field" and "Voice-Leading Paths" are retired
@@ -47,15 +48,32 @@
 		}
 		return fretfield.mode === id;
 	}
+
+	const activeIndex = $derived(MODES.findIndex((m) => isActive(m.id)));
+
+	function handleKeydown(event: KeyboardEvent): void {
+		const next = nextRovingIndex(event.key, activeIndex, MODES.length);
+		if (next === null) return;
+		event.preventDefault();
+		fretfield.setMode(MODES[next].id);
+		(event.currentTarget as HTMLElement).querySelectorAll('button')[next]?.focus();
+	}
 </script>
 
-<div class="field-mode-switcher" role="tablist" aria-label="Field mode">
-	{#each MODES as m (m.id)}
+<div
+	class="field-mode-switcher"
+	role="tablist"
+	aria-label="Field mode"
+	tabindex="-1"
+	onkeydown={handleKeydown}
+>
+	{#each MODES as m, index (m.id)}
 		<button
 			type="button"
 			role="tab"
 			aria-selected={isActive(m.id)}
 			class:active={isActive(m.id)}
+			tabindex={index === activeIndex ? 0 : -1}
 			onclick={() => fretfield.setMode(m.id)}
 		>
 			<span class="label">{m.label}</span>

@@ -5,7 +5,14 @@
 	import ProgressionStrip from '$lib/components/ProgressionStrip.svelte';
 	import ProgressionScales from '$lib/components/explore/ProgressionScales.svelte';
 	import { defaultNoteName } from '$lib/music/pitch';
-	import { fretfield } from '$lib/stores/fretfield.svelte';
+	import { fretfield, type FieldMode } from '$lib/stores/fretfield.svelte';
+	import { nextRovingIndex } from '$lib/utils/roving-index';
+
+	const LENSES: { id: 'connections' | 'paths' | 'scales'; label: string; mode: FieldMode }[] = [
+		{ id: 'connections', label: 'Connections', mode: 'progression' },
+		{ id: 'paths', label: 'Paths', mode: 'paths' },
+		{ id: 'scales', label: 'Scales', mode: 'progression-scales' }
+	];
 
 	const tonicLabel = $derived(fretfield.root === null ? '—' : defaultNoteName(fretfield.root));
 	const activeChordLabel = $derived(fretfield.activeProgressionChord?.symbol ?? '—');
@@ -24,6 +31,16 @@
 				? 'scales'
 				: 'connections'
 	);
+
+	const activeLensIndex = $derived(LENSES.findIndex((l) => l.id === lens));
+
+	function handleLensKeydown(event: KeyboardEvent): void {
+		const next = nextRovingIndex(event.key, activeLensIndex, LENSES.length);
+		if (next === null) return;
+		event.preventDefault();
+		fretfield.setMode(LENSES[next].mode);
+		(event.currentTarget as HTMLElement).querySelectorAll('button')[next]?.focus();
+	}
 </script>
 
 <div class="progression-workspace">
@@ -39,34 +56,25 @@
 	</div>
 	<ProgressionStrip />
 
-	<div class="lens-switcher" role="tablist" aria-label="Lens">
-		<button
-			type="button"
-			role="tab"
-			aria-selected={lens === 'connections'}
-			class:active={lens === 'connections'}
-			onclick={() => fretfield.setMode('progression')}
-		>
-			Connections
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected={lens === 'paths'}
-			class:active={lens === 'paths'}
-			onclick={() => fretfield.setMode('paths')}
-		>
-			Paths
-		</button>
-		<button
-			type="button"
-			role="tab"
-			aria-selected={lens === 'scales'}
-			class:active={lens === 'scales'}
-			onclick={() => fretfield.setMode('progression-scales')}
-		>
-			Scales
-		</button>
+	<div
+		class="lens-switcher"
+		role="tablist"
+		aria-label="Lens"
+		tabindex="-1"
+		onkeydown={handleLensKeydown}
+	>
+		{#each LENSES as l, index (l.id)}
+			<button
+				type="button"
+				role="tab"
+				aria-selected={lens === l.id}
+				class:active={lens === l.id}
+				tabindex={index === activeLensIndex ? 0 : -1}
+				onclick={() => fretfield.setMode(l.mode)}
+			>
+				{l.label}
+			</button>
+		{/each}
 	</div>
 
 	{#if lens === 'paths'}

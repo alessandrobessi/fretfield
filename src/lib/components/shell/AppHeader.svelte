@@ -2,12 +2,25 @@
 	import DisplayModeToggle from '$lib/components/DisplayModeToggle.svelte';
 	import BassConnection from '$lib/components/shell/BassConnection.svelte';
 	import { navigation, type Destination } from '$lib/stores/navigation.svelte';
+	import { nextRovingIndex } from '$lib/utils/roving-index';
 
 	const DESTINATIONS: { id: Destination; label: string }[] = [
 		{ id: 'explore', label: 'Explore' },
 		{ id: 'practice', label: 'Practice' },
 		{ id: 'progress', label: 'Progress' }
 	];
+
+	const activeDestinationIndex = $derived(
+		DESTINATIONS.findIndex((d) => d.id === navigation.destination)
+	);
+
+	function handleDestinationKeydown(event: KeyboardEvent): void {
+		const next = nextRovingIndex(event.key, activeDestinationIndex, DESTINATIONS.length);
+		if (next === null) return;
+		event.preventDefault();
+		navigation.setDestination(DESTINATIONS[next].id);
+		(event.currentTarget as HTMLElement).querySelectorAll('button')[next]?.focus();
+	}
 
 	let settingsOpen = $state(false);
 	let settingsContainerEl: HTMLDivElement | undefined;
@@ -50,13 +63,20 @@
 </script>
 
 <div class="app-header">
-	<div class="destinations" role="tablist" aria-label="Destination">
-		{#each DESTINATIONS as d (d.id)}
+	<div
+		class="destinations"
+		role="tablist"
+		aria-label="Destination"
+		tabindex="-1"
+		onkeydown={handleDestinationKeydown}
+	>
+		{#each DESTINATIONS as d, index (d.id)}
 			<button
 				type="button"
 				role="tab"
 				aria-selected={navigation.destination === d.id}
 				class:active={navigation.destination === d.id}
+				tabindex={index === activeDestinationIndex ? 0 : -1}
 				onclick={() => navigation.setDestination(d.id)}
 			>
 				{d.label}

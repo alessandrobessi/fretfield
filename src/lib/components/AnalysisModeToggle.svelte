@@ -1,19 +1,37 @@
 <script lang="ts">
 	import { fretfield, type AnalysisMode } from '$lib/stores/fretfield.svelte';
+	import { nextRovingIndex } from '$lib/utils/roving-index';
 
 	const MODES: { id: AnalysisMode; label: string }[] = [
 		{ id: 'chord-tones', label: 'Chord Tones' },
 		{ id: 'field', label: 'Harmonic Field' }
 	];
+
+	const activeIndex = $derived(MODES.findIndex((mode) => mode.id === fretfield.analysisMode));
+
+	function handleKeydown(event: KeyboardEvent): void {
+		const next = nextRovingIndex(event.key, activeIndex, MODES.length);
+		if (next === null) return;
+		event.preventDefault();
+		fretfield.setAnalysisMode(MODES[next].id);
+		(event.currentTarget as HTMLElement).querySelectorAll('button')[next]?.focus();
+	}
 </script>
 
-<div class="analysis-mode-toggle" role="radiogroup" aria-label="Analysis mode">
-	{#each MODES as mode (mode.id)}
+<div
+	class="analysis-mode-toggle"
+	role="radiogroup"
+	aria-label="Analysis mode"
+	tabindex="-1"
+	onkeydown={handleKeydown}
+>
+	{#each MODES as mode, index (mode.id)}
 		<button
 			type="button"
 			role="radio"
 			aria-checked={fretfield.analysisMode === mode.id}
 			class:active={fretfield.analysisMode === mode.id}
+			tabindex={index === activeIndex ? 0 : -1}
 			onclick={() => fretfield.setAnalysisMode(mode.id)}
 		>
 			{mode.label}
