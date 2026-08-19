@@ -17,11 +17,20 @@
 		position: DisplayFretPosition;
 		displayMode: DisplayMode;
 		stringName: string;
+		rovingPosition: { stringIndex: number; fret: number };
 		onSelect: (position: DisplayFretPosition) => void;
 		onInspect: (position: DisplayFretPosition) => void;
 	}
 
-	let { position, displayMode, stringName, onSelect, onInspect }: Props = $props();
+	let { position, displayMode, stringName, rovingPosition, onSelect, onInspect }: Props = $props();
+
+	// Roving tabindex (see Fretboard.svelte): only the one cell at the
+	// board's current roving-focus position is a Tab stop; every other cell
+	// is tabindex=-1, reachable via Arrow keys instead of ~70 individual Tab
+	// presses.
+	const isRovingFocus = $derived(
+		rovingPosition.stringIndex === position.stringIndex && rovingPosition.fret === position.fret
+	);
 
 	// In 'chord-tones' analysis mode, non-chord-tone roles are visually and
 	// semantically suppressed back to a plain cell — same analyzed data,
@@ -167,6 +176,7 @@
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
+	tabindex={isRovingFocus ? 0 : -1}
 	onclick={() => {
 		onSelect(position);
 		onInspect(position);

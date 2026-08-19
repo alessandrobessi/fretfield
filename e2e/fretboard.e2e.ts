@@ -172,6 +172,64 @@ test.describe('Roving-tabindex arrow-key navigation', () => {
 	});
 });
 
+test.describe('Fretboard: roving-tabindex grid navigation', () => {
+	test('only one fret is a Tab stop at a time, and it moves to whatever was last clicked', async ({
+		page
+	}) => {
+		await page.goto('/');
+
+		// Before any interaction, the default roving position (G string,
+		// fret 0) is the sole Tab stop.
+		await expect(page.getByTestId('fret-G-0')).toHaveAttribute('tabindex', '0');
+		await expect(page.getByTestId('fret-A-3')).toHaveAttribute('tabindex', '-1');
+
+		await page.getByTestId('fret-A-3').click();
+
+		await expect(page.getByTestId('fret-A-3')).toHaveAttribute('tabindex', '0');
+		await expect(page.getByTestId('fret-G-0')).toHaveAttribute('tabindex', '-1');
+	});
+
+	test('ArrowRight/ArrowLeft move along a string, clamped at the nut and the last fret', async ({
+		page
+	}) => {
+		await page.goto('/');
+		const fret0 = page.getByTestId('fret-G-0');
+		const fret1 = page.getByTestId('fret-G-1');
+		await fret0.focus();
+
+		await page.keyboard.press('ArrowRight');
+		await expect(fret1).toBeFocused();
+		await expect(fret1).toHaveAttribute('tabindex', '0');
+		await expect(fret0).toHaveAttribute('tabindex', '-1');
+
+		await page.keyboard.press('ArrowLeft');
+		await expect(fret0).toBeFocused();
+
+		// Clamped, not wrapped: ArrowLeft at fret 0 stays put.
+		await page.keyboard.press('ArrowLeft');
+		await expect(fret0).toBeFocused();
+	});
+
+	test('ArrowUp/ArrowDown move between strings, clamped at the top (G) and bottom (E)', async ({
+		page
+	}) => {
+		await page.goto('/');
+		// Default roving position starts on the G string (visually top row).
+		const gString = page.getByTestId('fret-G-0');
+		const dString = page.getByTestId('fret-D-0');
+		await gString.focus();
+
+		// Clamped at the top: ArrowUp on the topmost string stays put.
+		await page.keyboard.press('ArrowUp');
+		await expect(gString).toBeFocused();
+
+		await page.keyboard.press('ArrowDown');
+		await expect(dString).toBeFocused();
+		await expect(dString).toHaveAttribute('tabindex', '0');
+		await expect(gString).toHaveAttribute('tabindex', '-1');
+	});
+});
+
 test.describe('Chord Field: full Harmonic Field mode and the Note Inspector', () => {
 	test('Harmonic Field shows tension/chromatic-approach roles; Chord Tones suppresses them', async ({
 		page
