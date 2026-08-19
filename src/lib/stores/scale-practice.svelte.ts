@@ -12,7 +12,7 @@ const DEFAULT_BPM = 80;
 const MIN_BPM = 30;
 const MAX_BPM = 240;
 
-const STORAGE_KEY = 'fretfield-scale-practice';
+export const STORAGE_KEY = 'fretfield-scale-practice';
 
 interface PersistedScalePracticeConfig {
 	root: PitchClass | null;

@@ -10,7 +10,7 @@ import { readJSON, writeJSON } from '$lib/utils/local-storage';
  */
 export type Destination = 'explore' | 'practice' | 'progress';
 
-const STORAGE_KEY = 'fretfield-destination';
+export const STORAGE_KEY = 'fretfield-destination';
 const VALID_DESTINATIONS = new Set<Destination>(['explore', 'practice', 'progress']);
 
 function loadDestination(): Destination {

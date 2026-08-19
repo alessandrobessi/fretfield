@@ -17,6 +17,7 @@
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { navigation } from '$lib/stores/navigation.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
+	import { installPersistenceTestHooks } from '$lib/testing/persistence-test-hooks';
 	import { installPracticeTestHooks } from '$lib/testing/practice-test-hooks';
 	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
 
@@ -29,6 +30,7 @@
 		);
 		installLiveInputTestHooks();
 		installPracticeTestHooks();
+		installPersistenceTestHooks();
 	}
 
 	$effect(() => {

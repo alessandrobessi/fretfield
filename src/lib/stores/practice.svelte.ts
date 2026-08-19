@@ -27,7 +27,7 @@ import { fretfield } from '$lib/stores/fretfield.svelte';
 import { practiceHistory } from '$lib/stores/practice-history.svelte';
 import { readJSON, writeJSON } from '$lib/utils/local-storage';
 
-const STORAGE_KEY = 'fretfield-practice-session';
+export const STORAGE_KEY = 'fretfield-practice-session';
 
 /**
  * Guided Practice's orchestration layer: the only place that reads

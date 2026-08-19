@@ -7,7 +7,7 @@ import {
 import type { PracticeResult } from '$lib/practice/types';
 import { readJSON, writeJSON } from '$lib/utils/local-storage';
 
-const STORAGE_KEY = 'fretfield-practice-history';
+export const STORAGE_KEY = 'fretfield-practice-history';
 
 /**
  * Lifetime counters/streak, independent of any one Guided Practice session

@@ -37,7 +37,10 @@ import {
 	type VoiceLeadingPath,
 	findVoiceLeadingPaths
 } from '$lib/music/voice-leading-paths';
+import { readJSON, writeJSON } from '$lib/utils/local-storage';
 import type { URLState } from '$lib/utils/url-state';
+
+export const MODE_STORAGE_KEY = 'fretfield-mode';
 
 export type { PathPreset };
 
@@ -183,7 +186,14 @@ class FretFieldStore {
 	readonly tuning: Tuning = STANDARD_4_STRING_TUNING;
 	readonly fretCount: number = DEFAULT_FRET_COUNT;
 
-	mode = $state<FieldMode>('chord');
+	// url-state.ts's VALID_MODES allowlist only covers chord/progression/
+	// paths/local -- modes like 'scale-practice' deliberately never round-trip
+	// through a shareable URL, so restoreFromURLState() silently leaves them
+	// alone. This localStorage fallback is what actually makes e.g. a Scale
+	// Practice session resumable after a reload: it seeds the default here,
+	// and restoreFromURLState() below still overrides it whenever the URL
+	// does carry an allowlisted mode.
+	mode = $state<FieldMode>(readJSON(MODE_STORAGE_KEY, 'chord'));
 	analysisMode = $state<AnalysisMode>('field');
 	root = $state<PitchClass | null>(null);
 	selectedRootPosition = $state<FretPosition | null>(null);
@@ -619,6 +629,7 @@ class FretFieldStore {
 
 	setMode(mode: FieldMode): void {
 		this.mode = mode;
+		writeJSON(MODE_STORAGE_KEY, mode);
 	}
 
 	setAnalysisMode(mode: AnalysisMode): void {
@@ -779,7 +790,10 @@ class FretFieldStore {
 	/** Applies whichever fields are present in a decoded URL state — see decodeStateFromSearchParams. */
 	restoreFromURLState(state: Partial<URLState>): void {
 		if (state.root !== undefined) this.root = state.root;
-		if (state.mode !== undefined) this.mode = state.mode as FieldMode;
+		if (state.mode !== undefined) {
+			this.mode = state.mode as FieldMode;
+			writeJSON(MODE_STORAGE_KEY, this.mode);
+		}
 		if (state.chordId !== undefined) this.chordId = state.chordId;
 		if (state.displayMode !== undefined) this.displayMode = state.displayMode as DisplayMode;
 		if (state.analysisMode !== undefined) this.analysisMode = state.analysisMode as AnalysisMode;
