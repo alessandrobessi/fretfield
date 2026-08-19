@@ -720,7 +720,7 @@ class FretFieldStore {
 		this.selectedPathIndex = index;
 	}
 
-	/** Scale Blocks state is intentionally session-only (no URL persistence), same precedent as Guided Practice — resets on reload. */
+	/** Scale Blocks' live editing buffer is intentionally session-only (no URL persistence), same precedent as Guided Practice — resets on reload. A configured map can be explicitly saved to the named Scale Maps library instead (see saved-scale-maps.svelte.ts / loadChordBlocks below), which is opt-in persistence, not this buffer becoming persistent itself. */
 	addChordBlock(): void {
 		if (this.chordBlocks.length >= MAX_CHORD_BLOCKS) return;
 		this.chordBlocks = [
@@ -749,6 +749,11 @@ class FretFieldStore {
 		this.chordBlocks = this.chordBlocks.map((block) =>
 			block.id === id ? { ...block, scaleId } : block
 		);
+	}
+
+	/** Bulk-replaces the whole editing buffer, e.g. loading a saved Scale Map — fresh ids so the loaded copy never aliases the saved one, unlike every other Scale Blocks mutator above, which edits a single block in place. */
+	loadChordBlocks(blocks: readonly ChordBlock[]): void {
+		this.chordBlocks = blocks.map((block) => ({ ...block, id: crypto.randomUUID() }));
 	}
 
 	/** Progression Scales state is intentionally session-only too, same precedent as Scale Blocks — resets on reload. */

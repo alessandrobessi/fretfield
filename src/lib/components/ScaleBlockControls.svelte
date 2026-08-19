@@ -3,8 +3,56 @@
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
 	import { listScales, suggestedScalesFor } from '$lib/music/scales';
 	import { MAX_CHORD_BLOCKS, fretfield, type ChordBlock } from '$lib/stores/fretfield.svelte';
+	import { savedScaleMaps } from '$lib/stores/saved-scale-maps.svelte';
+	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
 
 	const ALL_ROOTS: PitchClass[] = Array.from({ length: 12 }, (_, i) => i as PitchClass);
+
+	// A block only meaningfully contributes to the fretboard once root/chord/
+	// scale are all set (see ChordBlock's own doc comment) — saving is only
+	// offered once at least one block has actually reached that state.
+	const canSave = $derived(
+		fretfield.chordBlocks.some(
+			(block) => block.root !== null && block.chordId !== null && block.scaleId !== null
+		)
+	);
+
+	let savingAs = $state(false);
+	let newMapName = $state('');
+	let renamingId = $state<string | null>(null);
+	let renameValue = $state('');
+
+	function startSaving(): void {
+		savingAs = true;
+		newMapName = '';
+	}
+
+	function confirmSave(): void {
+		const name = newMapName.trim();
+		if (!name) return;
+		savedScaleMaps.save(name, fretfield.chordBlocks);
+		savingAs = false;
+	}
+
+	function cancelSaving(): void {
+		savingAs = false;
+	}
+
+	function startRenaming(item: SavedItem<ChordBlock[]>): void {
+		renamingId = item.id;
+		renameValue = item.name;
+	}
+
+	function confirmRename(id: string): void {
+		const name = renameValue.trim();
+		if (!name) return;
+		savedScaleMaps.rename(id, name);
+		renamingId = null;
+	}
+
+	function cancelRenaming(): void {
+		renamingId = null;
+	}
 
 	function suggestedScaleIdSet(block: ChordBlock): Set<string> {
 		if (block.chordId === null) return new Set();
@@ -30,14 +78,39 @@
 <div class="scale-block-controls">
 	<div class="header">
 		<span class="field-label">Custom Scale Map</span>
-		<button
-			type="button"
-			class="add"
-			disabled={fretfield.chordBlocks.length >= MAX_CHORD_BLOCKS}
-			onclick={() => fretfield.addChordBlock()}
-		>
-			+ Add block
-		</button>
+		<div class="header-actions">
+			{#if savingAs}
+				<input
+					class="name-input"
+					type="text"
+					placeholder="Name this scale map…"
+					aria-label="Scale map name"
+					bind:value={newMapName}
+					onkeydown={(e) => e.key === 'Enter' && confirmSave()}
+				/>
+				<button
+					type="button"
+					class="save-confirm"
+					onclick={confirmSave}
+					disabled={!newMapName.trim()}
+				>
+					Save
+				</button>
+				<button type="button" class="save-cancel" onclick={cancelSaving}>Cancel</button>
+			{:else}
+				<button type="button" class="save-as" disabled={!canSave} onclick={startSaving}>
+					Save as…
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="add"
+				disabled={fretfield.chordBlocks.length >= MAX_CHORD_BLOCKS}
+				onclick={() => fretfield.addChordBlock()}
+			>
+				+ Add block
+			</button>
+		</div>
 	</div>
 
 	{#if fretfield.chordBlocks.length === 0}
@@ -112,6 +185,47 @@
 			{/each}
 		</ol>
 	{/if}
+
+	{#if savedScaleMaps.items.length > 0}
+		<div class="saved-list">
+			<span class="field-label">My Scale Maps</span>
+			<ul class="saved-items">
+				{#each savedScaleMaps.items as item (item.id)}
+					<li class="saved-item">
+						{#if renamingId === item.id}
+							<input
+								class="name-input"
+								type="text"
+								aria-label="Rename scale map"
+								bind:value={renameValue}
+								onkeydown={(e) => e.key === 'Enter' && confirmRename(item.id)}
+							/>
+							<button
+								type="button"
+								onclick={() => confirmRename(item.id)}
+								disabled={!renameValue.trim()}>Save</button
+							>
+							<button type="button" onclick={cancelRenaming}>Cancel</button>
+						{:else}
+							<span class="saved-name">{item.name}</span>
+							<button type="button" onclick={() => fretfield.loadChordBlocks(item.data)}
+								>Load</button
+							>
+							<button type="button" onclick={() => startRenaming(item)}>Rename</button>
+							<button
+								type="button"
+								class="remove"
+								aria-label={`Delete ${item.name}`}
+								onclick={() => savedScaleMaps.remove(item.id)}
+							>
+								×
+							</button>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -132,6 +246,97 @@
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 1rem;
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.name-input {
+		font: inherit;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.6rem;
+		border-radius: 999px;
+		border: 2px solid var(--fret-border, #ddd3f7);
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+	}
+
+	.name-input:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 1px;
+	}
+
+	.save-as,
+	.save-confirm,
+	.save-cancel,
+	.saved-item button {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.8rem;
+		border-radius: 999px;
+		border: 1px solid var(--nut, #7c3aed);
+		background: transparent;
+		color: var(--nut, #7c3aed);
+		cursor: pointer;
+	}
+
+	.save-as:disabled,
+	.save-confirm:disabled,
+	.saved-item button:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.save-as:focus-visible,
+	.save-confirm:focus-visible,
+	.save-cancel:focus-visible,
+	.saved-item button:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
+	.saved-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding-top: 0.75rem;
+		border-top: 1px dashed var(--fret-border, #ddd3f7);
+	}
+
+	.saved-items {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.saved-item {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.saved-name {
+		font-weight: 600;
+		font-size: 0.85rem;
+		flex: 1 1 auto;
+	}
+
+	.saved-item .remove {
+		border-color: var(--fret-border, #ddd3f7);
+		color: var(--role-alteration, #ef4444);
+	}
+
+	.saved-item .remove:hover {
+		border-color: var(--role-alteration, #ef4444);
 	}
 
 	.field-label {
