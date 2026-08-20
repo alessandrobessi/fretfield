@@ -25,6 +25,17 @@
 
 	const presets = listGroovePresets();
 
+	/** Index-aligned with `scalePractice.groove.arrangement` -- the chord symbol sounding on each bar (per §12's arrangement/chord table), `null` when there's no progression selected at all. */
+	const barChordLabels = $derived(
+		scalePractice.resolvedProgression.length === 0
+			? undefined
+			: scalePractice.groove.arrangement.map((_, barIndex) => {
+					const progression = scalePractice.resolvedProgression;
+					const chordIndex = Math.floor(barIndex / scalePractice.barsPerChord) % progression.length;
+					return resolvedChordSymbol(progression[chordIndex]);
+				})
+	);
+
 	let savingAs = $state(false);
 	let newGrooveName = $state('');
 	let renamingId = $state<string | null>(null);
@@ -264,6 +275,7 @@
 			arrangement={scalePractice.groove.arrangement}
 			activeBarIndex={scalePractice.activeBarIndex}
 			onAssign={handleAssignBar}
+			chordLabels={barChordLabels}
 		/>
 		<button
 			type="button"

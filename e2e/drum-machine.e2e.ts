@@ -274,3 +274,55 @@ test.describe('Drum Machine: multi-bar arrangement', () => {
 		await expect(removeBar).toBeDisabled();
 	});
 });
+
+test.describe('Drum Machine: flagship 12-bar blues groove', () => {
+	test('choosing the Chicago Shuffle preset builds a 12-bar A/B/F/T arrangement', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+
+		await page
+			.getByLabel('Groove preset')
+			.selectOption({ label: 'Chicago Shuffle — 12-Bar Blues' });
+
+		await expect(page.getByLabel('Swing')).toHaveValue('65');
+		const expectedRoles = ['A', 'A', 'A', 'B', 'A', 'A', 'B', 'F', 'A', 'B', 'T', 'F'];
+		for (let bar = 0; bar < expectedRoles.length; bar++) {
+			await expect(page.getByLabel(`Bar ${bar + 1} pattern`)).toHaveValue(expectedRoles[bar]);
+		}
+		await expect(page.getByLabel('Bar 13 pattern')).not.toBeVisible();
+	});
+
+	test('paired with the 12-Bar Dominant Blues progression at 1 bar/chord, each arrangement bar shows its chord', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
+		await page
+			.getByLabel('Groove preset')
+			.selectOption({ label: 'Chicago Shuffle — 12-Bar Blues' });
+		await page.getByLabel('Progression').selectOption({ label: '12-Bar Dominant Blues' });
+		await page.getByLabel('Bars per chord').fill('1');
+		await page.keyboard.press('Tab');
+
+		const expectedChords = [
+			'C7',
+			'F7',
+			'C7',
+			'C7',
+			'F7',
+			'F7',
+			'C7',
+			'C7',
+			'G7',
+			'F7',
+			'C7',
+			'G7'
+		];
+		for (let bar = 0; bar < expectedChords.length; bar++) {
+			await expect(page.locator('.arrangement-strip .bar-chord').nth(bar)).toHaveText(
+				expectedChords[bar]
+			);
+		}
+	});
+});

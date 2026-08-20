@@ -5,9 +5,11 @@
 		arrangement: PatternRole[];
 		activeBarIndex: number | null;
 		onAssign: (barIndex: number, role: PatternRole) => void;
+		/** Index-aligned with `arrangement` -- the chord backing sounding on each bar, or `null` for "no chord backing." Omitted entirely when there's no progression selected at all. */
+		chordLabels?: (string | null)[];
 	}
 
-	let { arrangement, activeBarIndex, onAssign }: Props = $props();
+	let { arrangement, activeBarIndex, onAssign, chordLabels }: Props = $props();
 
 	function handleChange(barIndex: number, event: Event): void {
 		onAssign(barIndex, (event.currentTarget as HTMLSelectElement).value as PatternRole);
@@ -27,6 +29,9 @@
 					<option value={r}>{r}</option>
 				{/each}
 			</select>
+			{#if chordLabels}
+				<span class="bar-chord">{chordLabels[index] ?? '—'}</span>
+			{/if}
 		</label>
 	{/each}
 </div>
@@ -49,6 +54,12 @@
 	.bar-number {
 		font-weight: 700;
 		opacity: 0.6;
+	}
+
+	.bar-chord {
+		font-weight: 700;
+		font-size: 0.7rem;
+		color: var(--nut, #7c3aed);
 	}
 
 	.bar select {
