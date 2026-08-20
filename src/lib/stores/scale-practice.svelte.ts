@@ -17,16 +17,25 @@ import {
 } from '$lib/audio/groove';
 import type { FretPosition } from '$lib/music/fretboard';
 import type { PitchClass } from '$lib/music/pitch';
+import { buildProgression, type ResolvedChord } from '$lib/music/progressions';
 import { getScaleDefinition, type ScaleDefinition } from '$lib/music/scales';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { positionsForPitchClass, scalePositions } from '$lib/scale-practice/positions';
 import type { PracticeZone } from '$lib/scale-practice/types';
 import { liveInput } from '$lib/stores/live-input.svelte';
+import {
+	resolveProgressionTemplate,
+	savedProgressions
+} from '$lib/stores/saved-progressions.svelte';
 import { readJSON, writeJSON } from '$lib/utils/local-storage';
 
 const DEFAULT_BPM = 80;
 const MIN_BPM = 30;
 const MAX_BPM = 240;
+
+const DEFAULT_BARS_PER_CHORD = 2;
+const MIN_BARS_PER_CHORD = 1;
+const MAX_BARS_PER_CHORD = 8;
 
 // Standard Web Audio "lookahead scheduler" constants: the JS timer only
 // needs to wake up often enough to keep scheduling steps within the lookahead
@@ -55,6 +64,9 @@ interface PersistedScalePracticeConfig {
 	zone: PracticeZone;
 	bpm: number;
 	pattern: GroovePattern;
+	/** null = no chord backing (the feature is purely additive/off by default). */
+	progressionTemplateId: string | null;
+	barsPerChord: number;
 }
 
 const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
@@ -62,11 +74,17 @@ const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	scaleId: null,
 	zone: { minFret: 0, maxFret: 12 },
 	bpm: DEFAULT_BPM,
-	pattern: DEFAULT_PATTERN
+	pattern: DEFAULT_PATTERN,
+	progressionTemplateId: null,
+	barsPerChord: DEFAULT_BARS_PER_CHORD
 };
 
 function clampBpm(bpm: number): number {
 	return Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(bpm)));
+}
+
+function clampBarsPerChord(bars: number): number {
+	return Math.min(MAX_BARS_PER_CHORD, Math.max(MIN_BARS_PER_CHORD, Math.round(bars)));
 }
 
 /**
@@ -94,6 +112,8 @@ export class ScalePracticeStore {
 	zone = $state<PracticeZone>(this.persisted.zone);
 	bpm = $state(this.persisted.bpm);
 	pattern = $state<GroovePattern>(this.persisted.pattern);
+	progressionTemplateId = $state<string | null>(this.persisted.progressionTemplateId);
+	barsPerChord = $state(this.persisted.barsPerChord);
 	// Never restored true — the drum machine, like Live Input's mic, always
 	// requires an explicit restart rather than resuming audio on load.
 	running = $state(false);
@@ -113,6 +133,23 @@ export class ScalePracticeStore {
 	readonly scale = $derived.by<ScaleDefinition | null>(() =>
 		this.scaleId === null ? null : getScaleDefinition(this.scaleId)
 	);
+
+	/**
+	 * The optional chord backing, built on the same root the scale itself
+	 * uses — not an independent tonic. Empty whenever no progression is
+	 * selected or there's no root yet; the scheduler treats an empty array as
+	 * "chord playback off" (see AGENTS.md — audio only, never fretboard
+	 * chord-tone highlighting).
+	 */
+	readonly resolvedProgression = $derived.by<ResolvedChord[]>(() => {
+		if (this.root === null || this.progressionTemplateId === null) return [];
+		const template = resolveProgressionTemplate(
+			this.progressionTemplateId,
+			savedProgressions.items
+		);
+		if (template === null) return [];
+		return buildProgression(this.root, template);
+	});
 
 	/** Every position in the zone belonging to the scale — the whole scale, shown at once. */
 	readonly scalePositions = $derived.by<FretPosition[]>(() => {
@@ -163,13 +200,25 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
+	setProgressionTemplate(id: string | null): void {
+		this.progressionTemplateId = id;
+		this.persist();
+	}
+
+	setBarsPerChord(bars: number): void {
+		this.barsPerChord = clampBarsPerChord(bars);
+		this.persist();
+	}
+
 	private persist(): void {
 		writeJSON<PersistedScalePracticeConfig>(STORAGE_KEY, {
 			root: this.root,
 			scaleId: this.scaleId,
 			zone: this.zone,
 			bpm: this.bpm,
-			pattern: this.pattern
+			pattern: this.pattern,
+			progressionTemplateId: this.progressionTemplateId,
+			barsPerChord: this.barsPerChord
 		});
 	}
 
