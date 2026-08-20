@@ -234,6 +234,7 @@
 							class="step"
 							class:active
 							class:beat-start={index % 4 === 0}
+							class:current={index === scalePractice.activeStepIndex}
 							aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
 							aria-pressed={active}
 							onclick={() => scalePractice.toggleStep(voice, index)}
@@ -437,7 +438,8 @@
 	}
 
 	.toggle.active {
-		background: var(--practice-target-accent, #10b981);
+		border-color: var(--role-alteration, #ef4444);
+		background: var(--role-alteration, #ef4444);
 		color: #fff;
 	}
 
@@ -602,5 +604,22 @@
 		height: 0.55rem;
 		border-radius: 50%;
 		background: var(--practice-target-accent, #10b981);
+	}
+
+	/* The playhead: whichever 16th-note step is sounding right now, pulsing in
+	   time with the beat so the grid gives a visual "click" alongside the audio. */
+	.step.current {
+		border-color: var(--nut, #7c3aed);
+		box-shadow: 0 0 0 2px var(--nut, #7c3aed);
+		animation: step-pulse 0.12s ease-out;
+	}
+
+	@keyframes step-pulse {
+		from {
+			transform: scale(1.35);
+		}
+		to {
+			transform: scale(1);
+		}
 	}
 </style>

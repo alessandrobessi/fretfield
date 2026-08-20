@@ -147,6 +147,8 @@ export class ScalePracticeStore {
 	activeChordIndex = $state(0);
 	/** Per-chord-index scale override for the progression backing, keyed like `fretfield.svelte.ts`'s `progressionScaleOverrides` -- session-only, same "advanced escape hatch" precedent (see AGENTS.md). `undefined` = use the family-suggested default; explicit `null` = user cleared it. */
 	progressionChordScaleOverrides = $state<Record<number, string | null>>({});
+	/** Which of the 16 grid steps is currently sounding -- drives the step-grid's playhead pulse. `null` whenever the drum machine isn't running. */
+	activeStepIndex = $state<number | null>(null);
 
 	private readonly tuning: Tuning;
 	private readonly fretCount: number;
@@ -162,6 +164,8 @@ export class ScalePracticeStore {
 	// enough for a UI cue. Tracked so stop()/a progression change can cancel
 	// any still-pending ones instead of leaving a stale highlight to fire late.
 	private chordHighlightTimeouts: ReturnType<typeof setTimeout>[] = [];
+	/** Same visual-timer approach as `chordHighlightTimeouts`, one per grid step, driving `activeStepIndex`. */
+	private stepHighlightTimeouts: ReturnType<typeof setTimeout>[] = [];
 
 	constructor(tuning: Tuning = STANDARD_4_STRING_TUNING, fretCount: number = DEFAULT_FRET_COUNT) {
 		this.tuning = tuning;
@@ -293,6 +297,12 @@ export class ScalePracticeStore {
 		this.chordHighlightTimeouts = [];
 	}
 
+	/** Cancels any not-yet-fired step-playhead updates -- same reasoning as `cancelPendingChordHighlights`, called on stop() so a late timeout never resurrects the playhead after playback ends. */
+	private cancelPendingStepHighlights(): void {
+		for (const timeoutId of this.stepHighlightTimeouts) clearTimeout(timeoutId);
+		this.stepHighlightTimeouts = [];
+	}
+
 	private persist(): void {
 		writeJSON<PersistedScalePracticeConfig>(STORAGE_KEY, {
 			root: this.root,
@@ -327,6 +337,8 @@ export class ScalePracticeStore {
 		void this.audioContext?.close();
 		this.audioContext = null;
 		this.cancelPendingChordHighlights();
+		this.cancelPendingStepHighlights();
+		this.activeStepIndex = null;
 	}
 
 	/** Schedules every step whose (unswung) grid time falls within the lookahead window. */
@@ -355,6 +367,13 @@ export class ScalePracticeStore {
 				VOICE_TRIGGERS[voice](ctx, swungTime);
 			}
 		}
+
+		const delayMs = Math.max(0, (gridTime - ctx.currentTime) * 1000);
+		const timeoutId = setTimeout(() => {
+			this.activeStepIndex = stepIndex;
+			this.stepHighlightTimeouts = this.stepHighlightTimeouts.filter((id) => id !== timeoutId);
+		}, delayMs);
+		this.stepHighlightTimeouts = [...this.stepHighlightTimeouts, timeoutId];
 	}
 
 	/**
