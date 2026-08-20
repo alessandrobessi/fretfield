@@ -233,3 +233,44 @@ test.describe('Drum Machine: per-chord scales', () => {
 		await expect(page.getByTestId('fret-E-0')).toHaveClass(/scale-practice-note/);
 	});
 });
+
+test.describe('Drum Machine: multi-bar arrangement', () => {
+	test('assigning a bar to pattern B switches the grid to editing B, leaving A untouched', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+
+		await page.getByRole('button', { name: 'Add bar' }).click();
+		await expect(page.getByLabel('Bar 1 pattern')).toHaveValue('A');
+		await expect(page.getByLabel('Bar 2 pattern')).toHaveValue('A');
+
+		await page.getByLabel('Bar 2 pattern').selectOption('B');
+		await expect(page.getByRole('button', { name: 'B', exact: true })).toHaveClass(/active/);
+
+		await page.getByLabel('Kick step 3', { exact: true }).click();
+		await expect(page.getByLabel('Kick step 3', { exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+
+		await page.getByRole('button', { name: 'A', exact: true }).click();
+		await expect(page.getByLabel('Kick step 3', { exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'false'
+		);
+	});
+
+	test('Remove bar is disabled at a single bar and re-enabled once grown', async ({ page }) => {
+		await openScalePractice(page);
+
+		const removeBar = page.getByRole('button', { name: 'Remove last bar' });
+		await expect(removeBar).toBeDisabled();
+
+		await page.getByRole('button', { name: 'Add bar' }).click();
+		await expect(removeBar).toBeEnabled();
+
+		await removeBar.click();
+		await expect(page.getByLabel('Bar 2 pattern')).not.toBeVisible();
+		await expect(removeBar).toBeDisabled();
+	});
+});

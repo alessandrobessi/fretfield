@@ -1,7 +1,14 @@
 <script lang="ts">
-	import { DRUM_VOICES, type DrumVoice, type Groove } from '$lib/groove/types';
+	import {
+		DRUM_VOICES,
+		PATTERN_ROLES,
+		type DrumVoice,
+		type Groove,
+		type PatternRole
+	} from '$lib/groove/types';
 	import { listGroovePresets } from '$lib/groove/presets';
 	import type { CountIn } from '$lib/groove/transport';
+	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
 	import { listScales, suggestedScalesFor } from '$lib/music/scales';
@@ -69,6 +76,19 @@
 
 	function handleCountInChange(event: Event): void {
 		scalePractice.setCountIn((event.currentTarget as HTMLSelectElement).value as CountIn);
+	}
+
+	function handleAssignBar(barIndex: number, role: PatternRole): void {
+		scalePractice.setArrangementBar(barIndex, role);
+		scalePractice.setSelectedPatternRole(role);
+	}
+
+	function addBar(): void {
+		scalePractice.setArrangementLength(scalePractice.groove.arrangement.length + 1);
+	}
+
+	function removeBar(): void {
+		scalePractice.setArrangementLength(scalePractice.groove.arrangement.length - 1);
 	}
 
 	function handleChordScaleChange(index: number, event: Event): void {
@@ -238,12 +258,47 @@
 		{/if}
 	</div>
 
+	<div class="arrangement-row">
+		<span class="field-label">Arrangement</span>
+		<GrooveArrangementStrip
+			arrangement={scalePractice.groove.arrangement}
+			activeBarIndex={scalePractice.activeBarIndex}
+			onAssign={handleAssignBar}
+		/>
+		<button
+			type="button"
+			class="bar-count"
+			onclick={removeBar}
+			disabled={scalePractice.groove.arrangement.length <= 1}
+			aria-label="Remove last bar"
+		>
+			− Bar
+		</button>
+		<button type="button" class="bar-count" onclick={addBar} aria-label="Add bar">+ Bar</button>
+	</div>
+
+	<div class="pattern-row">
+		<span class="field-label">Editing pattern</span>
+		<div class="role-picker" role="group" aria-label="Pattern to edit">
+			{#each PATTERN_ROLES as role (role)}
+				<button
+					type="button"
+					class="role-button"
+					class:active={scalePractice.selectedPatternRole === role}
+					onclick={() => scalePractice.setSelectedPatternRole(role)}
+				>
+					{role}
+				</button>
+			{/each}
+		</div>
+	</div>
+
 	<div class="step-grid">
 		{#each DRUM_VOICES as voice (voice)}
 			<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>
 				<span class="voice-label">{VOICE_LABELS[voice]}</span>
 				<div class="steps">
-					{#each scalePractice.groove.patterns.A.steps[voice] as step, index (index)}
+					{#each scalePractice.groove.patterns[scalePractice.selectedPatternRole].steps[voice] as step, index (index)}
 						<button
 							type="button"
 							class="step"
@@ -550,6 +605,70 @@
 
 	.saved-item .remove:hover {
 		border-color: var(--role-alteration, #ef4444);
+	}
+
+	.arrangement-row,
+	.pattern-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+		padding-top: 0.6rem;
+		border-top: 1px dashed var(--fret-border, #ddd3f7);
+	}
+
+	.bar-count {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.75rem;
+		padding: 0.3rem 0.6rem;
+		border-radius: 999px;
+		border: 1px solid var(--nut, #7c3aed);
+		background: transparent;
+		color: var(--nut, #7c3aed);
+		cursor: pointer;
+	}
+
+	.bar-count:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.bar-count:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
+	.role-picker {
+		display: flex;
+		gap: 0.3rem;
+	}
+
+	.role-button {
+		font: inherit;
+		font-weight: 700;
+		width: 2.2rem;
+		padding: 0.3rem 0;
+		border-radius: 6px;
+		border: 2px solid var(--fret-border, #ddd3f7);
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+		cursor: pointer;
+	}
+
+	.role-button:hover {
+		border-color: var(--nut, #7c3aed);
+	}
+
+	.role-button.active {
+		border-color: var(--nut, #7c3aed);
+		background: linear-gradient(135deg, var(--hero-from, #7c3aed), var(--hero-to, #ec4899));
+		color: #fff;
+	}
+
+	.role-button:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
 	}
 
 	.step-grid {

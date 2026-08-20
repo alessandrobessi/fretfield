@@ -8,6 +8,8 @@ import {
 } from '$lib/audio/drum-voices';
 import { coerceGroove } from '$lib/groove/migrate';
 import {
+	setArrangementBar as setGrooveArrangementBar,
+	setArrangementLength as setGrooveArrangementLength,
 	setPatternForRole,
 	setSwing as setGrooveSwing,
 	stepOffsetMs,
@@ -20,7 +22,8 @@ import {
 	STEPS_PER_BAR,
 	type DrumVoice,
 	type Groove,
-	type GroovePattern
+	type GroovePattern,
+	type PatternRole
 } from '$lib/groove/types';
 import { midiToFrequency } from '$lib/audio/note-mapping';
 import { getChordDefinition } from '$lib/music/chords';
@@ -175,6 +178,10 @@ export class ScalePracticeStore {
 	progressionChordScaleOverrides = $state<Record<number, string | null>>({});
 	/** Which of the 16 grid steps is currently sounding -- drives the step-grid's playhead pulse. `null` whenever the drum machine isn't running. */
 	activeStepIndex = $state<number | null>(null);
+	/** Which bar of `groove.arrangement` is currently sounding -- drives the arrangement strip's playhead. `null` whenever the drum machine isn't running. Already wrapped to `arrangement.length`, unlike the transport's own ever-increasing bar counter. */
+	activeBarIndex = $state<number | null>(null);
+	/** Which pattern role the 16-step grid is currently showing/editing -- set by clicking a bar in the arrangement strip, or the pattern-role picker directly. Session-only, like `activeChordIndex`. */
+	selectedPatternRole = $state<PatternRole>('A');
 	countIn = $state<CountIn>(this.persisted.countIn);
 	/** True for the count-in bar(s) after `start()`, before real playback (and `activeStepIndex`/`activeChordIndex` updates) begins. */
 	isCountingIn = $state(false);
@@ -194,6 +201,8 @@ export class ScalePracticeStore {
 	private chordHighlightTimeouts: ReturnType<typeof setTimeout>[] = [];
 	/** Same visual-timer approach as `chordHighlightTimeouts`, one per grid step, driving `activeStepIndex`. */
 	private stepHighlightTimeouts: ReturnType<typeof setTimeout>[] = [];
+	/** Same visual-timer approach again, one per bar, driving `activeBarIndex`. */
+	private barHighlightTimeouts: ReturnType<typeof setTimeout>[] = [];
 
 	constructor(tuning: Tuning = STANDARD_4_STRING_TUNING, fretCount: number = DEFAULT_FRET_COUNT) {
 		this.tuning = tuning;
@@ -297,15 +306,32 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
-	/** Edits pattern role `A` -- the only role reachable through today's UI (multi-role editing is a later milestone). */
+	/** Edits whichever pattern `selectedPatternRole` currently points at. */
 	toggleStep(voice: DrumVoice, index: number): void {
-		const patternA = toggleGrooveStep(this.groove.patterns.A, voice, index);
-		this.groove = setPatternForRole(this.groove, 'A', patternA);
+		const pattern = toggleGrooveStep(this.groove.patterns[this.selectedPatternRole], voice, index);
+		this.groove = setPatternForRole(this.groove, this.selectedPatternRole, pattern);
 		this.persist();
 	}
 
 	setSwing(swing: number): void {
 		this.groove = setGrooveSwing(this.groove, swing);
+		this.persist();
+	}
+
+	/** Which pattern's steps the grid shows/edits -- purely a UI focus, doesn't touch the arrangement. */
+	setSelectedPatternRole(role: PatternRole): void {
+		this.selectedPatternRole = role;
+	}
+
+	/** Reassigns which pattern plays at `barIndex` in the arrangement. */
+	setArrangementBar(barIndex: number, role: PatternRole): void {
+		this.groove = setGrooveArrangementBar(this.groove, barIndex, role);
+		this.persist();
+	}
+
+	/** Grows/shrinks the arrangement -- new bars default to role A, extra bars truncate from the end. */
+	setArrangementLength(length: number): void {
+		this.groove = setGrooveArrangementLength(this.groove, length);
 		this.persist();
 	}
 
@@ -349,6 +375,12 @@ export class ScalePracticeStore {
 		this.stepHighlightTimeouts = [];
 	}
 
+	/** Cancels any not-yet-fired bar-playhead updates -- same reasoning again. */
+	private cancelPendingBarHighlights(): void {
+		for (const timeoutId of this.barHighlightTimeouts) clearTimeout(timeoutId);
+		this.barHighlightTimeouts = [];
+	}
+
 	private persist(): void {
 		writeJSON<PersistedScalePracticeConfig>(STORAGE_KEY, {
 			root: this.root,
@@ -387,13 +419,24 @@ export class ScalePracticeStore {
 		this.audioContext = null;
 		this.cancelPendingChordHighlights();
 		this.cancelPendingStepHighlights();
+		this.cancelPendingBarHighlights();
 		this.activeStepIndex = null;
+		this.activeBarIndex = null;
 	}
 
 	/** Fires once per bar of real playback (never during count-in) -- resolves which pattern the bar plays and triggers the chord pad. */
 	private handleBarStart(bar: number, gridTime: number): void {
 		this.scheduleBarChord(bar, gridTime);
 		this.currentBarPattern = this.activePatternForBar(bar);
+
+		const ctx = this.audioContext;
+		if (ctx === null) return;
+		const delayMs = Math.max(0, (gridTime - ctx.currentTime) * 1000);
+		const timeoutId = setTimeout(() => {
+			this.activeBarIndex = bar % this.groove.arrangement.length;
+			this.barHighlightTimeouts = this.barHighlightTimeouts.filter((id) => id !== timeoutId);
+		}, delayMs);
+		this.barHighlightTimeouts = [...this.barHighlightTimeouts, timeoutId];
 	}
 
 	private handleStep(stepIndex: number, gridTime: number): void {

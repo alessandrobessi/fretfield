@@ -57,6 +57,13 @@ export function setArrangementBar(groove: Groove, barIndex: number, role: Patter
 	return { ...groove, arrangement };
 }
 
+/** Grows or shrinks the arrangement to exactly `length` bars, clamped to at least 1 -- new bars default to role `A`, extra bars are truncated from the end. */
+export function setArrangementLength(groove: Groove, length: number): Groove {
+	const clamped = Math.max(1, Math.round(length));
+	const arrangement = Array.from({ length: clamped }, (_, i) => groove.arrangement[i] ?? 'A');
+	return { ...groove, arrangement };
+}
+
 /**
  * Swing operates at 8th-note resolution, not 16th -- it delays the "and" of
  * each beat (step index 2 within every 4-step quarter-note group: absolute

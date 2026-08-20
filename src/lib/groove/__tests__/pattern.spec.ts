@@ -3,6 +3,7 @@ import {
 	createEmptyGroove,
 	createEmptyPattern,
 	setArrangementBar,
+	setArrangementLength,
 	setStepVelocity,
 	setSwing,
 	stepOffsetMs,
@@ -67,6 +68,30 @@ describe('setArrangementBar', () => {
 		expect(updated.arrangement).toEqual(['A', 'A', 'A', 'B']);
 		// The original arrangement array is untouched (pure function).
 		expect(groove.arrangement).toEqual(['A', 'A', 'A', 'A']);
+	});
+});
+
+describe('setArrangementLength', () => {
+	it('grows the arrangement, defaulting new bars to role A', () => {
+		const groove = createEmptyGroove(); // arrangement: ['A']
+		const grown = setArrangementLength(groove, 4);
+		expect(grown.arrangement).toEqual(['A', 'A', 'A', 'A']);
+	});
+
+	it('preserves existing bar assignments when growing', () => {
+		const groove = setArrangementBar(setArrangementLength(createEmptyGroove(), 2), 1, 'B');
+		const grown = setArrangementLength(groove, 4);
+		expect(grown.arrangement).toEqual(['A', 'B', 'A', 'A']);
+	});
+
+	it('truncates from the end when shrinking', () => {
+		const groove = setArrangementLength(createEmptyGroove(), 4);
+		expect(setArrangementLength(groove, 2).arrangement).toEqual(['A', 'A']);
+	});
+
+	it('clamps to a minimum of 1 bar', () => {
+		expect(setArrangementLength(createEmptyGroove(), 0).arrangement).toEqual(['A']);
+		expect(setArrangementLength(createEmptyGroove(), -3).arrangement).toEqual(['A']);
 	});
 });
 
