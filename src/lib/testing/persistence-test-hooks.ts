@@ -10,6 +10,7 @@ import {
 import { STORAGE_KEY as FAVORITE_CHORDS_KEY } from '$lib/stores/favorite-chords.svelte';
 import { STORAGE_KEY as SAVED_PRESETS_KEY } from '$lib/stores/saved-presets.svelte';
 import { STORAGE_KEY as SAVED_PROGRESSIONS_KEY } from '$lib/stores/saved-progressions.svelte';
+import { STORAGE_KEY as SAVED_GROOVES_KEY } from '$lib/stores/saved-grooves.svelte';
 import { STORAGE_KEY as SAVED_SCALE_MAPS_KEY } from '$lib/stores/saved-scale-maps.svelte';
 import { STORAGE_KEY as SCALE_PRACTICE_KEY } from '$lib/stores/scale-practice.svelte';
 import { writeJSON } from '$lib/utils/local-storage';
@@ -23,7 +24,8 @@ const ALL_KEYS = [
 	SAVED_SCALE_MAPS_KEY,
 	FAVORITE_CHORDS_KEY,
 	SAVED_PROGRESSIONS_KEY,
-	SAVED_PRESETS_KEY
+	SAVED_PRESETS_KEY,
+	SAVED_GROOVES_KEY
 ];
 
 /**
