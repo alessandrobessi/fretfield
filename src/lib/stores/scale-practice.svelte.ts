@@ -1,4 +1,20 @@
-import { createMetronomeClick, type MetronomeClick } from '$lib/audio/metronome';
+import {
+	resolveAudioContextConstructor,
+	triggerClosedHat,
+	triggerKick,
+	triggerOpenHat,
+	triggerSnare
+} from '$lib/audio/drum-voices';
+import { listGroovePresets } from '$lib/audio/groove-presets';
+import {
+	DRUM_VOICES,
+	STEPS_PER_BAR,
+	stepOffsetMs,
+	setSwing as setGrooveSwing,
+	toggleStep as toggleGrooveStep,
+	type DrumVoice,
+	type GroovePattern
+} from '$lib/audio/groove';
 import type { FretPosition } from '$lib/music/fretboard';
 import type { PitchClass } from '$lib/music/pitch';
 import { getScaleDefinition, type ScaleDefinition } from '$lib/music/scales';
@@ -12,6 +28,25 @@ const DEFAULT_BPM = 80;
 const MIN_BPM = 30;
 const MAX_BPM = 240;
 
+// Standard Web Audio "lookahead scheduler" constants: the JS timer only
+// needs to wake up often enough to keep scheduling steps within the lookahead
+// window -- the actual playback timing comes from AudioContext.currentTime,
+// not from setInterval's own accuracy, so drift/jitter in the JS timer never
+// reaches the audio.
+const SCHEDULER_INTERVAL_MS = 25;
+const SCHEDULE_AHEAD_SECONDS = 0.1;
+
+const DEFAULT_PATTERN =
+	listGroovePresets().find((preset) => preset.id === 'straight-rock')?.pattern ??
+	listGroovePresets()[0].pattern;
+
+const VOICE_TRIGGERS: Record<DrumVoice, (ctx: AudioContext, time: number) => void> = {
+	kick: triggerKick,
+	snare: triggerSnare,
+	closedHat: triggerClosedHat,
+	openHat: triggerOpenHat
+};
+
 export const STORAGE_KEY = 'fretfield-scale-practice';
 
 interface PersistedScalePracticeConfig {
@@ -19,18 +54,16 @@ interface PersistedScalePracticeConfig {
 	scaleId: string | null;
 	zone: PracticeZone;
 	bpm: number;
+	pattern: GroovePattern;
 }
 
 const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	root: null,
 	scaleId: null,
 	zone: { minFret: 0, maxFret: 12 },
-	bpm: DEFAULT_BPM
+	bpm: DEFAULT_BPM,
+	pattern: DEFAULT_PATTERN
 };
-
-function msPerBeat(bpm: number): number {
-	return 60_000 / bpm;
-}
 
 function clampBpm(bpm: number): number {
 	return Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(bpm)));
@@ -39,16 +72,19 @@ function clampBpm(bpm: number): number {
 /**
  * Owns Scale Practice's two independent pieces: which notes of the chosen
  * scale/zone are shown (`scalePositions`/`playedPositions`, always live,
- * regardless of the metronome), and the metronome itself (`running`/`bpm`,
- * a simple click — it no longer drives any target/evaluation logic). Kept
+ * regardless of the drum machine), and the drum machine itself (`running`/
+ * `bpm`/`pattern` — a synthesized multi-voice groove, replacing the single
+ * quarter-note click by explicit product direction; see AGENTS.md). Kept
  * as its own store rather than a `PracticeMode` inside `$lib/practice` —
- * that engine's types and AGENTS.md §26 doctrine are both explicitly
+ * that engine's types and AGENTS.md doctrine are both explicitly
  * chord/progression-shaped and timer-free; this store is scale/zone/tempo-
  * shaped and owns the app's only audio *output* scheduling.
  *
- * The scheduler is a self-correcting `setTimeout` loop so the click doesn't
- * drift over a long session, even though nothing else depends on its exact
- * timing anymore.
+ * The scheduler is a standard lookahead scheduler (a coarse setInterval
+ * "checker" that schedules upcoming steps at precise AudioContext times) so
+ * timing stays sample-accurate regardless of JS timer jitter, and so swing
+ * (sub-step timing offsets) is actually audible rather than lost to
+ * setTimeout's own imprecision.
  */
 export class ScalePracticeStore {
 	private readonly persisted = readJSON(STORAGE_KEY, DEFAULT_CONFIG);
@@ -57,15 +93,17 @@ export class ScalePracticeStore {
 	scaleId = $state<string | null>(this.persisted.scaleId);
 	zone = $state<PracticeZone>(this.persisted.zone);
 	bpm = $state(this.persisted.bpm);
-	// Never restored true — the metronome, like Live Input's mic, always
+	pattern = $state<GroovePattern>(this.persisted.pattern);
+	// Never restored true — the drum machine, like Live Input's mic, always
 	// requires an explicit restart rather than resuming audio on load.
 	running = $state(false);
 
 	private readonly tuning: Tuning;
 	private readonly fretCount: number;
-	private click: MetronomeClick | null = null;
-	private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-	private nextBeatAtMs: number | null = null;
+	private audioContext: AudioContext | null = null;
+	private schedulerHandle: ReturnType<typeof setInterval> | null = null;
+	private currentStep = 0;
+	private nextStepTime = 0;
 
 	constructor(tuning: Tuning = STANDARD_4_STRING_TUNING, fretCount: number = DEFAULT_FRET_COUNT) {
 		this.tuning = tuning;
@@ -109,46 +147,77 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
+	/** Bulk-replaces the whole pattern — used by genre-preset selection and loading a saved groove. */
+	setPattern(pattern: GroovePattern): void {
+		this.pattern = pattern;
+		this.persist();
+	}
+
+	toggleStep(voice: DrumVoice, index: number): void {
+		this.pattern = toggleGrooveStep(this.pattern, voice, index);
+		this.persist();
+	}
+
+	setSwing(swing: number): void {
+		this.pattern = setGrooveSwing(this.pattern, swing);
+		this.persist();
+	}
+
 	private persist(): void {
 		writeJSON<PersistedScalePracticeConfig>(STORAGE_KEY, {
 			root: this.root,
 			scaleId: this.scaleId,
 			zone: this.zone,
-			bpm: this.bpm
+			bpm: this.bpm,
+			pattern: this.pattern
 		});
 	}
 
-	/** Starts (or stops) only the metronome click — has no effect on which notes are highlighted. */
+	/** Starts (or stops) only the drum machine — has no effect on which notes are highlighted. */
 	start(): void {
 		if (this.running) return;
-		this.running = true;
-		this.click = createMetronomeClick();
+		const AudioContextCtor = resolveAudioContextConstructor();
+		if (AudioContextCtor === null) return;
 
-		const now = Date.now();
-		this.nextBeatAtMs = now + msPerBeat(this.bpm);
-		this.timeoutHandle = setTimeout(() => this.tick(), this.nextBeatAtMs - now);
+		this.audioContext = new AudioContextCtor();
+		this.running = true;
+		this.currentStep = 0;
+		this.nextStepTime = this.audioContext.currentTime + 0.05;
+		this.schedulerHandle = setInterval(() => this.scheduler(), SCHEDULER_INTERVAL_MS);
 	}
 
 	stop(): void {
 		this.running = false;
-		if (this.timeoutHandle !== null) {
-			clearTimeout(this.timeoutHandle);
-			this.timeoutHandle = null;
+		if (this.schedulerHandle !== null) {
+			clearInterval(this.schedulerHandle);
+			this.schedulerHandle = null;
 		}
-		this.click?.dispose();
-		this.click = null;
-		this.nextBeatAtMs = null;
+		void this.audioContext?.close();
+		this.audioContext = null;
 	}
 
-	private tick(): void {
-		if (!this.running || this.nextBeatAtMs === null) return;
-		this.click?.playClick();
-		// Reschedules from the fixed beat grid, not from `Date.now()` at fire
-		// time — this is what keeps long-run drift from accumulating even
-		// though `setTimeout` itself is never perfectly precise.
-		this.nextBeatAtMs += msPerBeat(this.bpm);
-		const delay = Math.max(0, this.nextBeatAtMs - Date.now());
-		this.timeoutHandle = setTimeout(() => this.tick(), delay);
+	/** Schedules every step whose (unswung) grid time falls within the lookahead window. */
+	private scheduler(): void {
+		const ctx = this.audioContext;
+		if (!this.running || ctx === null) return;
+
+		while (this.nextStepTime < ctx.currentTime + SCHEDULE_AHEAD_SECONDS) {
+			this.scheduleStep(this.currentStep, this.nextStepTime);
+			const stepDurationSeconds = 60 / this.bpm / 4; // 4 sixteenth notes per beat
+			this.currentStep = (this.currentStep + 1) % STEPS_PER_BAR;
+			this.nextStepTime += stepDurationSeconds;
+		}
+	}
+
+	private scheduleStep(stepIndex: number, gridTime: number): void {
+		const ctx = this.audioContext;
+		if (ctx === null) return;
+		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, this.pattern.swing) / 1000;
+		for (const voice of DRUM_VOICES) {
+			if (this.pattern.steps[voice][stepIndex]) {
+				VOICE_TRIGGERS[voice](ctx, swungTime);
+			}
+		}
 	}
 }
 
