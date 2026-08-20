@@ -22,7 +22,7 @@ import type { FretPosition } from '$lib/music/fretboard';
 import { intervalSemitones } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
 import { buildProgression, type ResolvedChord } from '$lib/music/progressions';
-import { getScaleDefinition, suggestedScalesFor, type ScaleDefinition } from '$lib/music/scales';
+import { getScaleDefinition, suggestedScalesFor } from '$lib/music/scales';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { positionsForPitchClass, scalePositions } from '$lib/scale-practice/positions';
 import type { PracticeZone } from '$lib/scale-practice/types';
@@ -70,7 +70,6 @@ export const STORAGE_KEY = 'fretfield-scale-practice';
 
 interface PersistedScalePracticeConfig {
 	root: PitchClass | null;
-	scaleId: string | null;
 	zone: PracticeZone;
 	bpm: number;
 	pattern: GroovePattern;
@@ -81,7 +80,6 @@ interface PersistedScalePracticeConfig {
 
 const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	root: null,
-	scaleId: null,
 	zone: { minFret: 0, maxFret: 12 },
 	bpm: DEFAULT_BPM,
 	pattern: DEFAULT_PATTERN,
@@ -98,15 +96,18 @@ function clampBarsPerChord(bars: number): number {
 }
 
 /**
- * Owns Scale Practice's two independent pieces: which notes of the chosen
- * scale/zone are shown (`scalePositions`/`playedPositions`, always live,
- * regardless of the drum machine), and the drum machine itself (`running`/
- * `bpm`/`pattern` — a synthesized multi-voice groove, replacing the single
- * quarter-note click by explicit product direction; see AGENTS.md). Kept
- * as its own store rather than a `PracticeMode` inside `$lib/practice` —
- * that engine's types and AGENTS.md doctrine are both explicitly
- * chord/progression-shaped and timer-free; this store is scale/zone/tempo-
- * shaped and owns the app's only audio *output* scheduling.
+ * Owns Scale Practice's two independent pieces: which notes of the active
+ * progression chord's scale are shown within `zone` (`scalePositions`/
+ * `playedPositions`, always live, regardless of the drum machine — there is
+ * no standalone manual scale anymore, only the ones a picked progression's
+ * chords carry, per explicit product direction; see AGENTS.md), and the
+ * drum machine itself (`running`/`bpm`/`pattern` — a synthesized
+ * multi-voice groove, replacing the single quarter-note click by earlier
+ * explicit product direction). Kept as its own store rather than a
+ * `PracticeMode` inside `$lib/practice` — that engine's types and
+ * AGENTS.md doctrine are both explicitly chord/progression-shaped and
+ * timer-free; this store is scale/zone/tempo-shaped and owns the app's
+ * only audio *output* scheduling.
  *
  * The scheduler is a standard lookahead scheduler (a coarse setInterval
  * "checker" that schedules upcoming steps at precise AudioContext times) so
@@ -118,7 +119,6 @@ export class ScalePracticeStore {
 	private readonly persisted = readJSON(STORAGE_KEY, DEFAULT_CONFIG);
 
 	root = $state<PitchClass | null>(this.persisted.root);
-	scaleId = $state<string | null>(this.persisted.scaleId);
 	zone = $state<PracticeZone>(this.persisted.zone);
 	bpm = $state(this.persisted.bpm);
 	pattern = $state<GroovePattern>(this.persisted.pattern);
@@ -159,15 +159,10 @@ export class ScalePracticeStore {
 		this.fretCount = fretCount;
 	}
 
-	readonly scale = $derived.by<ScaleDefinition | null>(() =>
-		this.scaleId === null ? null : getScaleDefinition(this.scaleId)
-	);
-
 	/**
-	 * The optional chord backing, built on the same root the scale itself
-	 * uses — not an independent tonic. Empty whenever no progression is
-	 * selected or there's no root yet; the scheduler treats an empty array as
-	 * "chord playback off".
+	 * The optional chord backing, built on `root` — not an independent tonic.
+	 * Empty whenever no progression is selected or there's no root yet; the
+	 * scheduler treats an empty array as "chord playback off".
 	 */
 	readonly resolvedProgression = $derived.by<ResolvedChord[]>(() => {
 		if (this.root === null || this.progressionTemplateId === null) return [];
@@ -200,20 +195,24 @@ export class ScalePracticeStore {
 		() => this.activeChordScale?.root ?? this.root
 	);
 
-	/** Every position in the zone belonging to the currently-shown scale — the active progression chord's assigned scale when one is showing, otherwise the manually-picked root/scale. Shown all at once, not one note at a time. */
+	/**
+	 * Every position in the zone belonging to the currently-shown scale — the
+	 * active progression chord's assigned scale. Empty whenever no progression
+	 * chord-scale is active (no progression selected, or that chord's scale
+	 * was explicitly cleared to "—") — there's no standalone manual scale to
+	 * fall back to; a scale only ever comes from a progression chord now.
+	 * Shown all at once, not one note at a time.
+	 */
 	readonly scalePositions = $derived.by<FretPosition[]>(() => {
 		const activeScale = this.activeChordScale;
-		if (activeScale !== null) {
-			return scalePositions(
-				activeScale.root,
-				getScaleDefinition(activeScale.scaleId),
-				this.zone,
-				this.tuning,
-				this.fretCount
-			);
-		}
-		if (this.root === null || this.scale === null) return [];
-		return scalePositions(this.root, this.scale, this.zone, this.tuning, this.fretCount);
+		if (activeScale === null) return [];
+		return scalePositions(
+			activeScale.root,
+			getScaleDefinition(activeScale.scaleId),
+			this.zone,
+			this.tuning,
+			this.fretCount
+		);
 	});
 
 	/** Whatever's currently sounding, live — clears itself the moment Live Input stops detecting a note. */
@@ -225,11 +224,6 @@ export class ScalePracticeStore {
 
 	setRoot(root: PitchClass | null): void {
 		this.root = root;
-		this.persist();
-	}
-
-	setScaleId(scaleId: string | null): void {
-		this.scaleId = scaleId;
 		this.persist();
 	}
 
@@ -296,7 +290,6 @@ export class ScalePracticeStore {
 	private persist(): void {
 		writeJSON<PersistedScalePracticeConfig>(STORAGE_KEY, {
 			root: this.root,
-			scaleId: this.scaleId,
 			zone: this.zone,
 			bpm: this.bpm,
 			pattern: this.pattern,

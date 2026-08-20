@@ -12,16 +12,18 @@
 	const connection = $derived(fretfield.inspectedConnectionDisplay);
 
 	// Scale Practice has no chord/role to show — just where this note sits in
-	// the configured scale, if it's in it at all (hovering a fret outside the
-	// scale entirely is still valid, it just has nothing to report here).
+	// the active progression chord's scale, if it's in it at all (hovering a
+	// fret outside the scale entirely is still valid, it just has nothing to
+	// report here). No progression chord-scale active means nothing to report
+	// at all -- there's no standalone manual scale to fall back to.
 	const scalePracticeDegree = $derived.by(() => {
 		if (fretfield.mode !== 'scale-practice' || inspected === null) return null;
-		const root = scalePractice.root;
-		const scale = scalePractice.scale;
-		if (root === null || scale === null) return null;
-		const interval = intervalFromRoot(root, inspected.pitchClass);
+		const activeScale = scalePractice.activeChordScale;
+		if (activeScale === null) return null;
+		const scale = getScaleDefinition(activeScale.scaleId);
+		const interval = intervalFromRoot(activeScale.root, inspected.pitchClass);
 		if (!scale.intervals.includes(interval)) return null;
-		return `${intervalCompoundLabel(interval)} degree of ${defaultNoteName(root)} ${scale.label}`;
+		return `${intervalCompoundLabel(interval)} degree of ${defaultNoteName(activeScale.root)} ${scale.label}`;
 	});
 
 	// `inspected.scaleBlockMembership` indices are computed against whichever

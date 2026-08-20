@@ -3,7 +3,6 @@
 	import PositionRangeInputs from '$lib/components/shared/PositionRangeInputs.svelte';
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
 	import type { FretRange } from '$lib/music/fret-range';
-	import { listScales } from '$lib/music/scales';
 	import { DEFAULT_FRET_COUNT } from '$lib/music/tuning';
 	import { captureCurrentPreset } from '$lib/practice/preset-library';
 	import { liveInput } from '$lib/stores/live-input.svelte';
@@ -39,23 +38,22 @@
 		return () => scalePractice.stop();
 	});
 
-	// Distinguishes "pick a root/scale" from "your zone doesn't reach any note
-	// of this scale" — both leave `scalePositions` empty, but they need
-	// different guidance.
+	// Distinguishes "no scale is showing at all" from "your zone doesn't reach
+	// any note of the scale that is showing" — both leave `scalePositions`
+	// empty, but they need different guidance.
 	const zoneExcludesScale = $derived(
-		scalePractice.root !== null &&
-			scalePractice.scaleId !== null &&
-			scalePractice.scalePositions.length === 0
+		scalePractice.activeChordScale !== null && scalePractice.scalePositions.length === 0
+	);
+	// A scale only ever comes from a progression chord now (no standalone
+	// manual scale) -- this is the "you have a root but haven't picked a
+	// progression yet, or cleared the active chord's scale" case.
+	const noScaleChosen = $derived(
+		scalePractice.root !== null && scalePractice.activeChordScale === null
 	);
 
 	function handleRootChange(event: Event): void {
 		const value = (event.currentTarget as HTMLSelectElement).value;
 		scalePractice.setRoot(value === '' ? null : (Number(value) as PitchClass));
-	}
-
-	function handleScaleChange(event: Event): void {
-		const value = (event.currentTarget as HTMLSelectElement).value;
-		scalePractice.setScaleId(value === '' ? null : value);
 	}
 
 	function handleZoneChange(range: FretRange): void {
@@ -103,19 +101,6 @@
 				{/each}
 			</select>
 		</label>
-		<label class="field">
-			<span class="field-label">Scale</span>
-			<select
-				aria-label="Scale Practice scale"
-				value={scalePractice.scaleId ?? ''}
-				onchange={handleScaleChange}
-			>
-				<option value="">—</option>
-				{#each listScales() as scale (scale.id)}
-					<option value={scale.id}>{scale.label}</option>
-				{/each}
-			</select>
-		</label>
 		<PositionRangeInputs
 			range={scalePractice.zone}
 			fretCount={DEFAULT_FRET_COUNT}
@@ -126,6 +111,8 @@
 
 	{#if zoneExcludesScale}
 		<p class="hint">No notes of this scale fall inside the chosen zone — widen it.</p>
+	{:else if noScaleChosen}
+		<p class="hint">Choose a progression below to see a scale for each chord.</p>
 	{:else if !liveInput.enabled}
 		<p class="hint">Enable Live Input above to see the notes you play highlighted.</p>
 	{/if}

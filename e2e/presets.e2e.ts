@@ -7,7 +7,7 @@ test.describe('Practice Presets', () => {
 		await page.getByRole('button', { name: /^Presets/ }).click();
 
 		await expect(page.getByRole('button', { name: /^Find the Thirds/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: /^Blues Scale/ })).toBeVisible();
+		await expect(page.getByRole('button', { name: /^ii–V–I Resolutions/ })).toBeVisible();
 
 		await page.getByRole('button', { name: '← Back to Practice' }).click();
 		await expect(page.getByText('Pick something to practice.')).toBeVisible();
@@ -47,25 +47,5 @@ test.describe('Practice Presets', () => {
 		await expect(page.locator('.guided-practice .prompt')).toContainText('Step 1 of 3');
 		// Local Field only, constrained to frets 0-5.
 		await expect(page.locator('.guided-practice input[type="checkbox"]')).toBeChecked();
-	});
-
-	test('a Scales preset opens Scale Practice right under Practice, zone included', async ({
-		page
-	}) => {
-		await page.goto('/');
-		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: /^Presets/ }).click();
-
-		await page.getByRole('button', { name: /^Major Scale in One Position/ }).click();
-
-		await expect(page.getByRole('tab', { name: 'Practice', exact: true })).toHaveAttribute(
-			'aria-selected',
-			'true'
-		);
-		await expect(page.getByLabel('Scale Practice root')).toHaveValue(/./);
-		await expect(page.getByLabel('Zone start fret')).toHaveValue('0');
-		await expect(page.getByLabel('Zone end fret')).toHaveValue('5');
-		// C is in C Ionian, at A-string fret 3.
-		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 	});
 });

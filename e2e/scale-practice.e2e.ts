@@ -5,6 +5,12 @@ import { enableFakeInput, playNote } from './helpers';
  * C major pentatonic (root=C) — C, D, E, G, A. C is reachable at A-string
  * fret 3, D at open D string, Bb (not in the scale) at A-string fret 1 —
  * matching the rest of the suite's existing fret-position conventions.
+ *
+ * A scale only ever comes from the active progression chord now (there's no
+ * standalone manual scale) — `selectScalePractice` picks the I–IV–V
+ * progression (chord 1 is the tonic itself, a plain major chord) and
+ * explicitly sets chord 1's scale, so `root`/`scale` mean exactly what they
+ * meant before this helper existed.
  */
 
 async function selectScalePractice(
@@ -15,7 +21,8 @@ async function selectScalePractice(
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 	await page.getByRole('button', { name: /^Scales/ }).click();
 	await page.getByLabel('Scale Practice root').selectOption({ label: root });
-	await page.getByLabel('Scale Practice scale').selectOption({ label: scale });
+	await page.getByLabel('Progression').selectOption({ label: 'I–IV–V' });
+	await page.getByLabel('Chord 1 scale').selectOption({ label: scale });
 }
 
 test.describe('Scale Practice', () => {

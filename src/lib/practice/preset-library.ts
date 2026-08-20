@@ -27,7 +27,6 @@ export interface PracticePreset {
 		root: PitchClass;
 		chordId?: string;
 		progressionTemplateId?: string;
-		scaleId?: string;
 		pathPreset?: PathPreset;
 		/** Scale Practice's chord-backing span, in bars — only meaningful alongside `progressionTemplateId`. */
 		barsPerChord?: number;
@@ -40,10 +39,6 @@ export interface PracticePreset {
 }
 
 const C: PitchClass = normalizePitchClass(0);
-const D: PitchClass = normalizePitchClass(2);
-const E: PitchClass = normalizePitchClass(4);
-const G: PitchClass = normalizePitchClass(7);
-const A: PitchClass = normalizePitchClass(9);
 
 const PRESET_LIST: PracticePreset[] = [
 	// Essential
@@ -126,45 +121,6 @@ const PRESET_LIST: PracticePreset[] = [
 			'Follow a guide-tone path through a ii–V–I — naturally avoids leaning on the root.',
 		activity: 'follow-path',
 		context: { root: C, progressionTemplateId: 'major-ii-v-i', pathPreset: 'guide-tones' }
-	},
-
-	// Scales
-	{
-		id: 'major-scale-one-position',
-		title: 'Major Scale in One Position',
-		description: 'C Ionian, confined to the first five frets.',
-		activity: 'scales',
-		context: { root: C, scaleId: 'ionian' },
-		position: { minFret: 0, maxFret: 5 }
-	},
-	{
-		id: 'dorian-across-the-neck',
-		title: 'Dorian Across the Neck',
-		description: 'D Dorian across the full fretboard.',
-		activity: 'scales',
-		context: { root: D, scaleId: 'dorian' },
-		position: { minFret: 0, maxFret: 20 }
-	},
-	{
-		id: 'mixolydian-over-dominant',
-		title: 'Mixolydian over Dominant',
-		description: 'G Mixolydian, the classic dominant-chord scale.',
-		activity: 'scales',
-		context: { root: G, scaleId: 'mixolydian' }
-	},
-	{
-		id: 'minor-pentatonic',
-		title: 'Minor Pentatonic',
-		description: 'A minor pentatonic, the first scale most bassists learn.',
-		activity: 'scales',
-		context: { root: A, scaleId: 'minor-pentatonic' }
-	},
-	{
-		id: 'blues-scale',
-		title: 'Blues Scale',
-		description: 'E blues scale — minor pentatonic plus the blue note.',
-		activity: 'scales',
-		context: { root: E, scaleId: 'blues' }
 	}
 ];
 
@@ -192,7 +148,6 @@ export function openPreset(preset: PracticePreset): void {
 
 	if (preset.activity === 'scales') {
 		scalePractice.setRoot(preset.context.root);
-		if (preset.context.scaleId) scalePractice.setScaleId(preset.context.scaleId);
 		if (preset.position) scalePractice.setZone(preset.position.minFret, preset.position.maxFret);
 		if (preset.context.progressionTemplateId) {
 			scalePractice.setProgressionTemplate(preset.context.progressionTemplateId);
@@ -224,22 +179,19 @@ export function openPreset(preset: PracticePreset): void {
  * Captures "what's happening right now" into `openPreset`-compatible data —
  * the inverse of `openPreset`, minus `id`/`title`/`description` (the caller
  * names it). Only returns non-null while there's something concrete to
- * restart: an active Guided Practice session, or Scale Practice configured
- * with both a root and a scale. Deliberately doesn't try to capture a bare
- * Explore selection with no practice activity running — `PracticePreset`'s
- * `activity` field has no way to represent "no activity," and guessing one
- * would misrepresent what the preset actually does when reopened.
+ * restart: an active Guided Practice session, or Scale Practice with a root
+ * chosen. Deliberately doesn't try to capture a bare Explore selection with
+ * no practice activity running — `PracticePreset`'s `activity` field has no
+ * way to represent "no activity," and guessing one would misrepresent what
+ * the preset actually does when reopened.
  */
 export function captureCurrentPreset(): Omit<
 	PracticePreset,
 	'id' | 'title' | 'description'
 > | null {
 	if (fretfield.mode === 'scale-practice') {
-		if (scalePractice.root === null || scalePractice.scaleId === null) return null;
-		const context: PracticePreset['context'] = {
-			root: scalePractice.root,
-			scaleId: scalePractice.scaleId
-		};
+		if (scalePractice.root === null) return null;
+		const context: PracticePreset['context'] = { root: scalePractice.root };
 		if (scalePractice.progressionTemplateId !== null) {
 			context.progressionTemplateId = scalePractice.progressionTemplateId;
 			context.barsPerChord = scalePractice.barsPerChord;

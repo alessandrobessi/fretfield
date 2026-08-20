@@ -92,6 +92,61 @@
 </script>
 
 <div class="drum-machine">
+	<div class="progression-row">
+		<ProgressionSelector
+			value={scalePractice.progressionTemplateId}
+			onChange={(id) => scalePractice.setProgressionTemplate(id)}
+		/>
+		<label class="field">
+			<span class="field-label">Bars per chord</span>
+			<input
+				type="number"
+				aria-label="Bars per chord"
+				min="1"
+				max="8"
+				value={scalePractice.barsPerChord}
+				onchange={handleBarsPerChordChange}
+			/>
+		</label>
+	</div>
+
+	{#if scalePractice.resolvedProgression.length > 0}
+		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
+			{#each scalePractice.resolvedProgression as chord, index (index)}
+				{@const suggested = new Set(suggestedScalesFor(chord.chordId).map((s) => s.id))}
+				<li class="chord-row">
+					<button
+						type="button"
+						class="chord-chip"
+						class:active={index === scalePractice.activeChordIndex}
+						aria-current={index === scalePractice.activeChordIndex}
+						onclick={() => scalePractice.setActiveChordIndex(index)}
+					>
+						{resolvedChordSymbol(chord)}
+					</button>
+					<select
+						class="chord-scale-select"
+						aria-label={`Chord ${index + 1} scale`}
+						value={scalePractice.progressionChordScales[index] ?? ''}
+						onchange={(event) => handleChordScaleChange(index, event)}
+					>
+						<option value="">—</option>
+						<optgroup label="Suggested">
+							{#each suggestedScalesFor(chord.chordId) as scale (scale.id)}
+								<option value={scale.id}>{scale.label}</option>
+							{/each}
+						</optgroup>
+						<optgroup label="All scales">
+							{#each listScales().filter((s) => !suggested.has(s.id)) as scale (scale.id)}
+								<option value={scale.id}>{scale.label}</option>
+							{/each}
+						</optgroup>
+					</select>
+				</li>
+			{/each}
+		</ol>
+	{/if}
+
 	<div class="controls-row">
 		<label class="field">
 			<span class="field-label">Genre</span>
@@ -167,61 +222,6 @@
 			<span class="beat-readout">♩ = {scalePractice.bpm}</span>
 		{/if}
 	</div>
-
-	<div class="chord-row">
-		<ProgressionSelector
-			value={scalePractice.progressionTemplateId}
-			onChange={(id) => scalePractice.setProgressionTemplate(id)}
-		/>
-		<label class="field">
-			<span class="field-label">Bars per chord</span>
-			<input
-				type="number"
-				aria-label="Bars per chord"
-				min="1"
-				max="8"
-				value={scalePractice.barsPerChord}
-				onchange={handleBarsPerChordChange}
-			/>
-		</label>
-	</div>
-
-	{#if scalePractice.resolvedProgression.length > 0}
-		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
-			{#each scalePractice.resolvedProgression as chord, index (index)}
-				{@const suggested = new Set(suggestedScalesFor(chord.chordId).map((s) => s.id))}
-				<li class="chord-row">
-					<button
-						type="button"
-						class="chord-chip"
-						class:active={index === scalePractice.activeChordIndex}
-						aria-current={index === scalePractice.activeChordIndex}
-						onclick={() => scalePractice.setActiveChordIndex(index)}
-					>
-						{resolvedChordSymbol(chord)}
-					</button>
-					<select
-						class="chord-scale-select"
-						aria-label={`Chord ${index + 1} scale`}
-						value={scalePractice.progressionChordScales[index] ?? ''}
-						onchange={(event) => handleChordScaleChange(index, event)}
-					>
-						<option value="">—</option>
-						<optgroup label="Suggested">
-							{#each suggestedScalesFor(chord.chordId) as scale (scale.id)}
-								<option value={scale.id}>{scale.label}</option>
-							{/each}
-						</optgroup>
-						<optgroup label="All scales">
-							{#each listScales().filter((s) => !suggested.has(s.id)) as scale (scale.id)}
-								<option value={scale.id}>{scale.label}</option>
-							{/each}
-						</optgroup>
-					</select>
-				</li>
-			{/each}
-		</ol>
-	{/if}
 
 	<div class="step-grid">
 		{#each DRUM_VOICES as voice (voice)}
@@ -307,6 +307,8 @@
 		align-items: center;
 		gap: 0.75rem;
 		flex-wrap: wrap;
+		padding-top: 0.6rem;
+		border-top: 1px dashed var(--fret-border, #ddd3f7);
 	}
 
 	.field {
@@ -354,13 +356,11 @@
 		outline-offset: 1px;
 	}
 
-	.chord-row {
+	.progression-row {
 		display: flex;
 		align-items: flex-end;
 		flex-wrap: wrap;
 		gap: 1rem;
-		padding-top: 0.6rem;
-		border-top: 1px dashed var(--fret-border, #ddd3f7);
 	}
 
 	.chord-strip {
