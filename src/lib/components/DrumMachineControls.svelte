@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { DRUM_VOICES, type DrumVoice } from '$lib/audio/groove';
+	import { DRUM_VOICES, type DrumVoice, type GroovePattern } from '$lib/audio/groove';
 	import { listGroovePresets } from '$lib/audio/groove-presets';
+	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
+	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	const VOICE_LABELS: Record<DrumVoice, string> = {
@@ -11,6 +13,43 @@
 	};
 
 	const presets = listGroovePresets();
+
+	let savingAs = $state(false);
+	let newGrooveName = $state('');
+	let renamingId = $state<string | null>(null);
+	let renameValue = $state('');
+
+	function startSaving(): void {
+		savingAs = true;
+		newGrooveName = '';
+	}
+
+	function confirmSave(): void {
+		const name = newGrooveName.trim();
+		if (!name) return;
+		savedGrooves.save(name, scalePractice.pattern);
+		savingAs = false;
+	}
+
+	function cancelSaving(): void {
+		savingAs = false;
+	}
+
+	function startRenaming(item: SavedItem<GroovePattern>): void {
+		renamingId = item.id;
+		renameValue = item.name;
+	}
+
+	function confirmRename(id: string): void {
+		const trimmed = renameValue.trim();
+		if (!trimmed) return;
+		savedGrooves.rename(id, trimmed);
+		renamingId = null;
+	}
+
+	function cancelRenaming(): void {
+		renamingId = null;
+	}
 
 	function handleBpmChange(event: Event): void {
 		scalePractice.setBpm(Number((event.currentTarget as HTMLInputElement).value));
@@ -23,7 +62,12 @@
 	function handlePresetChange(event: Event): void {
 		const id = (event.currentTarget as HTMLSelectElement).value;
 		const preset = presets.find((p) => p.id === id);
-		if (preset) scalePractice.setPattern(preset.pattern);
+		if (preset) {
+			scalePractice.setPattern(preset.pattern);
+			return;
+		}
+		const saved = savedGrooves.items.find((item) => item.id === id);
+		if (saved) scalePractice.setPattern(saved.data);
 	}
 
 	function toggleMetronome(): void {
@@ -44,6 +88,13 @@
 				{#each presets as preset (preset.id)}
 					<option value={preset.id}>{preset.label}</option>
 				{/each}
+				{#if savedGrooves.items.length > 0}
+					<optgroup label="My Grooves">
+						{#each savedGrooves.items as item (item.id)}
+							<option value={item.id}>{item.name}</option>
+						{/each}
+					</optgroup>
+				{/if}
 			</select>
 		</label>
 		<label class="field">
@@ -71,6 +122,27 @@
 				<span class="swing-readout">{scalePractice.pattern.swing}%</span>
 			</span>
 		</label>
+		{#if savingAs}
+			<input
+				class="name-input"
+				type="text"
+				placeholder="Name this groove…"
+				aria-label="Groove name"
+				bind:value={newGrooveName}
+				onkeydown={(e) => e.key === 'Enter' && confirmSave()}
+			/>
+			<button
+				type="button"
+				class="save-confirm"
+				onclick={confirmSave}
+				disabled={!newGrooveName.trim()}
+			>
+				Save
+			</button>
+			<button type="button" class="save-cancel" onclick={cancelSaving}>Cancel</button>
+		{:else}
+			<button type="button" class="save-as" onclick={startSaving}>Save as…</button>
+		{/if}
 		<button
 			type="button"
 			class="toggle"
@@ -108,6 +180,50 @@
 			</div>
 		{/each}
 	</div>
+
+	{#if savedGrooves.items.length > 0}
+		<div class="saved-list">
+			<span class="field-label">My Grooves</span>
+			<ul class="saved-items">
+				{#each savedGrooves.items as item (item.id)}
+					<li class="saved-item">
+						{#if renamingId === item.id}
+							<input
+								class="name-input"
+								type="text"
+								aria-label="Rename groove"
+								bind:value={renameValue}
+								onkeydown={(e) => e.key === 'Enter' && confirmRename(item.id)}
+							/>
+							<button
+								type="button"
+								onclick={() => confirmRename(item.id)}
+								disabled={!renameValue.trim()}>Save</button
+							>
+							<button type="button" onclick={cancelRenaming}>Cancel</button>
+						{:else}
+							<button
+								type="button"
+								class="saved-name"
+								onclick={() => scalePractice.setPattern(item.data)}
+							>
+								{item.name}
+							</button>
+							<button type="button" onclick={() => startRenaming(item)}>Rename</button>
+							<button
+								type="button"
+								class="remove"
+								aria-label={`Delete ${item.name}`}
+								onclick={() => savedGrooves.remove(item.id)}
+							>
+								×
+							</button>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -208,6 +324,89 @@
 		font-size: 0.85rem;
 		font-weight: 600;
 		opacity: 0.85;
+	}
+
+	.name-input {
+		font: inherit;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.6rem;
+		border-radius: 999px;
+		border: 2px solid var(--fret-border, #ddd3f7);
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+	}
+
+	.name-input:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 1px;
+	}
+
+	.save-as,
+	.save-confirm,
+	.save-cancel,
+	.saved-item button {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.8rem;
+		border-radius: 999px;
+		border: 1px solid var(--nut, #7c3aed);
+		background: transparent;
+		color: var(--nut, #7c3aed);
+		cursor: pointer;
+	}
+
+	.save-confirm:disabled,
+	.saved-item button:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.save-as:focus-visible,
+	.save-confirm:focus-visible,
+	.save-cancel:focus-visible,
+	.saved-item button:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
+	.saved-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding-top: 0.5rem;
+		border-top: 1px dashed var(--fret-border, #ddd3f7);
+	}
+
+	.saved-items {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.saved-item {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.saved-name {
+		font-weight: 600;
+		flex: 1 1 auto;
+		text-align: left;
+	}
+
+	.saved-item .remove {
+		border-color: var(--fret-border, #ddd3f7);
+		color: var(--role-alteration, #ef4444);
+	}
+
+	.saved-item .remove:hover {
+		border-color: var(--role-alteration, #ef4444);
 	}
 
 	.step-grid {
