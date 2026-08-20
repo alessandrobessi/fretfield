@@ -230,10 +230,7 @@ class FretFieldStore {
 		const root = this.root;
 		const templateId = this.progressionTemplateId;
 		if (root === null || templateId === null) return [];
-		const template = resolveProgressionTemplate(
-			templateId,
-			savedProgressions.items.map((item) => item.data)
-		);
+		const template = resolveProgressionTemplate(templateId, savedProgressions.items);
 		if (template === null) return [];
 		return buildProgression(root, template).map((chord) => ({
 			...chord,

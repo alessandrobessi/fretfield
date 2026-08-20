@@ -1,9 +1,15 @@
 import { getProgressionTemplate, type ProgressionTemplate } from '$lib/music/progressions';
-import { createSavedCollectionStore } from '$lib/stores/saved-collection.svelte';
+import { createSavedCollectionStore, type SavedItem } from '$lib/stores/saved-collection.svelte';
 
 export const STORAGE_KEY = 'fretfield-saved-progressions';
 
-/** User-built chord-quality sequences, alongside the 5 curated templates in progressions.ts. */
+/**
+ * User-built chord-quality sequences, alongside the 5 curated templates in
+ * progressions.ts. Looked up by the wrapper's own `SavedItem.id` (see
+ * `resolveProgressionTemplate` below), not `ProgressionTemplate.id` — that
+ * inner field is never read by `buildProgression`, so it's just carried
+ * along for shape-compatibility with the curated array.
+ */
 export const savedProgressions = createSavedCollectionStore<ProgressionTemplate>(STORAGE_KEY);
 
 /**
@@ -16,10 +22,10 @@ export const savedProgressions = createSavedCollectionStore<ProgressionTemplate>
  */
 export function resolveProgressionTemplate(
 	id: string,
-	custom: readonly ProgressionTemplate[]
+	custom: readonly SavedItem<ProgressionTemplate>[]
 ): ProgressionTemplate | null {
-	const customMatch = custom.find((template) => template.id === id);
-	if (customMatch) return customMatch;
+	const customMatch = custom.find((item) => item.id === id);
+	if (customMatch) return customMatch.data;
 	try {
 		return getProgressionTemplate(id);
 	} catch {
