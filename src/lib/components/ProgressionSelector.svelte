@@ -1,20 +1,26 @@
 <script lang="ts">
 	import CustomProgressionBuilder from '$lib/components/CustomProgressionBuilder.svelte';
 	import { listProgressionTemplates } from '$lib/music/progressions';
-	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { savedProgressions } from '$lib/stores/saved-progressions.svelte';
+
+	interface Props {
+		value: string | null;
+		onChange: (id: string | null) => void;
+	}
+
+	const { value, onChange }: Props = $props();
 
 	let showBuilder = $state(false);
 
 	function handleChange(event: Event & { currentTarget: HTMLSelectElement }): void {
-		fretfield.setProgressionTemplate(event.currentTarget.value || null);
+		onChange(event.currentTarget.value || null);
 	}
 </script>
 
 <div class="progression-selector">
 	<label>
 		<span class="field-label">Progression</span>
-		<select value={fretfield.progressionTemplateId ?? ''} onchange={handleChange}>
+		<select value={value ?? ''} onchange={handleChange}>
 			<option value="">Choose a progression…</option>
 			{#each listProgressionTemplates() as template (template.id)}
 				<option value={template.id}>{template.label}</option>

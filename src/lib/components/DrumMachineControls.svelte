@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { DRUM_VOICES, type DrumVoice, type GroovePattern } from '$lib/audio/groove';
 	import { listGroovePresets } from '$lib/audio/groove-presets';
+	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
@@ -57,6 +58,10 @@
 
 	function handleSwingChange(event: Event): void {
 		scalePractice.setSwing(Number((event.currentTarget as HTMLInputElement).value));
+	}
+
+	function handleBarsPerChordChange(event: Event): void {
+		scalePractice.setBarsPerChord(Number((event.currentTarget as HTMLInputElement).value));
 	}
 
 	function handlePresetChange(event: Event): void {
@@ -154,6 +159,24 @@
 		{#if scalePractice.running}
 			<span class="beat-readout">♩ = {scalePractice.bpm}</span>
 		{/if}
+	</div>
+
+	<div class="chord-row">
+		<ProgressionSelector
+			value={scalePractice.progressionTemplateId}
+			onChange={(id) => scalePractice.setProgressionTemplate(id)}
+		/>
+		<label class="field">
+			<span class="field-label">Bars per chord</span>
+			<input
+				type="number"
+				aria-label="Bars per chord"
+				min="1"
+				max="8"
+				value={scalePractice.barsPerChord}
+				onchange={handleBarsPerChordChange}
+			/>
+		</label>
 	</div>
 
 	<div class="step-grid">
@@ -285,6 +308,15 @@
 	input[type='range']:focus-visible {
 		outline: 3px solid var(--focus-ring, #7c3aed);
 		outline-offset: 1px;
+	}
+
+	.chord-row {
+		display: flex;
+		align-items: flex-end;
+		flex-wrap: wrap;
+		gap: 1rem;
+		padding-top: 0.6rem;
+		border-top: 1px dashed var(--fret-border, #ddd3f7);
 	}
 
 	.swing-control {

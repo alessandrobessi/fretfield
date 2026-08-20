@@ -51,7 +51,10 @@
 			>
 		</div>
 		<div class="controls">
-			<ProgressionSelector />
+			<ProgressionSelector
+				value={fretfield.progressionTemplateId}
+				onChange={(id) => fretfield.setProgressionTemplate(id)}
+			/>
 		</div>
 	</div>
 	<ProgressionStrip />
