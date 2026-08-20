@@ -35,6 +35,25 @@
 
 	const presets = listGroovePresets();
 
+	// Collapsed by default -- the compact row above covers what a player
+	// touches every session (tempo, feel, intensity, count-in, play); the
+	// editor is the "advanced" surface (roadmap §23), opened only to change
+	// which progression/groove is loaded or hand-edit a pattern.
+	let editorExpanded = $state(false);
+
+	/** Whichever pattern is currently sounding (while playing) or was last selected for editing (while stopped) -- the compact row's readout. */
+	const activePatternRole = $derived(
+		scalePractice.activeBarIndex !== null
+			? scalePractice.groove.arrangement[scalePractice.activeBarIndex]
+			: scalePractice.selectedPatternRole
+	);
+
+	const barPositionLabel = $derived(
+		scalePractice.running && scalePractice.activeBarIndex !== null
+			? `${scalePractice.activeBarIndex + 1}/${scalePractice.groove.arrangement.length}`
+			: null
+	);
+
 	/** Index-aligned with `scalePractice.groove.arrangement` -- the chord symbol sounding on each bar (per §12's arrangement/chord table), `null` when there's no progression selected at all. */
 	const barChordLabels = $derived(
 		scalePractice.resolvedProgression.length === 0
@@ -157,78 +176,7 @@
 </script>
 
 <div class="drum-machine">
-	<div class="progression-row">
-		<ProgressionSelector
-			value={scalePractice.progressionTemplateId}
-			onChange={(id) => scalePractice.setProgressionTemplate(id)}
-		/>
-		<label class="field">
-			<span class="field-label">Bars per chord</span>
-			<input
-				type="number"
-				aria-label="Bars per chord"
-				min="1"
-				max="8"
-				value={scalePractice.barsPerChord}
-				onchange={handleBarsPerChordChange}
-			/>
-		</label>
-	</div>
-
-	{#if scalePractice.resolvedProgression.length > 0}
-		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
-			{#each scalePractice.resolvedProgression as chord, index (index)}
-				{@const suggested = new Set(suggestedScalesFor(chord.chordId).map((s) => s.id))}
-				<li class="chord-row">
-					<button
-						type="button"
-						class="chord-chip"
-						class:active={index === scalePractice.activeChordIndex}
-						aria-current={index === scalePractice.activeChordIndex}
-						onclick={() => scalePractice.setActiveChordIndex(index)}
-					>
-						{resolvedChordSymbol(chord)}
-					</button>
-					<select
-						class="chord-scale-select"
-						aria-label={`Chord ${index + 1} scale`}
-						value={scalePractice.progressionChordScales[index] ?? ''}
-						onchange={(event) => handleChordScaleChange(index, event)}
-					>
-						<option value="">—</option>
-						<optgroup label="Suggested">
-							{#each suggestedScalesFor(chord.chordId) as scale (scale.id)}
-								<option value={scale.id}>{scale.label}</option>
-							{/each}
-						</optgroup>
-						<optgroup label="All scales">
-							{#each listScales().filter((s) => !suggested.has(s.id)) as scale (scale.id)}
-								<option value={scale.id}>{scale.label}</option>
-							{/each}
-						</optgroup>
-					</select>
-				</li>
-			{/each}
-		</ol>
-	{/if}
-
-	<div class="controls-row">
-		<label class="field">
-			<span class="field-label">Genre</span>
-			<select aria-label="Groove preset" onchange={handlePresetChange}>
-				<option value="">Choose a preset…</option>
-				{#each presets as preset (preset.id)}
-					<option value={preset.id}>{preset.label}</option>
-				{/each}
-				{#if savedGrooves.items.length > 0}
-					<optgroup label="My Grooves">
-						{#each savedGrooves.items as item (item.id)}
-							<option value={item.id}>{item.name}</option>
-						{/each}
-					</optgroup>
-				{/if}
-			</select>
-		</label>
+	<div class="compact-row">
 		<label class="field">
 			<span class="field-label">Tempo</span>
 			<input
@@ -285,27 +233,6 @@
 				<option value="2-bars">2 bars</option>
 			</select>
 		</label>
-		{#if savingAs}
-			<input
-				class="name-input"
-				type="text"
-				placeholder="Name this groove…"
-				aria-label="Groove name"
-				bind:value={newGrooveName}
-				onkeydown={(e) => e.key === 'Enter' && confirmSave()}
-			/>
-			<button
-				type="button"
-				class="save-confirm"
-				onclick={confirmSave}
-				disabled={!newGrooveName.trim()}
-			>
-				Save
-			</button>
-			<button type="button" class="save-cancel" onclick={cancelSaving}>Cancel</button>
-		{:else}
-			<button type="button" class="save-as" onclick={startSaving}>Save as…</button>
-		{/if}
 		<button
 			type="button"
 			class="toggle"
@@ -319,116 +246,226 @@
 		{:else if scalePractice.running}
 			<span class="beat-readout">♩ = {scalePractice.bpm}</span>
 		{/if}
-	</div>
-
-	<div class="arrangement-row">
-		<span class="field-label">Arrangement</span>
-		<GrooveArrangementStrip
-			arrangement={scalePractice.groove.arrangement}
-			activeBarIndex={scalePractice.activeBarIndex}
-			onAssign={handleAssignBar}
-			chordLabels={barChordLabels}
-		/>
+		<span class="pattern-readout"
+			>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
+					>· Bar {barPositionLabel}</span
+				>{/if}</span
+		>
 		<button
 			type="button"
-			class="bar-count"
-			onclick={removeBar}
-			disabled={scalePractice.groove.arrangement.length <= 1}
-			aria-label="Remove last bar"
+			class="edit-groove-toggle"
+			aria-expanded={editorExpanded}
+			onclick={() => (editorExpanded = !editorExpanded)}
 		>
-			− Bar
+			{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
 		</button>
-		<button type="button" class="bar-count" onclick={addBar} aria-label="Add bar">+ Bar</button>
 	</div>
 
-	<div class="pattern-row">
-		<span class="field-label">Editing pattern</span>
-		<div class="role-picker" role="group" aria-label="Pattern to edit">
-			{#each PATTERN_ROLES as role (role)}
-				<button
-					type="button"
-					class="role-button"
-					class:active={scalePractice.selectedPatternRole === role}
-					onclick={() => scalePractice.setSelectedPatternRole(role)}
-				>
-					{role}
-				</button>
-			{/each}
+	{#if editorExpanded}
+		<div class="progression-row">
+			<ProgressionSelector
+				value={scalePractice.progressionTemplateId}
+				onChange={(id) => scalePractice.setProgressionTemplate(id)}
+			/>
+			<label class="field">
+				<span class="field-label">Bars per chord</span>
+				<input
+					type="number"
+					aria-label="Bars per chord"
+					min="1"
+					max="8"
+					value={scalePractice.barsPerChord}
+					onchange={handleBarsPerChordChange}
+				/>
+			</label>
 		</div>
-	</div>
 
-	<div class="step-grid">
-		{#each DRUM_VOICES as voice (voice)}
-			<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>
-				<span class="voice-label">{VOICE_LABELS[voice]}</span>
-				<div class="steps">
-					{#each scalePractice.groove.patterns[scalePractice.selectedPatternRole].steps[voice] as step, index (index)}
+		{#if scalePractice.resolvedProgression.length > 0}
+			<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
+				{#each scalePractice.resolvedProgression as chord, index (index)}
+					{@const suggested = new Set(suggestedScalesFor(chord.chordId).map((s) => s.id))}
+					<li class="chord-row">
 						<button
 							type="button"
-							class="step"
-							class:active={step.velocity > 0}
-							class:velocity-ghost={step.velocity === 0.35}
-							class:velocity-accent={step.velocity === 1}
-							class:beat-start={index % 4 === 0}
-							class:current={index === scalePractice.activeStepIndex}
-							data-velocity={step.velocity}
-							aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
-							aria-pressed={step.velocity > 0}
-							title={`${VOICE_LABELS[voice]} step ${index + 1}: ${VELOCITY_LABELS[step.velocity]}`}
-							onclick={(event) => handleStepClick(voice, index, event)}
+							class="chord-chip"
+							class:active={index === scalePractice.activeChordIndex}
+							aria-current={index === scalePractice.activeChordIndex}
+							onclick={() => scalePractice.setActiveChordIndex(index)}
 						>
-							{#if step.velocity > 0}
-								<span class="dot" aria-hidden="true"></span>
-							{/if}
+							{resolvedChordSymbol(chord)}
 						</button>
-					{/each}
-				</div>
-			</div>
-		{/each}
-	</div>
-
-	{#if savedGrooves.items.length > 0}
-		<div class="saved-list">
-			<span class="field-label">My Grooves</span>
-			<ul class="saved-items">
-				{#each savedGrooves.items as item (item.id)}
-					<li class="saved-item">
-						{#if renamingId === item.id}
-							<input
-								class="name-input"
-								type="text"
-								aria-label="Rename groove"
-								bind:value={renameValue}
-								onkeydown={(e) => e.key === 'Enter' && confirmRename(item.id)}
-							/>
-							<button
-								type="button"
-								onclick={() => confirmRename(item.id)}
-								disabled={!renameValue.trim()}>Save</button
-							>
-							<button type="button" onclick={cancelRenaming}>Cancel</button>
-						{:else}
-							<button
-								type="button"
-								class="saved-name"
-								onclick={() => scalePractice.setGroove(item.data)}
-							>
-								{item.name}
-							</button>
-							<button type="button" onclick={() => startRenaming(item)}>Rename</button>
-							<button
-								type="button"
-								class="remove"
-								aria-label={`Delete ${item.name}`}
-								onclick={() => savedGrooves.remove(item.id)}
-							>
-								×
-							</button>
-						{/if}
+						<select
+							class="chord-scale-select"
+							aria-label={`Chord ${index + 1} scale`}
+							value={scalePractice.progressionChordScales[index] ?? ''}
+							onchange={(event) => handleChordScaleChange(index, event)}
+						>
+							<option value="">—</option>
+							<optgroup label="Suggested">
+								{#each suggestedScalesFor(chord.chordId) as scale (scale.id)}
+									<option value={scale.id}>{scale.label}</option>
+								{/each}
+							</optgroup>
+							<optgroup label="All scales">
+								{#each listScales().filter((s) => !suggested.has(s.id)) as scale (scale.id)}
+									<option value={scale.id}>{scale.label}</option>
+								{/each}
+							</optgroup>
+						</select>
 					</li>
 				{/each}
-			</ul>
+			</ol>
+		{/if}
+
+		<div class="controls-row">
+			<label class="field">
+				<span class="field-label">Genre</span>
+				<select aria-label="Groove preset" onchange={handlePresetChange}>
+					<option value="">Choose a preset…</option>
+					{#each presets as preset (preset.id)}
+						<option value={preset.id}>{preset.label}</option>
+					{/each}
+					{#if savedGrooves.items.length > 0}
+						<optgroup label="My Grooves">
+							{#each savedGrooves.items as item (item.id)}
+								<option value={item.id}>{item.name}</option>
+							{/each}
+						</optgroup>
+					{/if}
+				</select>
+			</label>
+			{#if savingAs}
+				<input
+					class="name-input"
+					type="text"
+					placeholder="Name this groove…"
+					aria-label="Groove name"
+					bind:value={newGrooveName}
+					onkeydown={(e) => e.key === 'Enter' && confirmSave()}
+				/>
+				<button
+					type="button"
+					class="save-confirm"
+					onclick={confirmSave}
+					disabled={!newGrooveName.trim()}
+				>
+					Save
+				</button>
+				<button type="button" class="save-cancel" onclick={cancelSaving}>Cancel</button>
+			{:else}
+				<button type="button" class="save-as" onclick={startSaving}>Save as…</button>
+			{/if}
 		</div>
+
+		<div class="arrangement-row">
+			<span class="field-label">Arrangement</span>
+			<GrooveArrangementStrip
+				arrangement={scalePractice.groove.arrangement}
+				activeBarIndex={scalePractice.activeBarIndex}
+				onAssign={handleAssignBar}
+				chordLabels={barChordLabels}
+			/>
+			<button
+				type="button"
+				class="bar-count"
+				onclick={removeBar}
+				disabled={scalePractice.groove.arrangement.length <= 1}
+				aria-label="Remove last bar"
+			>
+				− Bar
+			</button>
+			<button type="button" class="bar-count" onclick={addBar} aria-label="Add bar">+ Bar</button>
+		</div>
+
+		<div class="pattern-row">
+			<span class="field-label">Editing pattern</span>
+			<div class="role-picker" role="group" aria-label="Pattern to edit">
+				{#each PATTERN_ROLES as role (role)}
+					<button
+						type="button"
+						class="role-button"
+						class:active={scalePractice.selectedPatternRole === role}
+						onclick={() => scalePractice.setSelectedPatternRole(role)}
+					>
+						{role}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="step-grid">
+			{#each DRUM_VOICES as voice (voice)}
+				<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>
+					<span class="voice-label">{VOICE_LABELS[voice]}</span>
+					<div class="steps">
+						{#each scalePractice.groove.patterns[scalePractice.selectedPatternRole].steps[voice] as step, index (index)}
+							<button
+								type="button"
+								class="step"
+								class:active={step.velocity > 0}
+								class:velocity-ghost={step.velocity === 0.35}
+								class:velocity-accent={step.velocity === 1}
+								class:beat-start={index % 4 === 0}
+								class:current={index === scalePractice.activeStepIndex}
+								data-velocity={step.velocity}
+								aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
+								aria-pressed={step.velocity > 0}
+								title={`${VOICE_LABELS[voice]} step ${index + 1}: ${VELOCITY_LABELS[step.velocity]}`}
+								onclick={(event) => handleStepClick(voice, index, event)}
+							>
+								{#if step.velocity > 0}
+									<span class="dot" aria-hidden="true"></span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		</div>
+
+		{#if savedGrooves.items.length > 0}
+			<div class="saved-list">
+				<span class="field-label">My Grooves</span>
+				<ul class="saved-items">
+					{#each savedGrooves.items as item (item.id)}
+						<li class="saved-item">
+							{#if renamingId === item.id}
+								<input
+									class="name-input"
+									type="text"
+									aria-label="Rename groove"
+									bind:value={renameValue}
+									onkeydown={(e) => e.key === 'Enter' && confirmRename(item.id)}
+								/>
+								<button
+									type="button"
+									onclick={() => confirmRename(item.id)}
+									disabled={!renameValue.trim()}>Save</button
+								>
+								<button type="button" onclick={cancelRenaming}>Cancel</button>
+							{:else}
+								<button
+									type="button"
+									class="saved-name"
+									onclick={() => scalePractice.setGroove(item.data)}
+								>
+									{item.name}
+								</button>
+								<button type="button" onclick={() => startRenaming(item)}>Rename</button>
+								<button
+									type="button"
+									class="remove"
+									aria-label={`Delete ${item.name}`}
+									onclick={() => savedGrooves.remove(item.id)}
+								>
+									×
+								</button>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -441,11 +478,15 @@
 		border-top: 1px dashed var(--fret-border, #ddd3f7);
 	}
 
+	.compact-row,
 	.controls-row {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		flex-wrap: wrap;
+	}
+
+	.controls-row {
 		padding-top: 0.6rem;
 		border-top: 1px dashed var(--fret-border, #ddd3f7);
 	}
@@ -493,6 +534,38 @@
 	input[type='range']:focus-visible {
 		outline: 3px solid var(--focus-ring, #7c3aed);
 		outline-offset: 1px;
+	}
+
+	.pattern-readout {
+		font-size: 0.85rem;
+		font-weight: 700;
+		opacity: 0.85;
+	}
+
+	.bar-suffix {
+		margin-left: 0.35em;
+	}
+
+	.edit-groove-toggle {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.8rem;
+		padding: 0.4rem 0.8rem;
+		border-radius: 999px;
+		border: 1px solid var(--nut, #7c3aed);
+		background: transparent;
+		color: var(--nut, #7c3aed);
+		cursor: pointer;
+		margin-left: auto;
+	}
+
+	.edit-groove-toggle:hover {
+		background: color-mix(in srgb, var(--nut, #7c3aed) 10%, transparent);
+	}
+
+	.edit-groove-toggle:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
 	}
 
 	.progression-row {

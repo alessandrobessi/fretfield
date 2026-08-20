@@ -7,9 +7,16 @@ import { expect, test } from '@playwright/test';
  * tests never asserted actual sound either, only UI/state.
  */
 
+/**
+ * Navigates to Scale Practice and expands the Groove Editor disclosure --
+ * most of these tests exercise progression/genre/arrangement/step-grid
+ * controls, which live behind "Edit Groove" and are collapsed by default
+ * (see AGENTS.md's compact Practice UI).
+ */
 async function openScalePractice(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+	await page.getByRole('button', { name: 'Edit Groove' }).click();
 }
 
 test.describe('Drum Machine', () => {
@@ -85,8 +92,11 @@ test.describe('Drum Machine', () => {
 		// destination ('practice') and fretfield.mode ('scale-practice') both
 		// persist, so ScalePracticeSession renders directly on reload -- no
 		// "Scales" card to click through again (see Local Practice Persistence's
-		// own equivalent test for the same reasoning).
+		// own equivalent test for the same reasoning). The Groove Editor
+		// disclosure itself is plain component state, though, so it collapses
+		// again and needs re-opening.
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Edit Groove' }).click();
 
 		await expect(page.getByLabel('Feel')).toHaveValue('swing');
 		await expect(page.getByLabel('Amount')).toHaveValue('70');
@@ -171,6 +181,7 @@ test.describe('Drum Machine: chord-progression backing', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Edit Groove' }).click();
 
 		await expect(page.getByLabel('Progression')).toHaveValue('major-ii-v-i');
 		await expect(page.getByLabel('Bars per chord')).toHaveValue('1');
@@ -187,6 +198,7 @@ test.describe('Drum Machine: chord-progression backing', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Edit Groove' }).click();
 		await expect(page.getByLabel('Progression')).toHaveValue('');
 	});
 
@@ -361,5 +373,48 @@ test.describe('Drum Machine: Feel + Intensity', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 
 		await expect(page.getByLabel('Intensity')).toHaveValue('40');
+	});
+});
+
+test.describe('Drum Machine: compact Practice UI', () => {
+	test('the Groove Editor (progression/genre/arrangement/step grid) is collapsed by default, and toggles open/closed', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+
+		// Always visible: transport/feel/intensity, not the editing surface.
+		await expect(page.getByLabel('Metronome BPM')).toBeVisible();
+		await expect(page.getByLabel('Feel')).toBeVisible();
+		await expect(page.getByLabel('Intensity')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+		await expect(page.getByLabel('Progression')).not.toBeVisible();
+		await expect(page.getByLabel('Groove preset')).not.toBeVisible();
+		await expect(page.getByLabel('Kick step 1', { exact: true })).not.toBeVisible();
+
+		const toggle = page.getByRole('button', { name: 'Edit Groove' });
+		await toggle.click();
+		await expect(page.getByLabel('Progression')).toBeVisible();
+		await expect(page.getByLabel('Groove preset')).toBeVisible();
+		await expect(page.getByLabel('Kick step 1', { exact: true })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Hide Groove Editor' }).click();
+		await expect(page.getByLabel('Progression')).not.toBeVisible();
+	});
+
+	test('the compact row shows which pattern and bar is currently playing', async ({ page }) => {
+		await openScalePractice(page);
+		await page
+			.getByLabel('Groove preset')
+			.selectOption({ label: 'Chicago Shuffle — 12-Bar Blues' });
+		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
+
+		const readout = page.locator('.pattern-readout');
+		await expect(readout).toHaveText('Pattern A');
+
+		await page.getByRole('button', { name: 'Play' }).click();
+		await expect(readout).toHaveText(/Pattern \w.*Bar \d+\/12/);
+
+		await page.getByRole('button', { name: 'Stop' }).click();
 	});
 });

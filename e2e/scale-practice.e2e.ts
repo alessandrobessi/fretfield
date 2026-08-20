@@ -19,6 +19,9 @@ async function selectScalePractice(
 	scale: string
 ): Promise<void> {
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+	// Progression/chord-scale live behind the Groove Editor disclosure,
+	// collapsed by default (see AGENTS.md's compact Practice UI).
+	await page.getByRole('button', { name: 'Edit Groove' }).click();
 	await page.getByLabel('Scale Practice root').selectOption({ label: root });
 	await page.getByLabel('Progression').selectOption({ label: 'I–IV–V' });
 	await page.getByLabel('Chord 1 scale').selectOption({ label: scale });
