@@ -305,20 +305,7 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 		await page.getByLabel('Bars per chord').fill('1');
 		await page.keyboard.press('Tab');
 
-		const expectedChords = [
-			'C7',
-			'F7',
-			'C7',
-			'C7',
-			'F7',
-			'F7',
-			'C7',
-			'C7',
-			'G7',
-			'F7',
-			'C7',
-			'G7'
-		];
+		const expectedChords = ['C7', 'F7', 'C7', 'C7', 'F7', 'F7', 'C7', 'C7', 'G7', 'F7', 'C7', 'G7'];
 		for (let bar = 0; bar < expectedChords.length; bar++) {
 			await expect(page.locator('.arrangement-strip .bar-chord').nth(bar)).toHaveText(
 				expectedChords[bar]

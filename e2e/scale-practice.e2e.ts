@@ -179,3 +179,24 @@ test.describe('Scale Practice', () => {
 		).toBeVisible();
 	});
 });
+
+test.describe('Scale Practice: live harmonic context', () => {
+	test('shows the active chord and scale, and adds a bar position only while running', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await selectScalePractice(page, 'C', 'Major Pentatonic');
+
+		const context = page.locator('.harmonic-context');
+		await expect(context).toContainText('C');
+		await expect(context).toContainText('Major Pentatonic');
+		await expect(context).not.toContainText('Bar');
+
+		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
+		await page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' }).click();
+		await expect(context).toContainText(/Bar \d+\/\d+/);
+
+		await page.locator('.scale-practice-controls').getByRole('button', { name: 'Stop' }).click();
+		await expect(context).not.toContainText('Bar');
+	});
+});
