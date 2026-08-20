@@ -1,7 +1,8 @@
-import type { GroovePattern } from '$lib/audio/groove';
+import { coerceGroove } from '$lib/groove/migrate';
+import type { Groove } from '$lib/groove/types';
 import { createSavedCollectionStore } from '$lib/stores/saved-collection.svelte';
 
 export const STORAGE_KEY = 'fretfield-saved-grooves';
 
-/** Custom drum patterns built in DrumMachineControls.svelte, alongside the 5 curated genre presets. */
-export const savedGrooves = createSavedCollectionStore<GroovePattern>(STORAGE_KEY);
+/** Custom grooves built in DrumMachineControls.svelte, alongside the curated genre presets -- `coerceGroove` migrates anything saved under the pre-Groove-Engine single-pattern shape. */
+export const savedGrooves = createSavedCollectionStore<Groove>(STORAGE_KEY, coerceGroove);

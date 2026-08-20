@@ -6,16 +6,21 @@ import {
 	triggerOpenHat,
 	triggerSnare
 } from '$lib/audio/drum-voices';
-import { listGroovePresets } from '$lib/audio/groove-presets';
+import { coerceGroove } from '$lib/groove/migrate';
+import {
+	setPatternForRole,
+	setSwing as setGrooveSwing,
+	stepOffsetMs,
+	toggleStep as toggleGrooveStep
+} from '$lib/groove/pattern';
+import { listGroovePresets } from '$lib/groove/presets';
 import {
 	DRUM_VOICES,
 	STEPS_PER_BAR,
-	stepOffsetMs,
-	setSwing as setGrooveSwing,
-	toggleStep as toggleGrooveStep,
 	type DrumVoice,
+	type Groove,
 	type GroovePattern
-} from '$lib/audio/groove';
+} from '$lib/groove/types';
 import { midiToFrequency } from '$lib/audio/note-mapping';
 import { getChordDefinition } from '$lib/music/chords';
 import type { FretPosition } from '$lib/music/fretboard';
@@ -64,16 +69,17 @@ const SCHEDULE_AHEAD_SECONDS = 0.1;
 const CHORD_PAD_ROOT_MIDI = 60;
 const CHORD_PAD_GAIN = 0.5;
 
-const DEFAULT_PATTERN =
-	listGroovePresets().find((preset) => preset.id === 'straight-rock')?.pattern ??
-	listGroovePresets()[0].pattern;
+const DEFAULT_GROOVE =
+	listGroovePresets().find((preset) => preset.id === 'straight-rock')?.groove ??
+	listGroovePresets()[0].groove;
 
-const VOICE_TRIGGERS: Record<DrumVoice, (ctx: AudioContext, time: number) => void> = {
-	kick: triggerKick,
-	snare: triggerSnare,
-	closedHat: triggerClosedHat,
-	openHat: triggerOpenHat
-};
+const VOICE_TRIGGERS: Record<DrumVoice, (ctx: AudioContext, time: number, gain?: number) => void> =
+	{
+		kick: triggerKick,
+		snare: triggerSnare,
+		closedHat: triggerClosedHat,
+		openHat: triggerOpenHat
+	};
 
 export const STORAGE_KEY = 'fretfield-scale-practice';
 
@@ -81,7 +87,7 @@ interface PersistedScalePracticeConfig {
 	root: PitchClass | null;
 	zone: PracticeZone;
 	bpm: number;
-	pattern: GroovePattern;
+	groove: Groove;
 	/** null = no chord backing (the feature is purely additive/off by default). */
 	progressionTemplateId: string | null;
 	barsPerChord: number;
@@ -91,10 +97,34 @@ const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	root: null,
 	zone: { minFret: 0, maxFret: 12 },
 	bpm: DEFAULT_BPM,
-	pattern: DEFAULT_PATTERN,
+	groove: DEFAULT_GROOVE,
 	progressionTemplateId: null,
 	barsPerChord: DEFAULT_BARS_PER_CHORD
 };
+
+/**
+ * Reads defensively rather than trusting a stored blob to match today's
+ * shape exactly -- the Groove Engine's data model keeps growing new fields
+ * across milestones (see AGENTS.md), so every field falls back to its
+ * default individually instead of the whole config being discarded, and
+ * `groove` (still `pattern` in anything saved before the Groove Engine)
+ * goes through `coerceGroove` to migrate the pre-arrangement single-pattern
+ * shape.
+ */
+function loadPersistedConfig(): PersistedScalePracticeConfig {
+	const raw = readJSON<Record<string, unknown> | null>(STORAGE_KEY, null);
+	if (raw === null) return DEFAULT_CONFIG;
+	return {
+		root: (raw.root as PersistedScalePracticeConfig['root'] | undefined) ?? DEFAULT_CONFIG.root,
+		zone: (raw.zone as PracticeZone | undefined) ?? DEFAULT_CONFIG.zone,
+		bpm: (raw.bpm as number | undefined) ?? DEFAULT_CONFIG.bpm,
+		groove: coerceGroove(raw.groove ?? raw.pattern ?? DEFAULT_CONFIG.groove),
+		progressionTemplateId:
+			(raw.progressionTemplateId as string | null | undefined) ??
+			DEFAULT_CONFIG.progressionTemplateId,
+		barsPerChord: (raw.barsPerChord as number | undefined) ?? DEFAULT_CONFIG.barsPerChord
+	};
+}
 
 function clampBpm(bpm: number): number {
 	return Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(bpm)));
@@ -110,9 +140,9 @@ function clampBarsPerChord(bars: number): number {
  * `playedPositions`, always live, regardless of the drum machine — there is
  * no standalone manual scale anymore, only the ones a picked progression's
  * chords carry, per explicit product direction; see AGENTS.md), and the
- * drum machine itself (`running`/`bpm`/`pattern` — a synthesized
- * multi-voice groove, replacing the single quarter-note click by earlier
- * explicit product direction). Kept as its own store rather than a
+ * Groove Engine itself (`running`/`bpm`/`groove` — a synthesized multi-voice
+ * groove, replacing the single quarter-note click by earlier explicit
+ * product direction). Kept as its own store rather than a
  * `PracticeMode` inside `$lib/practice` — that engine's types and
  * AGENTS.md doctrine are both explicitly chord/progression-shaped and
  * timer-free; this store is scale/zone/tempo-shaped and owns the app's
@@ -125,12 +155,12 @@ function clampBarsPerChord(bars: number): number {
  * setTimeout's own imprecision.
  */
 export class ScalePracticeStore {
-	private readonly persisted = readJSON(STORAGE_KEY, DEFAULT_CONFIG);
+	private readonly persisted = loadPersistedConfig();
 
 	root = $state<PitchClass | null>(this.persisted.root);
 	zone = $state<PracticeZone>(this.persisted.zone);
 	bpm = $state(this.persisted.bpm);
-	pattern = $state<GroovePattern>(this.persisted.pattern);
+	groove = $state<Groove>(this.persisted.groove);
 	progressionTemplateId = $state<string | null>(this.persisted.progressionTemplateId);
 	barsPerChord = $state(this.persisted.barsPerChord);
 	// Never restored true — the drum machine, like Live Input's mic, always
@@ -157,6 +187,8 @@ export class ScalePracticeStore {
 	private currentStep = 0;
 	private currentBar = 0;
 	private nextStepTime = 0;
+	/** Whichever pattern the current bar's arrangement slot points at -- resolved once per bar (not per step) in `scheduler()`. */
+	private currentBarPattern: GroovePattern = this.groove.patterns.A;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
 	// (see the scheduler doc comment below), but the *highlight* has to flip at
 	// the same wall-clock moment the chord actually starts sounding, which a
@@ -247,19 +279,21 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
-	/** Bulk-replaces the whole pattern — used by genre-preset selection and loading a saved groove. */
-	setPattern(pattern: GroovePattern): void {
-		this.pattern = pattern;
+	/** Bulk-replaces the whole groove — used by genre-preset selection and loading a saved groove. */
+	setGroove(groove: Groove): void {
+		this.groove = groove;
 		this.persist();
 	}
 
+	/** Edits pattern role `A` -- the only role reachable through today's UI (multi-role editing is a later milestone). */
 	toggleStep(voice: DrumVoice, index: number): void {
-		this.pattern = toggleGrooveStep(this.pattern, voice, index);
+		const patternA = toggleGrooveStep(this.groove.patterns.A, voice, index);
+		this.groove = setPatternForRole(this.groove, 'A', patternA);
 		this.persist();
 	}
 
 	setSwing(swing: number): void {
-		this.pattern = setGrooveSwing(this.pattern, swing);
+		this.groove = setGrooveSwing(this.groove, swing);
 		this.persist();
 	}
 
@@ -308,10 +342,16 @@ export class ScalePracticeStore {
 			root: this.root,
 			zone: this.zone,
 			bpm: this.bpm,
-			pattern: this.pattern,
+			groove: this.groove,
 			progressionTemplateId: this.progressionTemplateId,
 			barsPerChord: this.barsPerChord
 		});
+	}
+
+	/** Whichever pattern `bar`'s slot in the arrangement points at. */
+	private activePatternForBar(bar: number): GroovePattern {
+		const role = this.groove.arrangement[bar % this.groove.arrangement.length];
+		return this.groove.patterns[role];
 	}
 
 	/** Starts (or stops) only the drum machine — has no effect on which notes are highlighted. */
@@ -324,6 +364,7 @@ export class ScalePracticeStore {
 		this.running = true;
 		this.currentStep = 0;
 		this.currentBar = 0;
+		this.currentBarPattern = this.activePatternForBar(0);
 		this.nextStepTime = this.audioContext.currentTime + 0.05;
 		this.schedulerHandle = setInterval(() => this.scheduler(), SCHEDULER_INTERVAL_MS);
 	}
@@ -349,6 +390,7 @@ export class ScalePracticeStore {
 		while (this.nextStepTime < ctx.currentTime + SCHEDULE_AHEAD_SECONDS) {
 			if (this.currentStep === 0) {
 				this.scheduleBarChord(this.currentBar, this.nextStepTime);
+				this.currentBarPattern = this.activePatternForBar(this.currentBar);
 				this.currentBar += 1;
 			}
 			this.scheduleStep(this.currentStep, this.nextStepTime);
@@ -361,10 +403,11 @@ export class ScalePracticeStore {
 	private scheduleStep(stepIndex: number, gridTime: number): void {
 		const ctx = this.audioContext;
 		if (ctx === null) return;
-		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, this.pattern.swing) / 1000;
+		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, this.groove.swing) / 1000;
 		for (const voice of DRUM_VOICES) {
-			if (this.pattern.steps[voice][stepIndex]) {
-				VOICE_TRIGGERS[voice](ctx, swungTime);
+			const step = this.currentBarPattern.steps[voice][stepIndex];
+			if (step.velocity > 0) {
+				VOICE_TRIGGERS[voice](ctx, swungTime, step.velocity);
 			}
 		}
 

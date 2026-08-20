@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { DRUM_VOICES, type DrumVoice, type GroovePattern } from '$lib/audio/groove';
-	import { listGroovePresets } from '$lib/audio/groove-presets';
+	import { DRUM_VOICES, type DrumVoice, type Groove } from '$lib/groove/types';
+	import { listGroovePresets } from '$lib/groove/presets';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
 	import { listScales, suggestedScalesFor } from '$lib/music/scales';
@@ -30,7 +30,7 @@
 	function confirmSave(): void {
 		const name = newGrooveName.trim();
 		if (!name) return;
-		savedGrooves.save(name, scalePractice.pattern);
+		savedGrooves.save(name, scalePractice.groove);
 		savingAs = false;
 	}
 
@@ -38,7 +38,7 @@
 		savingAs = false;
 	}
 
-	function startRenaming(item: SavedItem<GroovePattern>): void {
+	function startRenaming(item: SavedItem<Groove>): void {
 		renamingId = item.id;
 		renameValue = item.name;
 	}
@@ -75,11 +75,11 @@
 		const id = (event.currentTarget as HTMLSelectElement).value;
 		const preset = presets.find((p) => p.id === id);
 		if (preset) {
-			scalePractice.setPattern(preset.pattern);
+			scalePractice.setGroove(preset.groove);
 			return;
 		}
 		const saved = savedGrooves.items.find((item) => item.id === id);
-		if (saved) scalePractice.setPattern(saved.data);
+		if (saved) scalePractice.setGroove(saved.data);
 	}
 
 	function toggleMetronome(): void {
@@ -183,10 +183,10 @@
 					aria-label="Swing"
 					min="0"
 					max="100"
-					value={scalePractice.pattern.swing}
+					value={scalePractice.groove.swing}
 					onchange={handleSwingChange}
 				/>
-				<span class="swing-readout">{scalePractice.pattern.swing}%</span>
+				<span class="swing-readout">{scalePractice.groove.swing}%</span>
 			</span>
 		</label>
 		{#if savingAs}
@@ -228,18 +228,18 @@
 			<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>
 				<span class="voice-label">{VOICE_LABELS[voice]}</span>
 				<div class="steps">
-					{#each scalePractice.pattern.steps[voice] as active, index (index)}
+					{#each scalePractice.groove.patterns.A.steps[voice] as step, index (index)}
 						<button
 							type="button"
 							class="step"
-							class:active
+							class:active={step.velocity > 0}
 							class:beat-start={index % 4 === 0}
 							class:current={index === scalePractice.activeStepIndex}
 							aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
-							aria-pressed={active}
+							aria-pressed={step.velocity > 0}
 							onclick={() => scalePractice.toggleStep(voice, index)}
 						>
-							{#if active}
+							{#if step.velocity > 0}
 								<span class="dot" aria-hidden="true"></span>
 							{/if}
 						</button>
@@ -273,7 +273,7 @@
 							<button
 								type="button"
 								class="saved-name"
-								onclick={() => scalePractice.setPattern(item.data)}
+								onclick={() => scalePractice.setGroove(item.data)}
 							>
 								{item.name}
 							</button>

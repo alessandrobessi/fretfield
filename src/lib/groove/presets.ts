@@ -1,18 +1,19 @@
-import { createEmptyGroove, type DrumVoice, type GroovePattern } from './groove';
+import { createEmptyGroove } from './pattern';
+import type { DrumVoice, Groove } from './types';
 
 export interface GroovePreset {
 	id: string;
 	label: string;
-	pattern: GroovePattern;
+	groove: Groove;
 }
 
-function patternFrom(hits: Partial<Record<DrumVoice, number[]>>, swing = 0): GroovePattern {
-	const pattern = createEmptyGroove();
-	pattern.swing = swing;
+function grooveFrom(hits: Partial<Record<DrumVoice, number[]>>, swing = 0): Groove {
+	const groove = createEmptyGroove();
+	const patternA = groove.patterns.A;
 	for (const [voice, steps] of Object.entries(hits) as [DrumVoice, number[]][]) {
-		for (const step of steps) pattern.steps[voice][step] = true;
+		for (const step of steps) patternA.steps[voice][step] = { velocity: 0.7 };
 	}
-	return pattern;
+	return { ...groove, patterns: { ...groove.patterns, A: patternA }, swing };
 }
 
 const GROOVE_PRESETS: GroovePreset[] = [
@@ -20,12 +21,12 @@ const GROOVE_PRESETS: GroovePreset[] = [
 		// The old single-click metronome's spiritual successor -- one kick per beat, nothing else.
 		id: 'click',
 		label: 'Click',
-		pattern: patternFrom({ kick: [0, 4, 8, 12] })
+		groove: grooveFrom({ kick: [0, 4, 8, 12] })
 	},
 	{
 		id: 'straight-rock',
 		label: 'Straight / Rock',
-		pattern: patternFrom({
+		groove: grooveFrom({
 			kick: [0, 8],
 			snare: [4, 12],
 			closedHat: [0, 2, 4, 6, 8, 10, 12, 14]
@@ -34,7 +35,7 @@ const GROOVE_PRESETS: GroovePreset[] = [
 	{
 		id: 'blues-shuffle',
 		label: 'Blues Shuffle',
-		pattern: patternFrom(
+		groove: grooveFrom(
 			{
 				kick: [0, 8],
 				snare: [4, 12],
@@ -46,7 +47,7 @@ const GROOVE_PRESETS: GroovePreset[] = [
 	{
 		id: 'jazz-swing',
 		label: 'Jazz Swing',
-		pattern: patternFrom(
+		groove: grooveFrom(
 			{
 				kick: [0],
 				snare: [6],
@@ -60,7 +61,7 @@ const GROOVE_PRESETS: GroovePreset[] = [
 	{
 		id: 'funk',
 		label: 'Funk',
-		pattern: patternFrom({
+		groove: grooveFrom({
 			kick: [0, 6, 10],
 			snare: [4, 12],
 			// Dense 16th-note hats, not swing timing, carry funk's character here.

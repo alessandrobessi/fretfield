@@ -16,10 +16,25 @@ export interface SavedItem<T> {
  * store instance per call, following the exact shape every store in the
  * Local Practice Persistence work already used (`readJSON`/`writeJSON`,
  * synchronous persist on every mutation, no `$effect`).
+ *
+ * `migrateData`, when given, runs over every persisted item's `data` on
+ * load — lets a store whose saved shape has since evolved (e.g. saved
+ * grooves moving to the Groove Engine's multi-pattern model) keep reading
+ * items a user saved under the old shape, instead of them silently
+ * vanishing.
  */
-export function createSavedCollectionStore<T>(storageKey: string) {
+export function createSavedCollectionStore<T>(
+	storageKey: string,
+	migrateData?: (raw: unknown) => T
+) {
+	function loadItems(): SavedItem<T>[] {
+		const stored = readJSON<SavedItem<unknown>[]>(storageKey, []);
+		if (!migrateData) return stored as SavedItem<T>[];
+		return stored.map((item) => ({ ...item, data: migrateData(item.data) }));
+	}
+
 	class SavedCollectionStore {
-		items = $state<SavedItem<T>[]>(readJSON(storageKey, []));
+		items = $state<SavedItem<T>[]>(loadItems());
 
 		save(name: string, data: T): SavedItem<T> {
 			// A plain, immediately-stringified timestamp, never a mutable Date
