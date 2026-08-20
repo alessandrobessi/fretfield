@@ -113,7 +113,7 @@ test.describe('Local Practice Persistence: Scale Practice resume', () => {
 		await expect(page.getByLabel('Zone start fret')).toHaveValue('2');
 		await expect(page.getByLabel('Zone end fret')).toHaveValue('9');
 		await expect(page.getByLabel('Metronome BPM')).toHaveValue('110');
-		await expect(page.getByRole('button', { name: 'Start Metronome' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 	});
 });
 

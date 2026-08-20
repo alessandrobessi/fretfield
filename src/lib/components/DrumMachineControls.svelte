@@ -149,7 +149,7 @@
 			class:active={scalePractice.running}
 			onclick={toggleMetronome}
 		>
-			{scalePractice.running ? 'Stop Metronome' : 'Start Metronome'}
+			{scalePractice.running ? 'Stop' : 'Play'}
 		</button>
 		{#if scalePractice.running}
 			<span class="beat-readout">♩ = {scalePractice.bpm}</span>

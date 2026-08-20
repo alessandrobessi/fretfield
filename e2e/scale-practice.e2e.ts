@@ -31,7 +31,7 @@ test.describe('Scale Practice', () => {
 		await expect(page.getByTestId('fret-A-1')).not.toHaveClass(/scale-practice-note/);
 
 		await expect(
-			page.locator('.scale-practice-controls').getByRole('button', { name: 'Start Metronome' })
+			page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' })
 		).toBeVisible();
 	});
 
@@ -93,15 +93,13 @@ test.describe('Scale Practice', () => {
 
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 
-		const toggle = page
-			.locator('.scale-practice-controls')
-			.getByRole('button', { name: /Metronome/ });
+		const toggle = page.locator('.scale-practice-controls .toggle');
 		await toggle.click();
-		await expect(toggle).toHaveText('Stop Metronome');
+		await expect(toggle).toHaveText('Stop');
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 
 		await toggle.click();
-		await expect(toggle).toHaveText('Start Metronome');
+		await expect(toggle).toHaveText('Play');
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 	});
 
@@ -162,19 +160,16 @@ test.describe('Scale Practice', () => {
 		await page.goto('/');
 		await selectScalePractice(page, 'C', 'Major Pentatonic');
 
-		await page
-			.locator('.scale-practice-controls')
-			.getByRole('button', { name: 'Start Metronome' })
-			.click();
+		await page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' }).click();
 		await expect(
-			page.locator('.scale-practice-controls').getByRole('button', { name: 'Stop Metronome' })
+			page.locator('.scale-practice-controls').getByRole('button', { name: 'Stop' })
 		).toBeVisible();
 
 		await page.getByRole('button', { name: '← Back to Practice' }).click();
 		await page.getByRole('button', { name: /^Scales/ }).click();
 
 		await expect(
-			page.locator('.scale-practice-controls').getByRole('button', { name: 'Start Metronome' })
+			page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' })
 		).toBeVisible();
 	});
 });

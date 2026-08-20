@@ -76,13 +76,13 @@ test.describe('Drum Machine', () => {
 	test('Start/Stop toggles the drum machine', async ({ page }) => {
 		await openScalePractice(page);
 
-		const toggle = page.getByRole('button', { name: 'Start Metronome' });
+		const toggle = page.getByRole('button', { name: 'Play' });
 		await toggle.click();
-		await expect(page.getByRole('button', { name: 'Stop Metronome' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
 		await expect(page.getByText(/♩ = \d+/)).toBeVisible();
 
-		await page.getByRole('button', { name: 'Stop Metronome' }).click();
-		await expect(page.getByRole('button', { name: 'Start Metronome' })).toBeVisible();
+		await page.getByRole('button', { name: 'Stop' }).click();
+		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 	});
 
 	test('save a custom groove and reload it via My Grooves', async ({ page }) => {
