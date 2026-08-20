@@ -168,4 +168,27 @@ test.describe('Drum Machine: chord-progression backing', () => {
 		await page.getByLabel('Progression').selectOption({ label: 'E2E Backing Progression' });
 		await expect(page.getByLabel('Progression')).not.toHaveValue('');
 	});
+
+	test('the currently sounding chord is highlighted while playing, and clears on stop', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		// A fast tempo and one bar per chord keeps the wait for the first
+		// highlight change short and deterministic.
+		await page.getByLabel('Metronome BPM').fill('240');
+		await page.getByLabel('Bars per chord').fill('1');
+		await page.keyboard.press('Tab');
+
+		const strip = page.locator('.chord-strip');
+		await expect(strip.locator('.chord-chip')).toHaveCount(3);
+		await expect(strip.locator('.chord-chip.active')).toHaveCount(0);
+
+		await page.getByRole('button', { name: 'Play' }).click();
+		await expect(strip.locator('.chord-chip.active')).toHaveText('Dm7', { timeout: 2000 });
+
+		await page.getByRole('button', { name: 'Stop' }).click();
+		await expect(strip.locator('.chord-chip.active')).toHaveCount(0);
+	});
 });

@@ -2,6 +2,7 @@
 	import { DRUM_VOICES, type DrumVoice, type GroovePattern } from '$lib/audio/groove';
 	import { listGroovePresets } from '$lib/audio/groove-presets';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
+	import { resolvedChordSymbol } from '$lib/music/progressions';
 	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
@@ -179,6 +180,20 @@
 		</label>
 	</div>
 
+	{#if scalePractice.resolvedProgression.length > 0}
+		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
+			{#each scalePractice.resolvedProgression as chord, index (index)}
+				<li
+					class="chord-chip"
+					class:active={index === scalePractice.activeChordIndex}
+					aria-current={index === scalePractice.activeChordIndex}
+				>
+					{resolvedChordSymbol(chord)}
+				</li>
+			{/each}
+		</ol>
+	{/if}
+
 	<div class="step-grid">
 		{#each DRUM_VOICES as voice (voice)}
 			<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>
@@ -317,6 +332,32 @@
 		gap: 1rem;
 		padding-top: 0.6rem;
 		border-top: 1px dashed var(--fret-border, #ddd3f7);
+	}
+
+	.chord-strip {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.chord-chip {
+		font-weight: 700;
+		font-size: 0.85rem;
+		padding: 0.3rem 0.7rem;
+		border-radius: 8px;
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+		border: 2px solid var(--fret-border, #ddd3f7);
+	}
+
+	.chord-chip.active {
+		background: linear-gradient(135deg, var(--hero-from, #7c3aed), var(--hero-to, #ec4899));
+		color: #fff;
+		border-color: transparent;
+		box-shadow: 0 2px 8px rgb(124 58 237 / 0.35);
 	}
 
 	.swing-control {

@@ -127,6 +127,8 @@ export class ScalePracticeStore {
 	// Never restored true — the drum machine, like Live Input's mic, always
 	// requires an explicit restart rather than resuming audio on load.
 	running = $state(false);
+	/** Index into `resolvedProgression` currently sounding — null while stopped or no progression is selected. */
+	activeChordIndex = $state<number | null>(null);
 
 	private readonly tuning: Tuning;
 	private readonly fretCount: number;
@@ -135,6 +137,13 @@ export class ScalePracticeStore {
 	private currentStep = 0;
 	private currentBar = 0;
 	private nextStepTime = 0;
+	// Visual-only timers: audio timing always comes from AudioContext.currentTime
+	// (see the scheduler doc comment below), but the *highlight* has to flip at
+	// the same wall-clock moment the chord actually starts sounding, which a
+	// setTimeout keyed off (gridTime - ctx.currentTime) approximates closely
+	// enough for a UI cue. Tracked so stop()/a progression change can cancel
+	// any still-pending ones instead of leaving a stale highlight to fire late.
+	private chordHighlightTimeouts: ReturnType<typeof setTimeout>[] = [];
 
 	constructor(tuning: Tuning = STANDARD_4_STRING_TUNING, fretCount: number = DEFAULT_FRET_COUNT) {
 		this.tuning = tuning;
@@ -213,12 +222,21 @@ export class ScalePracticeStore {
 
 	setProgressionTemplate(id: string | null): void {
 		this.progressionTemplateId = id;
+		this.resetActiveChordHighlight();
 		this.persist();
 	}
 
 	setBarsPerChord(bars: number): void {
 		this.barsPerChord = clampBarsPerChord(bars);
+		this.resetActiveChordHighlight();
 		this.persist();
+	}
+
+	/** Clears the highlight and cancels any pending visual update -- so a stale index never lingers past a stop or a progression/bars change. */
+	private resetActiveChordHighlight(): void {
+		for (const timeoutId of this.chordHighlightTimeouts) clearTimeout(timeoutId);
+		this.chordHighlightTimeouts = [];
+		this.activeChordIndex = null;
 	}
 
 	private persist(): void {
@@ -255,6 +273,7 @@ export class ScalePracticeStore {
 		}
 		void this.audioContext?.close();
 		this.audioContext = null;
+		this.resetActiveChordHighlight();
 	}
 
 	/** Schedules every step whose (unswung) grid time falls within the lookahead window. */
@@ -306,6 +325,13 @@ export class ScalePracticeStore {
 		const barDurationSeconds = (60 / this.bpm / 4) * STEPS_PER_BAR;
 		const durationSeconds = barDurationSeconds * this.barsPerChord;
 		triggerChordPad(ctx, gridTime, frequenciesHz, durationSeconds, CHORD_PAD_GAIN);
+
+		const delayMs = Math.max(0, (gridTime - ctx.currentTime) * 1000);
+		const timeoutId = setTimeout(() => {
+			this.activeChordIndex = chordIndex;
+			this.chordHighlightTimeouts = this.chordHighlightTimeouts.filter((id) => id !== timeoutId);
+		}, delayMs);
+		this.chordHighlightTimeouts = [...this.chordHighlightTimeouts, timeoutId];
 	}
 }
 
