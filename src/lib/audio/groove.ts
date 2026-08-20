@@ -40,13 +40,16 @@ export function setSwing(pattern: GroovePattern, swing: number): GroovePattern {
 }
 
 /**
- * Classic drum-machine swing: even-indexed (on-beat) 16th notes are never
- * delayed. Odd-indexed (offbeat, the "and" of each 8th-note pair) steps
- * slide from the straight halfway point (0% swing) toward the triplet
- * position two-thirds of the way through the 8th-note span (100% swing).
+ * Swing operates at 8th-note resolution, not 16th -- it delays the "and" of
+ * each beat (step index 2 within every 4-step quarter-note group: absolute
+ * steps 2, 6, 10, 14), sliding it from the straight halfway point (0% swing)
+ * toward the triplet position two-thirds of the way through the beat (100%
+ * swing). This is the classic blues-shuffle/jazz-swing feel; genre patterns
+ * that want a straight 16th-note character (e.g. funk) just use 0 swing
+ * rather than a second swing resolution.
  */
 export function stepOffsetMs(stepIndex: number, bpm: number, swing: number): number {
-	if (stepIndex % 2 === 0) return 0;
-	const stepDurationMs = 60_000 / bpm / 4; // 4 sixteenth notes per beat
-	return stepDurationMs * (swing / 100) * (1 / 3);
+	if (stepIndex % 4 !== 2) return 0;
+	const beatDurationMs = 60_000 / bpm;
+	return beatDurationMs * (1 / 6) * (swing / 100);
 }
