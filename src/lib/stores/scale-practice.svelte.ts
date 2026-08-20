@@ -1,3 +1,4 @@
+import { triggerChordPad } from '$lib/audio/chord-voices';
 import {
 	resolveAudioContextConstructor,
 	triggerClosedHat,
@@ -15,7 +16,10 @@ import {
 	type DrumVoice,
 	type GroovePattern
 } from '$lib/audio/groove';
+import { midiToFrequency } from '$lib/audio/note-mapping';
+import { getChordDefinition } from '$lib/music/chords';
 import type { FretPosition } from '$lib/music/fretboard';
+import { intervalSemitones } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
 import { buildProgression, type ResolvedChord } from '$lib/music/progressions';
 import { getScaleDefinition, type ScaleDefinition } from '$lib/music/scales';
@@ -44,6 +48,12 @@ const MAX_BARS_PER_CHORD = 8;
 // reaches the audio.
 const SCHEDULER_INTERVAL_MS = 25;
 const SCHEDULE_AHEAD_SECONDS = 0.1;
+
+// The chord pad's fixed voicing octave -- C4, comfortably above the bass's
+// own range (the standard 4-string tuning tops out at G3, MIDI 43+fretCount)
+// so the pad backs the instrument being practiced rather than masking it.
+const CHORD_PAD_ROOT_MIDI = 60;
+const CHORD_PAD_GAIN = 0.5;
 
 const DEFAULT_PATTERN =
 	listGroovePresets().find((preset) => preset.id === 'straight-rock')?.pattern ??
@@ -123,6 +133,7 @@ export class ScalePracticeStore {
 	private audioContext: AudioContext | null = null;
 	private schedulerHandle: ReturnType<typeof setInterval> | null = null;
 	private currentStep = 0;
+	private currentBar = 0;
 	private nextStepTime = 0;
 
 	constructor(tuning: Tuning = STANDARD_4_STRING_TUNING, fretCount: number = DEFAULT_FRET_COUNT) {
@@ -231,6 +242,7 @@ export class ScalePracticeStore {
 		this.audioContext = new AudioContextCtor();
 		this.running = true;
 		this.currentStep = 0;
+		this.currentBar = 0;
 		this.nextStepTime = this.audioContext.currentTime + 0.05;
 		this.schedulerHandle = setInterval(() => this.scheduler(), SCHEDULER_INTERVAL_MS);
 	}
@@ -251,6 +263,10 @@ export class ScalePracticeStore {
 		if (!this.running || ctx === null) return;
 
 		while (this.nextStepTime < ctx.currentTime + SCHEDULE_AHEAD_SECONDS) {
+			if (this.currentStep === 0) {
+				this.scheduleBarChord(this.currentBar, this.nextStepTime);
+				this.currentBar += 1;
+			}
 			this.scheduleStep(this.currentStep, this.nextStepTime);
 			const stepDurationSeconds = 60 / this.bpm / 4; // 4 sixteenth notes per beat
 			this.currentStep = (this.currentStep + 1) % STEPS_PER_BAR;
@@ -267,6 +283,29 @@ export class ScalePracticeStore {
 				VOICE_TRIGGERS[voice](ctx, swungTime);
 			}
 		}
+	}
+
+	/**
+	 * Triggers the pad for the chord starting at `bar`, held for
+	 * `barsPerChord` bars -- a no-op on every bar that isn't the start of a
+	 * new chord's span, and entirely a no-op when no progression is selected.
+	 */
+	private scheduleBarChord(bar: number, gridTime: number): void {
+		const ctx = this.audioContext;
+		const progression = this.resolvedProgression;
+		if (ctx === null || progression.length === 0) return;
+		if (bar % this.barsPerChord !== 0) return;
+
+		const chordIndex = Math.floor(bar / this.barsPerChord) % progression.length;
+		const chord = progression[chordIndex];
+		const { required } = getChordDefinition(chord.chordId);
+		const frequenciesHz = required.map((interval) =>
+			midiToFrequency(CHORD_PAD_ROOT_MIDI + chord.root + intervalSemitones(interval))
+		);
+
+		const barDurationSeconds = (60 / this.bpm / 4) * STEPS_PER_BAR;
+		const durationSeconds = barDurationSeconds * this.barsPerChord;
+		triggerChordPad(ctx, gridTime, frequenciesHz, durationSeconds, CHORD_PAD_GAIN);
 	}
 }
 
