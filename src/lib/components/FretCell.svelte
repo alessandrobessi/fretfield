@@ -72,9 +72,14 @@
 	// amber the rest of the app already uses for "root" everywhere else
 	// (Chord Field's star pill, the root chip), so the color reads
 	// consistently across modes even though Scale Practice has no shared
-	// role-classification pill of its own.
+	// role-classification pill of its own. Keyed against `displayRoot`, not
+	// `root` directly -- while a progression chord's scale is showing, this
+	// follows that chord's own root (see AGENTS.md), reverting to the
+	// practice root the moment no chord-scale is active.
 	const isScalePracticeRoot = $derived(
-		isScalePracticeMode && scalePractice.root !== null && position.pitchClass === scalePractice.root
+		isScalePracticeMode &&
+			scalePractice.displayRoot !== null &&
+			position.pitchClass === scalePractice.displayRoot
 	);
 	// The zone is always defined (a sensible default even before configuring a
 	// scale), so dimming applies as soon as the tab is active — it previews
@@ -83,21 +88,21 @@
 		isScalePracticeMode &&
 			(position.fret < scalePractice.zone.minFret || position.fret > scalePractice.zone.maxFret)
 	);
-	// Scale Practice has exactly one root (unlike Scale Blocks' several), so
-	// "interval relative to root" is well-defined here — computed locally
-	// against `scalePractice.root`, never `fretfield.root`, same
-	// independent-state reasoning as the layers above. Always shown
-	// alongside the note name (not gated on the shared Intervals/Notes/Both
-	// toggle) per the specific request: the interval should read in
-	// addition to the note name, not instead of it.
+	// Scale Practice has exactly one displayed root at a time (unlike Scale
+	// Blocks' several), so "interval relative to root" is well-defined here —
+	// computed locally against `scalePractice.displayRoot`, never
+	// `fretfield.root`, same independent-state reasoning as the layers above.
+	// Always shown alongside the note name (not gated on the shared
+	// Intervals/Notes/Both toggle) per the specific request: the interval
+	// should read in addition to the note name, not instead of it.
 	const scalePracticeInterval = $derived(
-		isScalePracticeMode && scalePractice.root !== null
-			? intervalFromRoot(scalePractice.root, position.pitchClass)
+		isScalePracticeMode && scalePractice.displayRoot !== null
+			? intervalFromRoot(scalePractice.displayRoot, position.pitchClass)
 			: null
 	);
 	const scalePracticeNoteName = $derived(
-		isScalePracticeMode && scalePractice.root !== null
-			? noteNameForPosition(scalePractice.root, position.pitchClass)
+		isScalePracticeMode && scalePractice.displayRoot !== null
+			? noteNameForPosition(scalePractice.displayRoot, position.pitchClass)
 			: null
 	);
 	// "R" for the root specifically (not "1") — the one deviation from the

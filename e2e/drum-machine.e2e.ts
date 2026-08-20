@@ -169,7 +169,7 @@ test.describe('Drum Machine: chord-progression backing', () => {
 		await expect(page.getByLabel('Progression')).not.toHaveValue('');
 	});
 
-	test('the currently sounding chord is highlighted while playing, and clears on stop', async ({
+	test('playback advances the highlighted chord and freezes on it when stopped', async ({
 		page
 	}) => {
 		await openScalePractice(page);
@@ -183,12 +183,56 @@ test.describe('Drum Machine: chord-progression backing', () => {
 
 		const strip = page.locator('.chord-strip');
 		await expect(strip.locator('.chord-chip')).toHaveCount(3);
-		await expect(strip.locator('.chord-chip.active')).toHaveCount(0);
+		// Chord 1 previews as soon as the progression is picked, before Play.
+		await expect(strip.locator('.chord-chip.active')).toHaveText('Dm7');
 
 		await page.getByRole('button', { name: 'Play' }).click();
-		await expect(strip.locator('.chord-chip.active')).toHaveText('Dm7', { timeout: 2000 });
+		await expect(strip.locator('.chord-chip.active')).toHaveText('G7', { timeout: 2000 });
 
 		await page.getByRole('button', { name: 'Stop' }).click();
-		await expect(strip.locator('.chord-chip.active')).toHaveCount(0);
+		// Frozen on the last-sounding chord, not cleared.
+		await expect(strip.locator('.chord-chip.active')).toHaveCount(1);
+		await expect(strip.locator('.chord-chip.active')).toHaveText('G7');
+	});
+});
+
+test.describe('Drum Machine: per-chord scales', () => {
+	test("picking a progression immediately previews chord 1's suggested scale, before any Play", async ({
+		page
+	}) => {
+		await openScalePractice(page);
+		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+
+		// Chord 1 is Dm7 -- its suggested default is D Minor Pentatonic, so the
+		// root marker moves to D even though playback never started.
+		await expect(page.getByTestId('fret-D-0')).toHaveClass(/scale-practice-root/);
+		await expect(page.getByTestId('fret-D-0').locator('.label')).toContainText('R');
+		await expect(page.locator('.chord-strip .chord-chip.active')).toHaveText('Dm7');
+	});
+
+	test('clicking a chord row moves the fretboard preview to that chord', async ({ page }) => {
+		await openScalePractice(page);
+		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+
+		await page.locator('.chord-strip').getByRole('button', { name: 'G7', exact: true }).click();
+
+		await expect(page.getByTestId('fret-G-0')).toHaveClass(/scale-practice-root/);
+		await expect(page.locator('.chord-strip .chord-chip.active')).toHaveText('G7');
+	});
+
+	test("changing a chord's scale changes what's highlighted for it", async ({ page }) => {
+		await openScalePractice(page);
+		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+
+		// Chord 1 (Dm7) defaults to D Minor Pentatonic, which excludes E.
+		await expect(page.getByTestId('fret-E-0')).not.toHaveClass(/scale-practice-note/);
+
+		await page.getByLabel('Chord 1 scale').selectOption({ label: 'Dorian' });
+
+		// D Dorian includes E as its 2nd degree.
+		await expect(page.getByTestId('fret-E-0')).toHaveClass(/scale-practice-note/);
 	});
 });

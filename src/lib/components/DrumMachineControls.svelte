@@ -3,6 +3,7 @@
 	import { listGroovePresets } from '$lib/audio/groove-presets';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
+	import { listScales, suggestedScalesFor } from '$lib/music/scales';
 	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
@@ -63,6 +64,11 @@
 
 	function handleBarsPerChordChange(event: Event): void {
 		scalePractice.setBarsPerChord(Number((event.currentTarget as HTMLInputElement).value));
+	}
+
+	function handleChordScaleChange(index: number, event: Event): void {
+		const value = (event.currentTarget as HTMLSelectElement).value;
+		scalePractice.setProgressionChordScale(index, value === '' ? null : value);
 	}
 
 	function handlePresetChange(event: Event): void {
@@ -183,12 +189,35 @@
 	{#if scalePractice.resolvedProgression.length > 0}
 		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
 			{#each scalePractice.resolvedProgression as chord, index (index)}
-				<li
-					class="chord-chip"
-					class:active={index === scalePractice.activeChordIndex}
-					aria-current={index === scalePractice.activeChordIndex}
-				>
-					{resolvedChordSymbol(chord)}
+				{@const suggested = new Set(suggestedScalesFor(chord.chordId).map((s) => s.id))}
+				<li class="chord-row">
+					<button
+						type="button"
+						class="chord-chip"
+						class:active={index === scalePractice.activeChordIndex}
+						aria-current={index === scalePractice.activeChordIndex}
+						onclick={() => scalePractice.setActiveChordIndex(index)}
+					>
+						{resolvedChordSymbol(chord)}
+					</button>
+					<select
+						class="chord-scale-select"
+						aria-label={`Chord ${index + 1} scale`}
+						value={scalePractice.progressionChordScales[index] ?? ''}
+						onchange={(event) => handleChordScaleChange(index, event)}
+					>
+						<option value="">—</option>
+						<optgroup label="Suggested">
+							{#each suggestedScalesFor(chord.chordId) as scale (scale.id)}
+								<option value={scale.id}>{scale.label}</option>
+							{/each}
+						</optgroup>
+						<optgroup label="All scales">
+							{#each listScales().filter((s) => !suggested.has(s.id)) as scale (scale.id)}
+								<option value={scale.id}>{scale.label}</option>
+							{/each}
+						</optgroup>
+					</select>
 				</li>
 			{/each}
 		</ol>
@@ -336,14 +365,22 @@
 
 	.chord-strip {
 		display: flex;
-		flex-wrap: wrap;
+		flex-direction: column;
 		gap: 0.4rem;
 		list-style: none;
 		margin: 0;
 		padding: 0;
 	}
 
+	.chord-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+
 	.chord-chip {
+		font: inherit;
 		font-weight: 700;
 		font-size: 0.85rem;
 		padding: 0.3rem 0.7rem;
@@ -351,6 +388,17 @@
 		background: var(--fret-bg, #fff);
 		color: var(--fret-fg, #241a3d);
 		border: 2px solid var(--fret-border, #ddd3f7);
+		cursor: pointer;
+		min-width: 4.5rem;
+	}
+
+	.chord-chip:hover {
+		border-color: var(--nut, #7c3aed);
+	}
+
+	.chord-chip:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 1px;
 	}
 
 	.chord-chip.active {
@@ -358,6 +406,11 @@
 		color: #fff;
 		border-color: transparent;
 		box-shadow: 0 2px 8px rgb(124 58 237 / 0.35);
+	}
+
+	.chord-scale-select {
+		font-size: 0.8rem;
+		padding: 0.3rem 0.5rem;
 	}
 
 	.swing-control {

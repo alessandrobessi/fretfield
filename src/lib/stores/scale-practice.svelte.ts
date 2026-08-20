@@ -22,7 +22,7 @@ import type { FretPosition } from '$lib/music/fretboard';
 import { intervalSemitones } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
 import { buildProgression, type ResolvedChord } from '$lib/music/progressions';
-import { getScaleDefinition, type ScaleDefinition } from '$lib/music/scales';
+import { getScaleDefinition, suggestedScalesFor, type ScaleDefinition } from '$lib/music/scales';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { positionsForPitchClass, scalePositions } from '$lib/scale-practice/positions';
 import type { PracticeZone } from '$lib/scale-practice/types';
@@ -127,8 +127,17 @@ export class ScalePracticeStore {
 	// Never restored true — the drum machine, like Live Input's mic, always
 	// requires an explicit restart rather than resuming audio on load.
 	running = $state(false);
-	/** Index into `resolvedProgression` currently sounding — null while stopped or no progression is selected. */
-	activeChordIndex = $state<number | null>(null);
+	/**
+	 * Index into `resolvedProgression` — both "the chord currently sounding"
+	 * (while playing) and "the chord being previewed" (while stopped), same
+	 * dual role `fretfield.svelte.ts`'s own `activeChordIndex` plays for
+	 * Explore's Progression lens. Always a valid index, never null -- clicking
+	 * a chord (or picking a progression) sets it even with the drum machine
+	 * stopped, and stopping playback freezes it rather than clearing it.
+	 */
+	activeChordIndex = $state(0);
+	/** Per-chord-index scale override for the progression backing, keyed like `fretfield.svelte.ts`'s `progressionScaleOverrides` -- session-only, same "advanced escape hatch" precedent (see AGENTS.md). `undefined` = use the family-suggested default; explicit `null` = user cleared it. */
+	progressionChordScaleOverrides = $state<Record<number, string | null>>({});
 
 	private readonly tuning: Tuning;
 	private readonly fretCount: number;
@@ -158,8 +167,7 @@ export class ScalePracticeStore {
 	 * The optional chord backing, built on the same root the scale itself
 	 * uses — not an independent tonic. Empty whenever no progression is
 	 * selected or there's no root yet; the scheduler treats an empty array as
-	 * "chord playback off" (see AGENTS.md — audio only, never fretboard
-	 * chord-tone highlighting).
+	 * "chord playback off".
 	 */
 	readonly resolvedProgression = $derived.by<ResolvedChord[]>(() => {
 		if (this.root === null || this.progressionTemplateId === null) return [];
@@ -171,8 +179,39 @@ export class ScalePracticeStore {
 		return buildProgression(this.root, template);
 	});
 
-	/** Every position in the zone belonging to the scale — the whole scale, shown at once. */
+	/** Index-aligned with `resolvedProgression`: each chord's assigned scale, defaulting to its chord family's top suggestion (see `suggestedScalesFor`) unless overridden. Same formula as `fretfield.svelte.ts`'s `progressionScaleBlocks`. */
+	readonly progressionChordScales = $derived.by<(string | null)[]>(() => {
+		return this.resolvedProgression.map((chord, index) => {
+			const override = this.progressionChordScaleOverrides[index];
+			return override !== undefined ? override : (suggestedScalesFor(chord.chordId)[0]?.id ?? null);
+		});
+	});
+
+	/** The chord (and its assigned scale) at `activeChordIndex` -- null whenever there's no progression or that chord's scale was explicitly cleared to "—". */
+	readonly activeChordScale = $derived.by<{ root: PitchClass; scaleId: string } | null>(() => {
+		const chord = this.resolvedProgression[this.activeChordIndex];
+		const scaleId = this.progressionChordScales[this.activeChordIndex];
+		if (chord === undefined || scaleId === null || scaleId === undefined) return null;
+		return { root: chord.root, scaleId };
+	});
+
+	/** What fretboard labels (root marker, interval numbers) are keyed against -- the active chord's own root while a progression chord-scale is showing, otherwise the practice root itself. */
+	readonly displayRoot = $derived.by<PitchClass | null>(
+		() => this.activeChordScale?.root ?? this.root
+	);
+
+	/** Every position in the zone belonging to the currently-shown scale — the active progression chord's assigned scale when one is showing, otherwise the manually-picked root/scale. Shown all at once, not one note at a time. */
 	readonly scalePositions = $derived.by<FretPosition[]>(() => {
+		const activeScale = this.activeChordScale;
+		if (activeScale !== null) {
+			return scalePositions(
+				activeScale.root,
+				getScaleDefinition(activeScale.scaleId),
+				this.zone,
+				this.tuning,
+				this.fretCount
+			);
+		}
 		if (this.root === null || this.scale === null) return [];
 		return scalePositions(this.root, this.scale, this.zone, this.tuning, this.fretCount);
 	});
@@ -222,21 +261,36 @@ export class ScalePracticeStore {
 
 	setProgressionTemplate(id: string | null): void {
 		this.progressionTemplateId = id;
-		this.resetActiveChordHighlight();
+		this.activeChordIndex = 0;
+		this.cancelPendingChordHighlights();
 		this.persist();
 	}
 
 	setBarsPerChord(bars: number): void {
 		this.barsPerChord = clampBarsPerChord(bars);
-		this.resetActiveChordHighlight();
+		this.cancelPendingChordHighlights();
 		this.persist();
 	}
 
-	/** Clears the highlight and cancels any pending visual update -- so a stale index never lingers past a stop or a progression/bars change. */
-	private resetActiveChordHighlight(): void {
+	/** Click-to-preview (or scheduler-driven) selection of which chord's scale is showing -- wraps like `fretfield.svelte.ts`'s own `setActiveChordIndex`. */
+	setActiveChordIndex(index: number): void {
+		const length = this.resolvedProgression.length;
+		if (length === 0) return;
+		this.activeChordIndex = ((index % length) + length) % length;
+	}
+
+	/** Session-only, same precedent as `progressionChordScaleOverrides` itself. */
+	setProgressionChordScale(index: number, scaleId: string | null): void {
+		this.progressionChordScaleOverrides = {
+			...this.progressionChordScaleOverrides,
+			[index]: scaleId
+		};
+	}
+
+	/** Cancels any not-yet-fired scheduler highlight updates -- so a stale one (targeting a bar/progression that no longer applies) never lands late and overwrites a manual preview. */
+	private cancelPendingChordHighlights(): void {
 		for (const timeoutId of this.chordHighlightTimeouts) clearTimeout(timeoutId);
 		this.chordHighlightTimeouts = [];
-		this.activeChordIndex = null;
 	}
 
 	private persist(): void {
@@ -273,7 +327,7 @@ export class ScalePracticeStore {
 		}
 		void this.audioContext?.close();
 		this.audioContext = null;
-		this.resetActiveChordHighlight();
+		this.cancelPendingChordHighlights();
 	}
 
 	/** Schedules every step whose (unswung) grid time falls within the lookahead window. */
