@@ -8,14 +8,17 @@ import {
 	triggerRim,
 	triggerSnare
 } from '$lib/audio/drum-voices';
+import { effectiveSwing } from '$lib/groove/feel';
+import { stepShouldSound } from '$lib/groove/intensity';
 import { coerceGroove } from '$lib/groove/migrate';
 import {
 	cycleStepVelocity as cycleGrooveStepVelocity,
 	setArrangementBar as setGrooveArrangementBar,
 	setArrangementLength as setGrooveArrangementLength,
+	setFeel as setGrooveFeel,
+	setFeelAmount as setGrooveFeelAmount,
 	setPatternForRole,
 	setStepVelocity as setGrooveStepVelocity,
-	setSwing as setGrooveSwing,
 	stepOffsetMs
 } from '$lib/groove/pattern';
 import { listGroovePresets } from '$lib/groove/presets';
@@ -25,6 +28,7 @@ import {
 	STEPS_PER_BAR,
 	type DrumVoice,
 	type Groove,
+	type GrooveFeel,
 	type GroovePattern,
 	type PatternRole,
 	type StepVelocity
@@ -63,6 +67,11 @@ const DEFAULT_BARS_PER_CHORD = 2;
 const MIN_BARS_PER_CHORD = 1;
 const MAX_BARS_PER_CHORD = 8;
 
+// 100 = every authored step sounds regardless of its minIntensity -- matches
+// pre-Intensity-engine playback exactly, so the default introduces no
+// regression for grooves that never used the feature.
+const DEFAULT_INTENSITY = 100;
+
 // The chord pad's fixed voicing octave -- C4, comfortably above the bass's
 // own range (the standard 4-string tuning tops out at G3, MIDI 43+fretCount)
 // so the pad backs the instrument being practiced rather than masking it.
@@ -94,6 +103,7 @@ interface PersistedScalePracticeConfig {
 	progressionTemplateId: string | null;
 	barsPerChord: number;
 	countIn: CountIn;
+	intensity: number;
 }
 
 const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
@@ -103,7 +113,8 @@ const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	groove: DEFAULT_GROOVE,
 	progressionTemplateId: null,
 	barsPerChord: DEFAULT_BARS_PER_CHORD,
-	countIn: '1-bar'
+	countIn: '1-bar',
+	intensity: DEFAULT_INTENSITY
 };
 
 /**
@@ -127,7 +138,8 @@ function loadPersistedConfig(): PersistedScalePracticeConfig {
 			(raw.progressionTemplateId as string | null | undefined) ??
 			DEFAULT_CONFIG.progressionTemplateId,
 		barsPerChord: (raw.barsPerChord as number | undefined) ?? DEFAULT_CONFIG.barsPerChord,
-		countIn: (raw.countIn as CountIn | undefined) ?? DEFAULT_CONFIG.countIn
+		countIn: (raw.countIn as CountIn | undefined) ?? DEFAULT_CONFIG.countIn,
+		intensity: (raw.intensity as number | undefined) ?? DEFAULT_CONFIG.intensity
 	};
 }
 
@@ -137,6 +149,10 @@ function clampBpm(bpm: number): number {
 
 function clampBarsPerChord(bars: number): number {
 	return Math.min(MAX_BARS_PER_CHORD, Math.max(MIN_BARS_PER_CHORD, Math.round(bars)));
+}
+
+function clampIntensity(intensity: number): number {
+	return Math.min(100, Math.max(0, Math.round(intensity)));
 }
 
 /**
@@ -191,6 +207,8 @@ export class ScalePracticeStore {
 	countIn = $state<CountIn>(this.persisted.countIn);
 	/** True for the count-in bar(s) after `start()`, before real playback (and `activeStepIndex`/`activeChordIndex` updates) begins. */
 	isCountingIn = $state(false);
+	/** 0-100, global: gates which authored steps sound (see `groove/intensity.ts`). Defaults to 100 -- everything authored plays, matching pre-Intensity-engine behavior. */
+	intensity = $state(this.persisted.intensity);
 
 	private readonly tuning: Tuning;
 	private readonly fretCount: number;
@@ -335,8 +353,18 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
-	setSwing(swing: number): void {
-		this.groove = setGrooveSwing(this.groove, swing);
+	setFeel(feel: GrooveFeel): void {
+		this.groove = setGrooveFeel(this.groove, feel);
+		this.persist();
+	}
+
+	setFeelAmount(amount: number): void {
+		this.groove = setGrooveFeelAmount(this.groove, amount);
+		this.persist();
+	}
+
+	setIntensity(intensity: number): void {
+		this.intensity = clampIntensity(intensity);
 		this.persist();
 	}
 
@@ -411,7 +439,8 @@ export class ScalePracticeStore {
 			groove: this.groove,
 			progressionTemplateId: this.progressionTemplateId,
 			barsPerChord: this.barsPerChord,
-			countIn: this.countIn
+			countIn: this.countIn,
+			intensity: this.intensity
 		});
 	}
 
@@ -464,10 +493,11 @@ export class ScalePracticeStore {
 	private handleStep(stepIndex: number, gridTime: number): void {
 		const ctx = this.audioContext;
 		if (ctx === null) return;
-		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, this.groove.swing) / 1000;
+		const swing = effectiveSwing(this.groove.feel, this.groove.feelAmount);
+		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, swing) / 1000;
 		for (const voice of DRUM_VOICES) {
 			const step = this.currentBarPattern.steps[voice][stepIndex];
-			if (step.velocity > 0) {
+			if (stepShouldSound(step, this.intensity)) {
 				VOICE_TRIGGERS[voice](ctx, swungTime, step.velocity);
 			}
 		}

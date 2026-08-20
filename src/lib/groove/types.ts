@@ -29,8 +29,8 @@ export type StepVelocity = 0 | 0.35 | 0.7 | 1;
 export interface GrooveStep {
 	velocity: StepVelocity;
 	/**
-	 * 0-100: the global Intensity control (not yet wired up) must be at
-	 * least this high for the step to sound. `undefined` behaves as 0 --
+	 * 0-100: the global Intensity control must be at least this high for the
+	 * step to sound (see `groove/intensity.ts`). `undefined` behaves as 0 --
 	 * always plays -- so every step authored before Intensity existed keeps
 	 * sounding unconditionally.
 	 */
@@ -46,10 +46,14 @@ export type PatternRole = 'A' | 'B' | 'F' | 'T';
 
 export const PATTERN_ROLES: readonly PatternRole[] = ['A', 'B', 'F', 'T'];
 
+/** Straight = no swing, ever. Shuffle/Swing both delay the "and" of each beat by `feelAmount` (see `groove/feel.ts`) -- kept as separate labels since they read as different musical intents even though the underlying timing math is identical. */
+export type GrooveFeel = 'straight' | 'shuffle' | 'swing';
+
 export interface Groove {
 	patterns: Record<PatternRole, GroovePattern>;
 	/** Ordered bar -> pattern-role list; its length is the loop's length in bars (1 for a plain one-bar groove, 12 for the flagship blues form). */
 	arrangement: PatternRole[];
-	/** 0-100: 0 is straight sixteenths, 100 is a full triplet/shuffle feel. */
-	swing: number;
+	feel: GrooveFeel;
+	/** 0-100, meaningful only when `feel !== 'straight'`: 0 is a straight halfway split, 100 is a full triplet feel. */
+	feelAmount: number;
 }

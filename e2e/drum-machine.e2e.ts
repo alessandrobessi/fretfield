@@ -51,10 +51,12 @@ test.describe('Drum Machine', () => {
 	}) => {
 		await openScalePractice(page);
 
-		await expect(page.getByLabel('Swing')).toHaveValue('0');
+		await expect(page.getByLabel('Feel')).toHaveValue('straight');
+		await expect(page.getByLabel('Amount')).toHaveValue('0');
 		await page.getByLabel('Groove preset').selectOption({ label: 'Blues Shuffle' });
 
-		await expect(page.getByLabel('Swing')).toHaveValue('65');
+		await expect(page.getByLabel('Feel')).toHaveValue('shuffle');
+		await expect(page.getByLabel('Amount')).toHaveValue('65');
 		await expect(page.getByLabel('Kick step 1', { exact: true })).toHaveAttribute(
 			'aria-pressed',
 			'true'
@@ -86,7 +88,8 @@ test.describe('Drum Machine', () => {
 		// own equivalent test for the same reasoning).
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 
-		await expect(page.getByLabel('Swing')).toHaveValue('70');
+		await expect(page.getByLabel('Feel')).toHaveValue('swing');
+		await expect(page.getByLabel('Amount')).toHaveValue('70');
 		await expect(page.getByLabel('Metronome BPM')).toHaveValue('110');
 		await expect(page.getByLabel('Ride step 1', { exact: true })).toHaveAttribute(
 			'aria-pressed',
@@ -307,7 +310,8 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 			.getByLabel('Groove preset')
 			.selectOption({ label: 'Chicago Shuffle — 12-Bar Blues' });
 
-		await expect(page.getByLabel('Swing')).toHaveValue('65');
+		await expect(page.getByLabel('Feel')).toHaveValue('shuffle');
+		await expect(page.getByLabel('Amount')).toHaveValue('65');
 		const expectedRoles = ['A', 'A', 'A', 'B', 'A', 'A', 'B', 'F', 'A', 'B', 'T', 'F'];
 		for (let bar = 0; bar < expectedRoles.length; bar++) {
 			await expect(page.getByLabel(`Bar ${bar + 1} pattern`)).toHaveValue(expectedRoles[bar]);
@@ -333,5 +337,29 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 				expectedChords[bar]
 			);
 		}
+	});
+});
+
+test.describe('Drum Machine: Feel + Intensity', () => {
+	test('Amount is disabled when Feel is Straight, enabled otherwise', async ({ page }) => {
+		await openScalePractice(page);
+
+		await expect(page.getByLabel('Feel')).toHaveValue('straight');
+		await expect(page.getByLabel('Amount')).toBeDisabled();
+
+		await page.getByLabel('Feel').selectOption('shuffle');
+		await expect(page.getByLabel('Amount')).toBeEnabled();
+	});
+
+	test('Intensity persists across a reload', async ({ page }) => {
+		await openScalePractice(page);
+
+		await page.getByLabel('Intensity').fill('40');
+		await page.keyboard.press('Tab');
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+
+		await expect(page.getByLabel('Intensity')).toHaveValue('40');
 	});
 });

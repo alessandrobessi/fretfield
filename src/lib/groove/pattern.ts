@@ -4,6 +4,7 @@ import {
 	STEPS_PER_BAR,
 	type DrumVoice,
 	type Groove,
+	type GrooveFeel,
 	type GroovePattern,
 	type PatternRole,
 	type StepVelocity
@@ -20,7 +21,7 @@ export function createEmptyPattern(): GroovePattern {
 export function createEmptyGroove(): Groove {
 	const patterns = {} as Record<PatternRole, GroovePattern>;
 	for (const role of PATTERN_ROLES) patterns[role] = createEmptyPattern();
-	return { patterns, arrangement: ['A'], swing: 0 };
+	return { patterns, arrangement: ['A'], feel: 'straight', feelAmount: 0 };
 }
 
 export function setStepVelocity(
@@ -46,8 +47,12 @@ export function cycleStepVelocity(
 	return setStepVelocity(pattern, voice, index, next);
 }
 
-export function setSwing(groove: Groove, swing: number): Groove {
-	return { ...groove, swing: Math.min(100, Math.max(0, swing)) };
+export function setFeel(groove: Groove, feel: GrooveFeel): Groove {
+	return { ...groove, feel };
+}
+
+export function setFeelAmount(groove: Groove, amount: number): Groove {
+	return { ...groove, feelAmount: Math.min(100, Math.max(0, amount)) };
 }
 
 export function setPatternForRole(

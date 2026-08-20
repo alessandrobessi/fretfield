@@ -22,6 +22,29 @@ function isLegacyGroovePattern(value: unknown): value is LegacyGroovePattern {
 	return typeof v.swing === 'number' && typeof v.steps === 'object' && v.steps !== null;
 }
 
+/** The Groove Engine's own shape before the Feel engine (M1-M6): a plain `swing` number instead of `feel`/`feelAmount`. */
+interface PreFeelGroove {
+	patterns: Groove['patterns'];
+	arrangement: Groove['arrangement'];
+	swing: number;
+}
+
+function isPreFeelGroove(value: unknown): value is PreFeelGroove {
+	if (typeof value !== 'object' || value === null) return false;
+	const v = value as Record<string, unknown>;
+	return typeof v.swing === 'number' && 'patterns' in v && 'arrangement' in v && !('feel' in v);
+}
+
+/** A bare swing number can't recover which of "Shuffle"/"Swing" the groove was originally meant to read as -- "swing" is the generic umbrella term, so migrated grooves default to it. */
+function migratePreFeelGroove(groove: PreFeelGroove): Groove {
+	return {
+		patterns: groove.patterns,
+		arrangement: groove.arrangement,
+		feel: groove.swing > 0 ? 'swing' : 'straight',
+		feelAmount: groove.swing
+	};
+}
+
 /**
  * `true` becomes velocity 0.7 ("normal"), `false` becomes 0 ("off") -- see
  * roadmap "Backward Compatibility". The legacy pattern becomes the new
@@ -46,12 +69,14 @@ export function migrateLegacyPattern(legacy: LegacyGroovePattern): Groove {
 		...groove,
 		patterns: { ...groove.patterns, A: patternA },
 		arrangement: ['A'],
-		swing: legacy.swing
+		feel: legacy.swing > 0 ? 'swing' : 'straight',
+		feelAmount: legacy.swing
 	};
 }
 
-/** Reads either shape from storage/a preset and always returns a current-model `Groove`. */
+/** Reads any prior shape from storage/a preset and always returns a current-model `Groove`. */
 export function coerceGroove(raw: unknown): Groove {
 	if (isLegacyGroovePattern(raw)) return migrateLegacyPattern(raw);
+	if (isPreFeelGroove(raw)) return migratePreFeelGroove(raw);
 	return raw as Groove;
 }

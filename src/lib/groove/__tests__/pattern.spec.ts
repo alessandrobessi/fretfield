@@ -5,8 +5,9 @@ import {
 	cycleStepVelocity,
 	setArrangementBar,
 	setArrangementLength,
+	setFeel,
+	setFeelAmount,
 	setStepVelocity,
-	setSwing,
 	stepOffsetMs
 } from '../pattern';
 import { DRUM_VOICES, STEPS_PER_BAR, type PatternRole } from '../types';
@@ -22,11 +23,12 @@ describe('createEmptyPattern', () => {
 });
 
 describe('createEmptyGroove', () => {
-	it('has four empty patterns, a one-bar arrangement, and 0 swing', () => {
+	it('has four empty patterns, a one-bar arrangement, and a straight feel', () => {
 		const groove = createEmptyGroove();
 		expect(Object.keys(groove.patterns).sort()).toEqual(['A', 'B', 'F', 'T']);
 		expect(groove.arrangement).toEqual(['A']);
-		expect(groove.swing).toBe(0);
+		expect(groove.feel).toBe('straight');
+		expect(groove.feelAmount).toBe(0);
 	});
 });
 
@@ -56,12 +58,19 @@ describe('cycleStepVelocity', () => {
 	});
 });
 
-describe('setSwing', () => {
-	it('clamps to 0-100', () => {
+describe('setFeel / setFeelAmount', () => {
+	it('setFeel replaces the feel without touching feelAmount', () => {
+		const groove = setFeelAmount(createEmptyGroove(), 65);
+		const updated = setFeel(groove, 'shuffle');
+		expect(updated.feel).toBe('shuffle');
+		expect(updated.feelAmount).toBe(65);
+	});
+
+	it('setFeelAmount clamps to 0-100', () => {
 		const groove = createEmptyGroove();
-		expect(setSwing(groove, -10).swing).toBe(0);
-		expect(setSwing(groove, 150).swing).toBe(100);
-		expect(setSwing(groove, 42).swing).toBe(42);
+		expect(setFeelAmount(groove, -10).feelAmount).toBe(0);
+		expect(setFeelAmount(groove, 150).feelAmount).toBe(100);
+		expect(setFeelAmount(groove, 42).feelAmount).toBe(42);
 	});
 });
 

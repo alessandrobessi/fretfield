@@ -26,8 +26,16 @@ describe('migrateLegacyPattern', () => {
 		expect(groove.patterns.A.steps.snare.filter((s) => s.velocity !== 0)).toHaveLength(1);
 	});
 
-	it('carries swing over unchanged', () => {
-		expect(migrateLegacyPattern(legacyPattern()).swing).toBe(65);
+	it('carries swing over as feel "swing" + feelAmount', () => {
+		const groove = migrateLegacyPattern(legacyPattern());
+		expect(groove.feel).toBe('swing');
+		expect(groove.feelAmount).toBe(65);
+	});
+
+	it('a 0 swing migrates to a straight feel', () => {
+		const groove = migrateLegacyPattern({ ...legacyPattern(), swing: 0 });
+		expect(groove.feel).toBe('straight');
+		expect(groove.feelAmount).toBe(0);
 	});
 
 	it('wraps the migrated pattern in a one-bar arrangement', () => {
@@ -56,5 +64,24 @@ describe('coerceGroove', () => {
 	it('passes a current-model Groove through unchanged', () => {
 		const groove = createEmptyGroove();
 		expect(coerceGroove(groove)).toEqual(groove);
+	});
+
+	it('migrates a pre-Feel Groove (plain swing, no feel/feelAmount)', () => {
+		const preFeel = { ...createEmptyGroove(), swing: 65 } as unknown as Record<string, unknown>;
+		delete preFeel.feel;
+		delete preFeel.feelAmount;
+
+		const coerced = coerceGroove(preFeel);
+		expect(coerced.feel).toBe('swing');
+		expect(coerced.feelAmount).toBe(65);
+		expect(coerced.arrangement).toEqual(['A']);
+	});
+
+	it('a pre-Feel Groove with 0 swing migrates to a straight feel', () => {
+		const preFeel = { ...createEmptyGroove(), swing: 0 } as unknown as Record<string, unknown>;
+		delete preFeel.feel;
+		delete preFeel.feelAmount;
+
+		expect(coerceGroove(preFeel).feel).toBe('straight');
 	});
 });

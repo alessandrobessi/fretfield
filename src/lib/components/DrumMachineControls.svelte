@@ -4,6 +4,7 @@
 		PATTERN_ROLES,
 		type DrumVoice,
 		type Groove,
+		type GrooveFeel,
 		type PatternRole
 	} from '$lib/groove/types';
 	import { listGroovePresets } from '$lib/groove/presets';
@@ -86,8 +87,16 @@
 		scalePractice.setBpm(Number((event.currentTarget as HTMLInputElement).value));
 	}
 
-	function handleSwingChange(event: Event): void {
-		scalePractice.setSwing(Number((event.currentTarget as HTMLInputElement).value));
+	function handleFeelChange(event: Event): void {
+		scalePractice.setFeel((event.currentTarget as HTMLSelectElement).value as GrooveFeel);
+	}
+
+	function handleFeelAmountChange(event: Event): void {
+		scalePractice.setFeelAmount(Number((event.currentTarget as HTMLInputElement).value));
+	}
+
+	function handleIntensityChange(event: Event): void {
+		scalePractice.setIntensity(Number((event.currentTarget as HTMLInputElement).value));
 	}
 
 	function handleBarsPerChordChange(event: Event): void {
@@ -232,17 +241,40 @@
 			/>
 		</label>
 		<label class="field">
-			<span class="field-label">Swing</span>
+			<span class="field-label">Feel</span>
+			<select aria-label="Feel" value={scalePractice.groove.feel} onchange={handleFeelChange}>
+				<option value="straight">Straight</option>
+				<option value="shuffle">Shuffle</option>
+				<option value="swing">Swing</option>
+			</select>
+		</label>
+		<label class="field">
+			<span class="field-label">Amount</span>
 			<span class="swing-control">
 				<input
 					type="range"
-					aria-label="Swing"
+					aria-label="Amount"
 					min="0"
 					max="100"
-					value={scalePractice.groove.swing}
-					onchange={handleSwingChange}
+					disabled={scalePractice.groove.feel === 'straight'}
+					value={scalePractice.groove.feelAmount}
+					onchange={handleFeelAmountChange}
 				/>
-				<span class="swing-readout">{scalePractice.groove.swing}%</span>
+				<span class="swing-readout">{scalePractice.groove.feelAmount}%</span>
+			</span>
+		</label>
+		<label class="field">
+			<span class="field-label">Intensity</span>
+			<span class="swing-control">
+				<input
+					type="range"
+					aria-label="Intensity"
+					min="0"
+					max="100"
+					value={scalePractice.intensity}
+					onchange={handleIntensityChange}
+				/>
+				<span class="swing-readout">{scalePractice.intensity}%</span>
 			</span>
 		</label>
 		<label class="field">
