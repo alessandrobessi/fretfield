@@ -29,6 +29,8 @@ export interface PracticePreset {
 		progressionTemplateId?: string;
 		scaleId?: string;
 		pathPreset?: PathPreset;
+		/** Scale Practice's chord-backing span, in bars — only meaningful alongside `progressionTemplateId`. */
+		barsPerChord?: number;
 	};
 	/** Constrains the neck for Follow Path (via Local Field only) or sets Scale Practice's zone directly. */
 	position?: FretRange;
@@ -192,6 +194,10 @@ export function openPreset(preset: PracticePreset): void {
 		scalePractice.setRoot(preset.context.root);
 		if (preset.context.scaleId) scalePractice.setScaleId(preset.context.scaleId);
 		if (preset.position) scalePractice.setZone(preset.position.minFret, preset.position.maxFret);
+		if (preset.context.progressionTemplateId) {
+			scalePractice.setProgressionTemplate(preset.context.progressionTemplateId);
+		}
+		if (preset.context.barsPerChord) scalePractice.setBarsPerChord(preset.context.barsPerChord);
 		fretfield.setMode('scale-practice');
 		return;
 	}
@@ -230,9 +236,17 @@ export function captureCurrentPreset(): Omit<
 > | null {
 	if (fretfield.mode === 'scale-practice') {
 		if (scalePractice.root === null || scalePractice.scaleId === null) return null;
+		const context: PracticePreset['context'] = {
+			root: scalePractice.root,
+			scaleId: scalePractice.scaleId
+		};
+		if (scalePractice.progressionTemplateId !== null) {
+			context.progressionTemplateId = scalePractice.progressionTemplateId;
+			context.barsPerChord = scalePractice.barsPerChord;
+		}
 		return {
 			activity: 'scales',
-			context: { root: scalePractice.root, scaleId: scalePractice.scaleId },
+			context,
 			position: { minFret: scalePractice.zone.minFret, maxFret: scalePractice.zone.maxFret }
 		};
 	}
