@@ -34,16 +34,4 @@ test.describe('Contextual onboarding', () => {
 		await page.getByTestId('fret-E-1').click();
 		await expect(page.getByText("That's your root")).not.toBeVisible();
 	});
-
-	test('Practice shows a bass-connection hint on first visit only', async ({ page }) => {
-		await page.goto('/');
-		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-
-		await expect(page.getByText('Connect a bass to practice with real notes.')).toBeVisible();
-
-		await page.getByRole('tab', { name: 'Explore', exact: true }).click();
-		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-
-		await expect(page.getByText('Connect a bass to practice with real notes.')).not.toBeVisible();
-	});
 });

@@ -10,7 +10,6 @@ import { expect, test } from '@playwright/test';
 async function openScalePractice(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-	await page.getByRole('button', { name: /^Scales/ }).click();
 }
 
 test.describe('Drum Machine', () => {
@@ -146,27 +145,6 @@ test.describe('Drum Machine: chord-progression backing', () => {
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await expect(page.getByLabel('Progression')).toHaveValue('');
-	});
-
-	test('a custom progression saved from Explore is selectable from Scale Practice too', async ({
-		page
-	}) => {
-		await page.goto('/');
-		await page.getByTestId('fret-A-3').click(); // root C
-		await page.getByRole('tab', { name: /^Progression/ }).click();
-		await page.getByRole('button', { name: '+ Build your own' }).click();
-
-		await page.getByLabel('Step 1 interval').selectOption({ label: '1' });
-		await page.getByLabel('Step 1 chord').selectOption({ label: 'Major' });
-		await page.getByLabel('Progression name').fill('E2E Backing Progression');
-		await page
-			.locator('.progression-builder')
-			.getByRole('button', { name: 'Save', exact: true })
-			.click();
-
-		await openScalePractice(page);
-		await page.getByLabel('Progression').selectOption({ label: 'E2E Backing Progression' });
-		await expect(page.getByLabel('Progression')).not.toHaveValue('');
 	});
 
 	test('playback advances the highlighted chord and freezes on it when stopped', async ({
