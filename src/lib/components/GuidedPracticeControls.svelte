@@ -3,6 +3,7 @@
 	import { getChordDefinition } from '$lib/music/chords';
 	import { intervalCompoundLabel } from '$lib/music/intervals';
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
+	import { captureCurrentPreset } from '$lib/practice/preset-library';
 	import { PRACTICE_MODE_STYLES } from '$lib/practice/presets';
 	import type {
 		HintLevel,
@@ -13,6 +14,27 @@
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { liveInput } from '$lib/stores/live-input.svelte';
 	import { practice } from '$lib/stores/practice.svelte';
+	import { savedPresets } from '$lib/stores/saved-presets.svelte';
+
+	let savingAs = $state(false);
+	let newPresetName = $state('');
+
+	function startSaving(): void {
+		savingAs = true;
+		newPresetName = '';
+	}
+
+	function confirmSave(): void {
+		const name = newPresetName.trim();
+		const captured = captureCurrentPreset();
+		if (!name || captured === null) return;
+		savedPresets.save(name, captured);
+		savingAs = false;
+	}
+
+	function cancelSaving(): void {
+		savingAs = false;
+	}
 
 	// Live Input's `noteOnsetId` must be the ONLY tracked dependency here.
 	// Svelte tracks `$state` reads by call stack, not lexical scope — reading
@@ -124,6 +146,27 @@
 						{/each}
 					</select>
 				</label>
+				{#if savingAs}
+					<input
+						class="name-input"
+						type="text"
+						placeholder="Name this preset…"
+						aria-label="Preset name"
+						bind:value={newPresetName}
+						onkeydown={(e) => e.key === 'Enter' && confirmSave()}
+					/>
+					<button
+						type="button"
+						class="save-confirm"
+						onclick={confirmSave}
+						disabled={!newPresetName.trim()}
+					>
+						Save
+					</button>
+					<button type="button" class="save-cancel" onclick={cancelSaving}>Cancel</button>
+				{:else}
+					<button type="button" class="save-as" onclick={startSaving}>Save as preset…</button>
+				{/if}
 				<button type="button" class="toggle" onclick={() => practice.stop()}>Stop</button>
 			</div>
 		</div>
@@ -265,6 +308,47 @@
 	}
 
 	.toggle:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
+	.name-input {
+		font: inherit;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.6rem;
+		border-radius: 999px;
+		border: 2px solid var(--fret-border, #ddd3f7);
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+	}
+
+	.name-input:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 1px;
+	}
+
+	.save-as,
+	.save-confirm,
+	.save-cancel {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.8rem;
+		border-radius: 999px;
+		border: 1px solid var(--nut, #7c3aed);
+		background: transparent;
+		color: var(--nut, #7c3aed);
+		cursor: pointer;
+	}
+
+	.save-confirm:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.save-as:focus-visible,
+	.save-confirm:focus-visible,
+	.save-cancel:focus-visible {
 		outline: 3px solid var(--focus-ring, #7c3aed);
 		outline-offset: 2px;
 	}

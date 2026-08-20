@@ -213,3 +213,53 @@ export function openPreset(preset: PracticePreset): void {
 	practice.start(preset.activity, { interval: preset.targetInterval });
 	navigation.setDestination('explore');
 }
+
+/**
+ * Captures "what's happening right now" into `openPreset`-compatible data —
+ * the inverse of `openPreset`, minus `id`/`title`/`description` (the caller
+ * names it). Only returns non-null while there's something concrete to
+ * restart: an active Guided Practice session, or Scale Practice configured
+ * with both a root and a scale. Deliberately doesn't try to capture a bare
+ * Explore selection with no practice activity running — `PracticePreset`'s
+ * `activity` field has no way to represent "no activity," and guessing one
+ * would misrepresent what the preset actually does when reopened.
+ */
+export function captureCurrentPreset(): Omit<
+	PracticePreset,
+	'id' | 'title' | 'description'
+> | null {
+	if (fretfield.mode === 'scale-practice') {
+		if (scalePractice.root === null || scalePractice.scaleId === null) return null;
+		return {
+			activity: 'scales',
+			context: { root: scalePractice.root, scaleId: scalePractice.scaleId },
+			position: { minFret: scalePractice.zone.minFret, maxFret: scalePractice.zone.maxFret }
+		};
+	}
+
+	const session = practice.session;
+	if (session.status !== 'active' || fretfield.root === null) return null;
+
+	const context: PracticePreset['context'] = { root: fretfield.root };
+	if (session.mode === 'find-interval' || session.mode === 'find-chord-tone') {
+		context.chordId = fretfield.chordId;
+	} else if (session.mode === 'resolve-note') {
+		if (fretfield.progressionTemplateId === null) return null;
+		context.progressionTemplateId = fretfield.progressionTemplateId;
+	} else if (session.mode === 'follow-path') {
+		context.pathPreset = fretfield.pathPreset;
+	}
+
+	const preset: Omit<PracticePreset, 'id' | 'title' | 'description'> = {
+		activity: session.mode,
+		context,
+		hintLevel: session.settings.hintLevel
+	};
+	if (session.settings.localFieldOnly && fretfield.activeRegion !== null) {
+		preset.position = {
+			minFret: fretfield.activeRegion.minFret,
+			maxFret: fretfield.activeRegion.maxFret
+		};
+	}
+	return preset;
+}
