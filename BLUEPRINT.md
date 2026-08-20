@@ -2,28 +2,22 @@
 
 > **Tagline:** See the harmonic field. Move through it.
 
-## 0. The six-field model (current product structure)
+## 0. The two-field model (current product structure)
 
-FretField answers six increasingly powerful questions, each a peer `FieldMode` selectable from the same fretboard and the same selected root:
+By explicit, direct product request, FretField was stripped down from an earlier six-`FieldMode` design to just the two features actually in use:
 
 ```text
-Chord Field           "What can I play now?"          — full 12-role Harmonic Field over one chord
-Progression Field      "Where can I go next?"           — resolve a progression template, see each note's best resolution into the next chord
-Voice-Leading Paths    "What route should I take?"      — ranked, complete fretted paths through the whole progression
-Local Fields           "Where on the neck should I play it?" — ranked, overlapping neck regions, usable as a lens under any of the above
-Scale Blocks           "What scales fit across this progression?" — up to 8 independently-configured chords, each with its own scale, overlaid on the neck at once
-Scale Practice          "Can you play this scale in time?" — every note of a chosen scale/key/fret zone is highlighted at once, whatever's played is highlighted live, and a free-standing metronome keeps time alongside it
+Chord Field       "What can I play now?"           — full 12-role Harmonic Field over one chord
+Scale Practice    "Can you play this scale in time?" — every note of the active progression chord's scale is highlighted at once, whatever's played is highlighted live, and a synthesized drum machine (with an optional chord-progression backing) keeps time alongside it
 ```
 
-Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying harmonic selection. `?root=&mode=&chord=&display=&analysis=&progression=&chordIndex=&pathPreset=&region=` in the URL reproduces the same view (§7 Phase 7 originally scoped a narrower version of this; the shipped version covers all four original modes — Scale Blocks' `chordBlocks` and Scale Practice's session state are both deliberately session-only, see §20/§21).
+The four other lenses this app used to have — Progression Field ("Where can I go next?"), Voice-Leading Paths ("What route should I take?"), Local Fields ("Where on the neck should I play it?", a spatial layer usable under any single-chord mode), and Scale Blocks ("What scales fit across this progression?", up to 8 independently-configured chords overlaid at once) — were deleted entirely, along with Guided Practice (§19, the exercise layer built on top of the single-chord modes), the Presets feature, the Progress tab, and the saved-material features (Favorite Chords, Scale Maps, custom Progressions). Sections 16, 17, 19, and 20 below are kept as a historical record of how those features worked and why, each marked **REMOVED** — do not treat them as live spec, and do not resurrect any of it without an explicit, direct product request.
 
-Scale Blocks (§20) and Scale Practice (§21) are both structurally different from the other four: instead of one shared root/chord driving a single-chord analysis, each holds its own independent state (a list of chord blocks; a root/scale/zone/tempo session) unrelated to `root`/`chordId`/`progression`. Genuine modes, not layers.
+Chord Field's root selection and display mode persist across Explore/Practice tab switches. `?root=&chord=&display=&analysis=` in the URL reproduces the same Chord Field view — Scale Practice's own session state (root/progression/zone/tempo) is separately persisted to localStorage, not the URL (see §21).
 
-**Live Input** (§18) is an optional layer over all six modes — not a `FieldMode` itself. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it, rather than adding a separate harmonic system.
+**Live Input** (§18, heavily trimmed from its original six-mode design) is an optional layer over Chord Field, plus Scale Practice's own independent played-note highlighting — not a `FieldMode` itself. Enabled explicitly by the user, it detects the pitch of whatever's actually being played on a real bass and reuses whichever mode's engine is already active to explain it.
 
-**Guided Practice** (§19) is a layer built entirely on top of Live Input and the four single-chord modes (it does not currently drive Scale Blocks or Scale Practice): it turns each mode's existing answer into an exercise — propose a target, the player finds and plays it, Live Input detects it, the existing engine explains what happened. It owns no harmonic logic of its own and is not a `FieldMode` either.
-
-Sections 1–26 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically. Where later sections describe progression/voice-leading/spatial features as future work, treat this section as authoritative — those are built.
+Sections 1–15 below describe the original single-mode ("Chord Field only") product concept this grew from; they remain accurate for Chord Field specifically.
 
 ---
 
@@ -580,7 +574,9 @@ The distinction should be explicit in the UI.
 
 ---
 
-## 16. Progression mode — post-MVP priority
+## 16. Progression mode — **REMOVED**
+
+This was built (as "Progression Field") and later deleted entirely by explicit product request, along with Voice-Leading Paths, Local Fields, Scale Blocks, and Guided Practice — see §0. Kept below as a historical record only; do not treat as live spec or rebuild without a direct request.
 
 Progression mode turns FretField from a static reference into a real practice tool.
 
@@ -604,7 +600,9 @@ The fretboard should update its harmonic field as the harmony changes.
 
 ---
 
-## 17. Voice-leading mode — strategic feature
+## 17. Voice-leading mode — **REMOVED**
+
+This was built (as "Voice-Leading Paths") and later deleted entirely by explicit product request — see §0/§16. Kept below as a historical record only.
 
 Given current chord A and next chord B, calculate transitions for every currently useful pitch.
 
@@ -641,31 +639,33 @@ LIVE INPUT (optional layer)
         ▼
  detected pitch → physical position(s) → existing harmonic context
         │
-        ├──> Chord Field         "Played E — 3 of C7, structural"
-        ├──> Progression Field   "Played F — b7 of G7, resolves to E (Cmaj7's 3)"
-        ├──> Voice-Leading Paths "Played E — matches the current path step"
-        └──> Local Fields        "3 candidates, only 1 inside the active region — likely position"
+        ├──> Chord Field       "Played E — 3 of C7, structural"
+        └──> Scale Practice    "Played E — highlighted live, in or out of the active scale"
 ```
+
+Originally a layer over six modes (see §0's history note); the Progression Field/Voice-Leading Paths/Local Fields branches shown in earlier versions of this diagram were removed along with those modes.
 
 **Pipeline:** Bass → USB audio interface/mic → Web Audio API → YIN pitch detection → temporal stabilization → `DetectedNote` → absolute-pitch-to-fretboard mapping → existing harmonic analysis → visual feedback.
 
-**Architectural boundary** (mirrors §13's engine layering): `src/lib/audio/` only ever produces a neutral `DetectedNote` — frequency, MIDI, pitch class, octave, cents, confidence. It has no concept of a chord, a key, a role, a progression, or a Voice-Leading Path; nothing in that domain imports from `src/lib/music/` beyond the bare `PitchClass` type. Harmonic meaning is layered on afterward, by the dedicated `src/lib/stores/live-input.svelte.ts` store combined with the main store's already-computed analysis — never a second, parallel harmonic engine.
+**Architectural boundary** (mirrors §13's engine layering): `src/lib/audio/` only ever produces a neutral `DetectedNote` — frequency, MIDI, pitch class, octave, cents, confidence. It has no concept of a chord, a key, or a role; nothing in that domain imports from `src/lib/music/` beyond the bare `PitchClass` type. Harmonic meaning is layered on afterward, by the dedicated `src/lib/stores/live-input.svelte.ts` store combined with the main store's already-computed analysis — never a second, parallel harmonic engine.
 
 **Detection:** a pure-TypeScript YIN implementation (difference function → cumulative mean normalized difference → absolute-threshold search → parabolic interpolation), tuned to the electric bass's practical range (~35–450 Hz). YIN was chosen because bass tone is harmonically rich enough that a louder overtone can outweigh the fundamental — naive approaches (zero-crossings, highest FFT bin, raw spectral peak) are unreliable for exactly that reason.
 
-**Ambiguity is real, not a bug.** A detected pitch generally maps to more than one physical position (the same E2 is reachable on three different strings). Live Input never hides that: every physically valid position lights up as a candidate, and only when something already on screen narrows it down — a selected Voice-Leading Path step, an active Local Field containing exactly one candidate, or continuity from where the player was a moment ago — does one candidate get marked as the likely one. Absent all of that, the ambiguity stays visible rather than guessing a string.
+**Ambiguity is real, not a bug.** A detected pitch generally maps to more than one physical position (the same E2 is reachable on three different strings). Live Input never hides that: every physically valid position lights up as a candidate, and only when something already on screen narrows it down — continuity from where the player was a moment ago is the one remaining disambiguation tier, now that the Voice-Leading-Path-step and Local-Field-region tiers were removed along with those modes — does one candidate get marked as the likely one. Absent that, the ambiguity stays visible rather than guessing a string.
 
-**Visual layering, not replacement.** The live-played layer is an additional, independent visual state composed on top of whatever a fret already shows (its Harmonic Role pill, its Voice-Leading Path step, its Local Field dimming) — never a substitute for it. A fret can simultaneously be a chord's structural tone, the current step of a selected path, and the position that's currently sounding, and all three stay visible.
+**Visual layering, not replacement.** The live-played layer is an additional, independent visual state composed on top of whatever a fret already shows (its Harmonic Role pill) — never a substitute for it. A fret can simultaneously be a chord's structural tone and the position that's currently sounding, and both stay visible.
 
 **Product framing:** Live Input is not a tuner. The loop it supports is `SEE → PLAY → DETECT → UNDERSTAND → SEE NEXT POSSIBILITIES → PLAY` — not just "what note did I play?" but "what does it mean here, and where can I go from here?"
 
 **Privacy:** entirely client-side. Audio is analyzed locally in the browser; nothing is recorded, stored, or uploaded, and there is no backend.
 
-**Explicitly out of scope for this feature:** polyphonic pitch detection, chord recognition from audio, automatic backing tracks, MIDI input, recording, audio playback, a metronome, scoring/gamification, account persistence, cloud processing, ML-based pitch models, and automatic progression advancement. Live Input deliberately stays a thin, honest layer — it detects and explains, nothing more; turning that into an interactive exercise loop is Guided Practice's job (§19), built on top of it rather than folded into it.
+**Explicitly out of scope for this feature:** polyphonic pitch detection, chord recognition from audio, automatic backing tracks, MIDI input, recording, audio playback, a metronome, scoring/gamification, account persistence, cloud processing, ML-based pitch models, and automatic progression advancement. Live Input deliberately stays a thin, honest layer — it detects and explains, nothing more.
 
 ---
 
-## 19. Guided Practice — closing the learning loop
+## 19. Guided Practice — **REMOVED**
+
+This was built (all four exercise modes, `src/lib/practice/`, the Presets feature and Progress tab built on top of it) and later deleted entirely by explicit product request — see §0. Kept below as a historical record only.
 
 Guided Practice turns FretField from a visualization tool into an interactive bass-learning environment, built entirely on the five layers above it. It adds no harmonic engine of its own:
 
@@ -708,7 +708,9 @@ Follow Path             "Can you follow the selected voice-leading path?"       
 
 ---
 
-## 20. Scale Blocks — simultaneous multi-chord scale overlay
+## 20. Scale Blocks — **REMOVED**
+
+This was built (including its "My Scale Maps" saved-material feature) and later deleted entirely by explicit product request — see §0. Kept below as a historical record only.
 
 Unlike Live Input and Guided Practice, Scale Blocks is a genuine fifth `FieldMode`, not a layer: it shows several chords' scales at once rather than one chord's role field at a time, so it needed its own state (`chordBlocks`) rather than reusing `root`/`chordId`.
 
@@ -769,7 +771,7 @@ highlighted either way
 
 **The UI** (`ScalePracticeControls.svelte` + `DrumMachineControls.svelte`): `ScalePracticeControls.svelte` holds Root and the Zone fields (session setup, immediate effect); `DrumMachineControls.svelte` below it leads with the progression picker and the per-chord scale rows (the only source of a highlighted scale now, so "what to practice" comes first), then the genre/tempo/swing/Start-Stop drum-machine sub-panel below a divider, a 4-voice × 16-step toggle grid, and a "My Grooves" save/rename/delete list via the shared Saved Material Library factory — nothing about Start/Stop should read as gating the highlight.
 
-**Not built (yet):** sample-based drum sounds (every voice stays synthesized, no asset-loading pipeline), per-step velocity/accent editing (genre character comes from step placement and swing, not a velocity grid), tempo ramps (BPM is adjusted by hand), a mute toggle, persistent session stats, any notion of "correct"/"on time" grading (deliberately removed — see below), and Live Input/Guided Practice driving this mode the way they drive the four single-chord modes.
+**Not built (yet):** sample-based drum sounds (every voice stays synthesized, no asset-loading pipeline), per-step velocity/accent editing (genre character comes from step placement and swing, not a velocity grid), tempo ramps (BPM is adjusted by hand), a mute toggle, persistent session stats, and any notion of "correct"/"on time" grading (deliberately removed — see below).
 
 **Revision note:** an earlier version of this mode stepped through the scale one target note at a time, synced to the metronome, and graded each beat's pitch and timing. It was replaced with the always-on/real-time model above per explicit product direction — the metronome and the highlighting are more useful decoupled than combined into a graded drill.
 

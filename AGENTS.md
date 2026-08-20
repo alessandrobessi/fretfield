@@ -14,22 +14,16 @@ Its central idea is:
 
 > The fretboard is a harmonic field, not merely a grid of note names.
 
-Every implementation decision should reinforce that idea. Concretely, the product answers six increasingly powerful questions, each a `FieldMode`:
+Every implementation decision should reinforce that idea. By deliberate, explicit product direction the app was stripped down from its original six-lens design to just the two features actually in use, each a `FieldMode`:
 
 ```text
-Chord Field           "What can I play now?"
-Progression Field      "Where can I go next?"
-Voice-Leading Paths    "What route should I take?"
-Local Fields           "Where on the neck should I play it?"
-Scale Blocks           "What scales fit across this progression?" — nested inside Progression -> Scales as "Custom Scale Map", not a tab of its own
-Scale Practice          "Can you play this scale in time?"
+Chord Field       "What can I play now?"   — Explore's only lens
+Scale Practice    "Can you play this scale in time?"   — Practice's only content
 ```
 
-(This table predates the app's 1.0 navigation restructure into Explore/Practice/Progress destinations — see `ROADMAP.md`'s current-status note — and is kept here only to describe the six underlying `FieldMode` questions, not the current top-level tab layout.)
+The four other lenses this app originally had (Progression Field, Voice-Leading Paths, Local Fields, Scale Blocks, Scale Explorer), all four Guided Practice exercise modes, the Presets feature (curated one-click sessions and user-saved "My Presets"), the Progress tab, and the saved-material features (Favorite Chords, Scale Maps, custom Progressions) were all removed entirely — not hidden, not superseded, deleted from the codebase along with their stores/components/tests. Do not resurrect any of them without an explicit, direct product request; if you find a stale reference to one, that's doctrine drift to fix, not a feature to restore.
 
-Local Fields is a spatial lens usable from any of the other three single-chord modes (region state lives in the store independent of `mode`), not an isolated feature. Root selection, display mode, and progression selection persist across mode switches — switching tabs changes the lens, not the underlying selection.
-
-Scale Blocks and Scale Practice are the two modes that don't fit that "shared root/chordId" model. Scale Blocks holds its own independent `chordBlocks` list (up to `MAX_CHORD_BLOCKS`, currently 8, each with its own root/chord/scale) and shows all their scales on the fretboard simultaneously, not one chord's role field at a time — reached today as "Custom Scale Map", an advanced escape hatch nested inside Explore → Progression → Scales (`ProgressionScales.svelte`'s "Open Custom Scale Map" button, rendered via `CustomScaleMap.svelte`), not its own primary tab; the auto-suggested per-chord `progressionScaleBlocks` view is the default experience there instead. Scale Practice holds its own independent root/fret-zone/tempo session (`scale-practice.svelte.ts`, not `fretfield.svelte.ts`): every note of the scale is highlighted at once, whatever's played is highlighted live, and a synthesized drum machine (Play/Stop), with an optional chord-progression backing, plays independently of both — timing that Guided Practice deliberately excludes (§26). There is no standalone manual scale anymore (see §4's `scale-practice.svelte.ts` entry) — the highlighted scale always comes from the picked progression's active chord. Both are genuine `FieldMode`s like the other four, not layers (contrast with Live Input/Guided Practice below, which explicitly are layers).
+Scale Practice holds its own independent root/fret-zone/tempo session (`scale-practice.svelte.ts`, not `fretfield.svelte.ts`, and with no import relationship in either direction): every note of the active chord's scale is highlighted at once, whatever's played is highlighted live, and a synthesized drum machine (Play/Stop), with an optional chord-progression backing, plays independently of both — timing that Chord Field has no equivalent of. There is no standalone manual scale (see §4's `scale-practice.svelte.ts` entry) — the highlighted scale always comes from the picked progression's active chord. `fretfield.mode`/`FieldMode` still distinguishes the two (`'chord' | 'scale-practice'`), but purely as `FretCell.svelte`/`NoteInspector.svelte`'s internal "which layer am I rendering" flag — there's no user-facing switcher anymore, since Explore only ever shows Chord Field and Practice only ever shows Scale Practice.
 
 ---
 
@@ -86,10 +80,7 @@ Responsibilities:
 - fretboard generation
 - chord formulas
 - harmonic analysis
-- progression templates
-- resolution rules
-- voice-leading calculations
-- spatial/regional (Local Field) analysis
+- progression templates (used by Scale Practice's chord backing, not a resolution/voice-leading engine anymore — see below)
 - scale definitions and chord-family-aware scale suggestions (`scales.ts`)
 
 Must not import:
@@ -104,25 +95,15 @@ Must not import:
 
 Pure TypeScript, acoustic-pitch domain only (Live Input's DSP layer). Responsibilities: Web Audio capture, YIN pitch detection, temporal stabilization, frequency/MIDI/pitch-class conversion. Its only output type, `DetectedNote`, is neutral — frequency, MIDI, pitch class, octave, cents, confidence.
 
-Must not know about, or import: chords, keys, `HarmonicRole`, progressions, Voice-Leading Paths, Local Fields, or anything else from `src/lib/music/` beyond the bare `PitchClass` type. Harmonic meaning is layered on afterward by `src/lib/stores/live-input.svelte.ts` combined with the main store's already-computed analysis — never a second, parallel harmonic engine living in this domain.
+Must not know about, or import: chords, keys, `HarmonicRole`, progressions, or anything else from `src/lib/music/` beyond the bare `PitchClass` type. Harmonic meaning is layered on afterward by `src/lib/stores/live-input.svelte.ts` combined with the main store's already-computed analysis — never a second, parallel harmonic engine living in this domain.
 
 Must not depend on a real microphone for tests — real capture (`audio-input.ts`) and the deterministic test double (`fake-audio-source.ts`) both implement the same `LiveAudioSource` interface, so DSP logic is tested with synthetic buffers and integration is tested with the fake source.
 
 `drum-voices.ts`/`groove.ts`/`groove-presets.ts`/`chord-voices.ts` are this directory's one exception to "acoustic-pitch domain only": they're audio _output_ (Scale Practice's drum machine and its optional chord-progression backing), not analysis. They still must not import anything theory-related — no scales, no chord/key concepts, only step timing, synthesized percussion, and (for `chord-voices.ts`) plain Hz frequencies and durations. `chord-voices.ts`'s `triggerChordPad(ctx, time, frequenciesHz, durationSeconds, gain?)` takes frequencies, never a chord/root/interval — `scale-practice.svelte.ts` resolves theory (via `$lib/music/chords`'s `required` intervals and `$lib/music/intervals`'s `intervalSemitones`) before calling in, same boundary `drum-voices.ts` already keeps. `drum-voices.ts`/`chord-voices.ts` share `scale-practice.svelte.ts`'s one `AudioContext`, entirely separate from the capture context `audio-input.ts` owns — the two must never be merged into one context.
 
-### `src/lib/practice/`
-
-Pure TypeScript, Guided Practice's decision layer. Responsibilities: deciding what exercise is active (`exercise-generators.ts`), whether a played note satisfies it (`evaluation.ts`), and the session state machine (`practice-engine.ts`). Sits _above_ `src/lib/music/` and `src/lib/audio/` (it may import both — that boundary is the other direction, see above) but has no dependency on any Svelte store; a `PracticeContext` is plain data (root, chord, progression, selected path, active region) assembled by the caller, so generators/evaluation stay pure and directly testable.
-
-Must not duplicate harmonic logic: a Resolve Note target's role/interval comes from calling `analyzeConnection`/`connectionFor` (the same functions Progression Field uses), never a parallel scoring table. Find Chord Tone/Find Interval's "valid alternative" ranking reuses `roleStability`. If a new exercise needs a "how good is this note" judgment the existing engine doesn't already expose, extend `$lib/music`, not `$lib/practice`.
-
-Must not depend on a real microphone for tests, same reasoning as `src/lib/audio/` — exercise generation and evaluation are tested with synthetic `DetectedNote` objects; only the Playwright layer touches the injected `FakeAudioSource`.
-
-This module's own doctrine — self-paced, no timers, no tempo — is deliberate (§26). Do not add timing concepts here to support Scale Practice; that lives in `src/lib/scale-practice/` instead.
-
 ### `src/lib/scale-practice/`
 
-Pure TypeScript, Scale Practice's fretboard-position layer (`positions.ts`): `scalePositions(root, scale, zone, tuning, fretCount)` — every position in the zone belonging to the scale, the whole scale shown at once — and `positionsForPitchClass`, reused by the store for the live "what's currently played" lookup. No dependency on any Svelte store, same reasoning as `src/lib/practice/` — pure functions, directly testable. Deliberately has no evaluation/grading logic at all — Scale Practice doesn't judge correctness or timing (see §26); it only reports which positions match a pitch class.
+Pure TypeScript, Scale Practice's fretboard-position layer (`positions.ts`): `scalePositions(root, scale, zone, tuning, fretCount)` — every position in the zone belonging to the scale, the whole scale shown at once — and `positionsForPitchClass`, reused by the store for the live "what's currently played" lookup. No dependency on any Svelte store — pure functions, directly testable. Deliberately has no evaluation/grading logic at all — Scale Practice doesn't judge correctness or timing (see §26); it only reports which positions match a pitch class.
 
 Must not duplicate scale theory: pitch classes come from `scalePitchClasses` in `$lib/music/scales.ts`, never a re-derivation. Must not know about `AudioContext`/wall-clock scheduling — that lives in the store (`scale-practice.svelte.ts`), the one place `$lib/audio/drum-voices.ts`'s and `$lib/audio/chord-voices.ts`'s voice triggers get called.
 
@@ -138,17 +119,15 @@ Application state only.
 
 Do not duplicate derived harmonic logic here.
 
-`live-input.svelte.ts` is a deliberately separate store from `fretfield.svelte.ts`: it owns the Web Audio lifecycle (`AudioContext`, `MediaStream`, `AnalyserNode`, device selection). Those must never leak into the main music-theory store — it only ever consumes plain `DetectedNote`/`FretPosition` state from `live-input.svelte.ts`, the same way a component consumes analyzed music data.
+`live-input.svelte.ts` is a deliberately separate store from `fretfield.svelte.ts`: it owns the Web Audio lifecycle (`AudioContext`, `MediaStream`, `AnalyserNode`, device selection). Those must never leak into the main music-theory store — it only ever consumes plain `DetectedNote`/`FretPosition` state from `live-input.svelte.ts`, the same way a component consumes analyzed music data. `fretfield.svelte.ts` reads it directly for Chord Field's played-pitch highlighting; `scale-practice.svelte.ts` reads it independently for its own `playedPositions` — the two never share a code path.
 
-`practice.svelte.ts` is a third, separate store sitting above both: it's the only place that reads `fretfield` and `liveInput` together to build a `PracticeContext` and drive `$lib/practice`'s pure engine. It owns no harmonic or audio logic itself. `fretfield.svelte.ts` must never import `practice.svelte.ts` — that would be circular (practice already depends on fretfield); any fretboard visual layer Guided Practice needs is composed at the component level (`FretCell.svelte` reads both `fretfield` and `practice` directly) instead of being threaded through `DisplayFretPosition`. Svelte 5 reactivity note learned the hard way while building this: `$state` reads are tracked by call stack, not lexical scope, so a plain method call from inside `$effect` (e.g. `practice.handleDetectedNote(note)`) can silently capture deeply-nested store reads/writes as dependencies and self-retrigger; wrap such calls in `untrack(...)`, and never rely on `||`/`&&` short-circuiting to make multiple fields "tracked" — read each one into its own `const` first.
+`scale-practice.svelte.ts` is a third, fully independent store — no import relationship with `fretfield.svelte.ts` in either direction, confirmed and load-bearing (it's what let the app be stripped down to Chord Field + Scale Practice without a rearchitecture). It reads `liveInput.detectedNote` directly inside a `$derived` (`playedPositions`) — there's no "one attempt per note" bookkeeping to do here, just "what's sounding right now," so a live, continuously-updating derived is the right shape, not an event. It's also the one store allowed to touch `$lib/audio/drum-voices.ts`/`$lib/audio/chord-voices.ts` and run a Web Audio lookahead scheduler; no other store should grow timer-based logic. `playedPositions` is computed independently of `running` on purpose, and touching that decoupling needs a product conversation first, not just a refactor. `activeChordIndex` is always a valid index (default `0`, never `null`) that doubles as both playback position and click-to-preview selection — `setActiveChordIndex` wraps around the progression's length; picking a progression or clicking a chord row works whether or not the drum machine is running, and stopping playback freezes it rather than clearing it.
 
-`scale-practice.svelte.ts` follows the same independent-store shape as `practice.svelte.ts` (never imported by `fretfield.svelte.ts`, its own layers composed directly in `FretCell.svelte`) but owns none of `practice.svelte.ts`'s state — it's a sibling, not an extension. Unlike `practice.svelte.ts`, it reads `liveInput.detectedNote` directly inside a `$derived` (`playedPositions`) rather than through an onset-gated effect — there's no "one attempt per note" bookkeeping to do here, just "what's sounding right now," so a live, continuously-updating derived is the right shape, not an event. It's also the one store allowed to touch `$lib/audio/drum-voices.ts`/`$lib/audio/chord-voices.ts` and run a Web Audio lookahead scheduler; no other store should grow timer-based logic. That scheduler drives the drum machine and its optional chord-progression backing only — it must never gain a target/evaluation concept again (§26); `playedPositions` is computed independently of `running` on purpose, and touching that decoupling needs a product conversation first, not just a refactor. `activeChordIndex` is always a valid index (default `0`, never `null`) that doubles as both playback position and click-to-preview selection, mirroring `fretfield.svelte.ts`'s own `activeChordIndex` for Explore's Progression lens — `setActiveChordIndex` wraps the same way; picking a progression or clicking a chord row works whether or not the drum machine is running, and stopping playback freezes it rather than clearing it.
+The optional chord backing (`progressionTemplateId`/`barsPerChord`, off by default) is this store's one deliberate exception to Scale Practice having no chord concept in its harmonic model: a local `resolveProgressionTemplate` wraps `getProgressionTemplate` (`$lib/music/progressions.ts`) in a try/catch — the curated template list only, no user-saved/custom progressions (that feature was removed along with the rest of saved-material) — built on `scalePractice.root`, never an independent tonic, and voices each chord's `getChordDefinition(chordId).required` intervals via `intervalSemitones` before handing plain frequencies to `triggerChordPad`.
 
-The optional chord backing (`progressionTemplateId`/`barsPerChord`, off by default) is this store's one deliberate exception to Scale Practice having no chord concept in its harmonic model: it reuses `resolveProgressionTemplate`/`buildProgression` (`$lib/stores/saved-progressions.svelte.ts`/`$lib/music/progressions.ts`, the same resolver `fretfield.svelte.ts` uses for Explore's Progression lens) built on `scalePractice.root` — never an independent tonic — and voices each chord's `getChordDefinition(chordId).required` intervals via `intervalSemitones` before handing plain frequencies to `triggerChordPad`.
+That same mechanism drives the fretboard too: `progressionChordScaleOverrides` (session-only — an intentional "doesn't survive reload" buffer, not an oversight) plus `progressionChordScales` (each chord's assigned scale, defaulting to `suggestedScalesFor(chord.chordId)[0]` unless overridden) combine into `activeChordScale`: the root+scale of whichever chord `activeChordIndex` points at. `displayRoot` (`activeChordScale?.root ?? root`) is what `FretCell.svelte` keys its Scale-Practice root-marker/interval labels against — so both the highlighted notes _and_ their labels re-root to whichever chord is currently active. This is a plain scale-note highlight reusing the same `scalePositions()` pure function Scale Practice always used — never Harmonic Field's nine-role analysis, which stays exclusive to Chord Field.
 
-By further explicit product request, this now also drives the fretboard: `progressionChordScaleOverrides` (session-only, same "advanced escape hatch" precedent as `fretfield.svelte.ts`'s `progressionScaleOverrides`) plus `progressionChordScales` (each chord's assigned scale, defaulting to `suggestedScalesFor(chord.chordId)[0]` unless overridden — the exact formula `progressionScaleBlocks` already uses) combine into `activeChordScale`: the root+scale of whichever chord `activeChordIndex` points at. `displayRoot` (`activeChordScale?.root ?? root`) is what `FretCell.svelte` keys its Scale-Practice root-marker/interval labels against — so both the highlighted notes _and_ their labels re-root to whichever chord is currently active. **This supersedes this file's former "audio only, must never grow into fretboard chord-tone highlighting" line** — a direct, explicit product request, not a silent scope drift. It still stops well short of Chord Field's job: this is a plain scale-note highlight reusing the same `scalePositions()` pure function Scale Practice always used, never Harmonic Field's nine-role analysis, and `playedPositions` (Live Input's live "what's sounding" layer) is untouched.
-
-By still-further explicit product request, the standalone manual scale (`scaleId`/`scale`/`setScaleId`, plus the "Scale" `<select>` next to Root in `ScalePracticeControls.svelte`) has been removed entirely — it had become dead weight the moment `activeChordScale` started taking over the fretboard the instant any progression was picked. `root` stays (it's still the progression's transposition base and the fallback for `displayRoot`), but there is no fallback scale anymore: `scalePositions` returns empty whenever `activeChordScale` is null (no progression picked, or the active chord's scale explicitly cleared to "—") — a scale only ever comes from a progression chord now. This also retired the five curated `activity: 'scales'` presets in `preset-library.ts` that depended on a standalone `scaleId` (Major Scale in One Position, Dorian Across the Neck, Mixolydian over Dominant, Minor Pentatonic, Blues Scale) — `captureCurrentPreset`'s scale-practice branch now only requires `root`, not `root` and a scale. `DrumMachineControls.svelte` was also reordered so the progression/per-chord-scale section (now the primary "what to practice" decision) comes before the genre/tempo/swing controls, not after.
+There is no standalone manual scale — no `scaleId`/`scale`/`setScaleId`, no "Scale" `<select>` next to Root. `root` stays (it's still the progression's transposition base and the fallback for `displayRoot`), but there is no fallback scale: `scalePositions` returns empty whenever `activeChordScale` is null (no progression picked, or the active chord's scale explicitly cleared to "—") — a scale only ever comes from a progression chord now. `DrumMachineControls.svelte` leads with the progression/per-chord-scale section (the primary "what to practice" decision) before the genre/tempo/swing controls, not after.
 
 ### `src/routes/`
 
@@ -308,19 +287,15 @@ Examples:
 Fretboard
 BassString
 FretCell
-FieldModeSwitcher
-HarmonyControls
+ChordExplorer
 ChordSelector
 AnalysisModeToggle
 DisplayModeToggle
 Legend
 NoteInspector
+ScalePracticeControls
+DrumMachineControls
 ProgressionSelector
-ProgressionStrip
-ProgressionControls
-PathSelector
-PathsControls
-LocalFieldControls
 ```
 
 Avoid premature micro-components for trivial wrappers.
@@ -618,17 +593,13 @@ Unless explicitly requested or scheduled in the roadmap, do not add:
 - analytics SDKs
 - advertising code
 
-Within Live Input specifically, also do not add: polyphonic pitch detection, chord recognition from audio, MIDI input, recording, audio playback, a metronome, ML-based pitch models, or automatic progression advancement — see `BLUEPRINT.md` §18 for the full exclusion list and why. Live Input stays a thin layer over the existing single-chord modes; it is not the place to build a second product. (Scale Practice's own rhythm engine — a synthesized multi-voice drum machine, not a plain click — is a deliberately separate, single-purpose feature living entirely inside Scale Practice's own store; see below. Not an exception to this rule.)
+Within Live Input specifically, also do not add: polyphonic pitch detection, chord recognition from audio, MIDI input, recording, audio playback, a metronome, ML-based pitch models, or automatic progression advancement. Live Input stays a thin layer over Chord Field (and Scale Practice's own played-note highlighting); it is not the place to build a second product. (Scale Practice's own rhythm engine — a synthesized multi-voice drum machine, not a plain click — is a deliberately separate, single-purpose feature living entirely inside Scale Practice's own store; see below. Not an exception to this rule.)
 
-Within Guided Practice specifically, also do not add: a metronome, backing tracks, automatic chord timing, rhythm/duration/tempo scoring, persistent progress, user accounts, achievements, an adaptive AI teacher, spaced repetition, or generated bass lines — see `BLUEPRINT.md` §19. Session stats live only in memory for the current session; do not add a backend to persist them.
+Scale Practice's rhythm engine is a synthesized multi-voice drum machine (`$lib/audio/drum-voices.ts`/`groove.ts`/`groove-presets.ts`, driven by `scale-practice.svelte.ts`'s lookahead scheduler) — kick/snare/closed-hat/open-hat voices, a 16-step pattern with swing, and curated genre presets. Within Scale Practice specifically, do not add: sample-based drum sounds (every voice stays synthesized — no asset-loading pipeline), per-step velocity/accent editing (genre character comes from step placement and swing, not a velocity grid — steps are boolean on/off), automatic tempo ramps (BPM is adjusted by hand), a mute toggle, persistent session stats, or per-beat pitch/timing grading (no target/evaluation concept — Scale Practice doesn't judge correctness or timing). Don't move its scheduler into `live-input.svelte.ts` — it stays in its own store (§4). Don't gate `scalePositions`/`playedPositions` on `running` — the drum machine and the highlighting are deliberately independent.
 
-Within Scale Blocks specifically, do not add: URL persistence for `chordBlocks` without discussing it first (deliberately session-only for v1, matching Guided Practice's precedent), or a block beyond `MAX_CHORD_BLOCKS`. Don't make `suggestedScalesFor` filter/restrict the scale dropdown — it orders it, it never removes an option. Each new block color (`--scale-block-1` through `--scale-block-8`) must stay defined everywhere a block chip/badge renders (`FretCell.svelte`, `ScaleBlockControls.svelte`, `ScaleBlockLegend.svelte`, `NoteInspector.svelte`) — the digit is the primary signal (§7), but the color still needs to exist.
+That same scheduler can optionally layer an audible chord-progression backing underneath the beat (`$lib/audio/chord-voices.ts`'s synthesized pad, off by default, picked via `ProgressionSelector` in `DrumMachineControls.svelte` — see §4). Within that addition specifically, do not add: an independent tonic for the progression (it always derives from `scalePractice.root`), per-chord duration overrides (one `barsPerChord` applies to every chord), independent drum/chord volume mixing, voice-leading between consecutive chords (every chord is the same simple closed voicing, root position, tones ascending), or a way to build/save a custom progression (that feature was removed — only the curated template list remains).
 
-Scale Practice's rhythm engine is a synthesized multi-voice drum machine (`$lib/audio/drum-voices.ts`/`groove.ts`/`groove-presets.ts`, driven by `scale-practice.svelte.ts`'s lookahead scheduler) — kick/snare/closed-hat/open-hat voices, a 16-step pattern with swing, and curated genre presets, by explicit product direction superseding this doctrine's former "quarter-note clicks only, no subdivisions/swing/accents" line. Within Scale Practice specifically, still do not add: sample-based drum sounds (every voice stays synthesized — no asset-loading pipeline), per-step velocity/accent editing (genre character comes from step placement and swing, not a velocity grid — v1 steps are boolean on/off), automatic tempo ramps (BPM is adjusted by hand), a mute toggle, persistent session stats, per-beat pitch/timing grading (removed by explicit product direction — see `BLUEPRINT.md` §21's revision note — don't reintroduce a target/evaluation concept), or Live Input/Guided Practice driving this mode the way they drive the four single-chord modes. Don't move its scheduler into `live-input.svelte.ts` or `practice.svelte.ts` — it stays in its own store (§4). Don't gate `scalePositions`/`playedPositions` on `running` — the drum machine and the highlighting are deliberately independent.
-
-That same scheduler can optionally layer an audible chord-progression backing underneath the beat (`$lib/audio/chord-voices.ts`'s synthesized pad, off by default, picked via a reused `ProgressionSelector`/`CustomProgressionBuilder` in `DrumMachineControls.svelte` — see §4), by further explicit product direction. Within that addition specifically, still do not add: an independent tonic for the progression (it always derives from `scalePractice.root`), per-chord duration overrides (one `barsPerChord` applies to every chord), independent drum/chord volume mixing, or voice-leading between consecutive chords (every chord is the same simple closed voicing, root position, tones ascending).
-
-By still-further explicit product direction, each chord in the backing can now be assigned its own scale (`DrumMachineControls.svelte`'s per-chord-row `<select>`, reusing `suggestedScalesFor`/`listScales` exactly like `ProgressionScales.svelte` does for Explore), and the fretboard shows whichever chord is active — clicking a chord row previews it even while stopped, and playback advances it automatically (see §4's `scale-practice.svelte.ts` entry for the full mechanics). This is the one place Scale Practice's "audio only, no fretboard chord-tone highlighting" boundary has been deliberately superseded; it must still not grow into: Harmonic Field-style role analysis or coloring (stays a plain scale-note highlight), persistence of chord-scale choices or the active/preview index (session-only, matching `fretfield.svelte.ts`'s own `progressionScaleOverrides`), or a "common notes across chords" callout (Explore's `ProgressionScales.svelte` has one; Scale Practice deliberately doesn't, to keep this reuse lightweight rather than re-implementing that lens wholesale).
+Each chord in the backing can be assigned its own scale (`DrumMachineControls.svelte`'s per-chord-row `<select>`, reusing `suggestedScalesFor`/`listScales`), and the fretboard shows whichever chord is active — clicking a chord row previews it even while stopped, and playback advances it automatically (see §4's `scale-practice.svelte.ts` entry for the full mechanics). This must not grow into: Harmonic Field-style role analysis or coloring (stays a plain scale-note highlight — that stays Chord Field's job), persistence of chord-scale choices or the active/preview index (session-only), or a "common notes across chords" callout.
 
 Maintain product focus.
 
@@ -640,8 +611,7 @@ Built so far, in `src/lib/music/`:
 
 ```text
 pitch.ts intervals.ts tuning.ts fretboard.ts chords.ts harmony.ts
-local-fields.ts progressions.ts connection-score.ts voice-leading.ts
-voice-leading-paths.ts absolute-pitch.ts live-position.ts scales.ts
+progressions.ts absolute-pitch.ts live-position.ts scales.ts
 ```
 
 And in `src/lib/audio/` (Live Input's acoustic-pitch domain, plus Scale Practice's drum machine and chord backing — see §4):
@@ -650,12 +620,6 @@ And in `src/lib/audio/` (Live Input's acoustic-pitch domain, plus Scale Practice
 types.ts pitch-detector.ts pitch-tracker.ts note-mapping.ts
 audio-input.ts fake-audio-source.ts drum-voices.ts groove.ts groove-presets.ts
 chord-voices.ts
-```
-
-And in `src/lib/practice/` (Guided Practice's decision layer — see §4):
-
-```text
-types.ts evaluation.ts exercise-generators.ts practice-engine.ts presets.ts
 ```
 
 And in `src/lib/scale-practice/` (Scale Practice's decision layer — see §4):
@@ -668,15 +632,12 @@ Future modules may include:
 
 ```text
 music/approaches.ts
-practice/walking-bass.ts
 audio/playback.ts
 ```
 
-(`practice/walking-bass.ts` above would back a future Walking Bass practice mode — target root arrivals with chromatic-approach hints, per ROADMAP.md's Phase 10; Find Interval/Find Chord Tone's original "Interval Trainer"/"Chord-Tone Trainer" framing is already covered by `practice/exercise-generators.ts`.)
+(`audio/playback.ts` above would be audio _output_ — playing selected notes/chords on demand from Explore — a distinct, still-unbuilt feature from both Live Input's audio _input_/detection and Scale Practice's own audio output (`drum-voices.ts`, rhythm-only, and `chord-voices.ts`, a scheduled backing pad rather than an on-demand player).)
 
-(`audio/playback.ts` above is audio _output_ — playing selected notes/chords on demand from Explore, per ROADMAP.md's Phase 11 — a distinct, still-unbuilt feature from both Live Input's audio _input_/detection and Scale Practice's own audio output (`drum-voices.ts`, rhythm-only, and `chord-voices.ts`, a scheduled backing pad rather than an on-demand player).)
-
-These must build on the existing pure music engine rather than replacing it with UI-specific logic. In particular, `progressions.ts` (declarative `ProgressionTemplate`s), `connection-score.ts` (pitch-class-level resolution scoring), and `voice-leading-paths.ts` (the exact-DP path search over `FretPosition`s) are three separate layers — new work should extend the layer that actually owns the concept rather than reaching across them.
+These must build on the existing pure music engine rather than replacing it with UI-specific logic. `progressions.ts` (declarative `ProgressionTemplate`s) is Scale Practice's chord-backing layer now, not a resolution/voice-leading engine — that machinery (`connection-score.ts`, `voice-leading.ts`, `voice-leading-paths.ts`, `local-fields.ts`) was removed along with Progression Field/Voice-Leading Paths/Local Fields. Don't rebuild resolution scoring or path-ranking inside `progressions.ts` or `scale-practice.svelte.ts` — if a future feature genuinely needs that kind of engine again, it's a new module, not a revival of the deleted ones (check git history for the last shape they had, if useful as a reference).
 
 ---
 
