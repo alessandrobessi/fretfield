@@ -7,6 +7,10 @@ import {
 	practiceHistory,
 	STORAGE_KEY as PRACTICE_HISTORY_KEY
 } from '$lib/stores/practice-history.svelte';
+import { STORAGE_KEY as FAVORITE_CHORDS_KEY } from '$lib/stores/favorite-chords.svelte';
+import { STORAGE_KEY as SAVED_PRESETS_KEY } from '$lib/stores/saved-presets.svelte';
+import { STORAGE_KEY as SAVED_PROGRESSIONS_KEY } from '$lib/stores/saved-progressions.svelte';
+import { STORAGE_KEY as SAVED_SCALE_MAPS_KEY } from '$lib/stores/saved-scale-maps.svelte';
 import { STORAGE_KEY as SCALE_PRACTICE_KEY } from '$lib/stores/scale-practice.svelte';
 import { writeJSON } from '$lib/utils/local-storage';
 
@@ -15,7 +19,11 @@ const ALL_KEYS = [
 	SCALE_PRACTICE_KEY,
 	DESTINATION_KEY,
 	PRACTICE_HISTORY_KEY,
-	MODE_STORAGE_KEY
+	MODE_STORAGE_KEY,
+	SAVED_SCALE_MAPS_KEY,
+	FAVORITE_CHORDS_KEY,
+	SAVED_PROGRESSIONS_KEY,
+	SAVED_PRESETS_KEY
 ];
 
 /**
