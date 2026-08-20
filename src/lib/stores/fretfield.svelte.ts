@@ -23,12 +23,11 @@ import {
 } from '$lib/music/local-fields';
 import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
 import { liveInput } from '$lib/stores/live-input.svelte';
+import { type ResolvedChord, buildProgression, resolvedChordSymbol } from '$lib/music/progressions';
 import {
-	type ResolvedChord,
-	buildProgression,
-	getProgressionTemplate,
-	resolvedChordSymbol
-} from '$lib/music/progressions';
+	resolveProgressionTemplate,
+	savedProgressions
+} from '$lib/stores/saved-progressions.svelte';
 import { getScaleDefinition, scaleContainsPitchClass, suggestedScalesFor } from '$lib/music/scales';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { type ChordTransition, analyzeTransition, connectionFor } from '$lib/music/voice-leading';
@@ -231,7 +230,12 @@ class FretFieldStore {
 		const root = this.root;
 		const templateId = this.progressionTemplateId;
 		if (root === null || templateId === null) return [];
-		return buildProgression(root, getProgressionTemplate(templateId)).map((chord) => ({
+		const template = resolveProgressionTemplate(
+			templateId,
+			savedProgressions.items.map((item) => item.data)
+		);
+		if (template === null) return [];
+		return buildProgression(root, template).map((chord) => ({
 			...chord,
 			symbol: resolvedChordSymbol(chord)
 		}));
