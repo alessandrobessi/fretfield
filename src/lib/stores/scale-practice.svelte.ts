@@ -14,6 +14,7 @@ import {
 	toggleStep as toggleGrooveStep
 } from '$lib/groove/pattern';
 import { listGroovePresets } from '$lib/groove/presets';
+import { GrooveTransport, type CountIn } from '$lib/groove/transport';
 import {
 	DRUM_VOICES,
 	STEPS_PER_BAR,
@@ -55,14 +56,6 @@ const DEFAULT_BARS_PER_CHORD = 2;
 const MIN_BARS_PER_CHORD = 1;
 const MAX_BARS_PER_CHORD = 8;
 
-// Standard Web Audio "lookahead scheduler" constants: the JS timer only
-// needs to wake up often enough to keep scheduling steps within the lookahead
-// window -- the actual playback timing comes from AudioContext.currentTime,
-// not from setInterval's own accuracy, so drift/jitter in the JS timer never
-// reaches the audio.
-const SCHEDULER_INTERVAL_MS = 25;
-const SCHEDULE_AHEAD_SECONDS = 0.1;
-
 // The chord pad's fixed voicing octave -- C4, comfortably above the bass's
 // own range (the standard 4-string tuning tops out at G3, MIDI 43+fretCount)
 // so the pad backs the instrument being practiced rather than masking it.
@@ -91,6 +84,7 @@ interface PersistedScalePracticeConfig {
 	/** null = no chord backing (the feature is purely additive/off by default). */
 	progressionTemplateId: string | null;
 	barsPerChord: number;
+	countIn: CountIn;
 }
 
 const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
@@ -99,7 +93,8 @@ const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	bpm: DEFAULT_BPM,
 	groove: DEFAULT_GROOVE,
 	progressionTemplateId: null,
-	barsPerChord: DEFAULT_BARS_PER_CHORD
+	barsPerChord: DEFAULT_BARS_PER_CHORD,
+	countIn: '1-bar'
 };
 
 /**
@@ -122,7 +117,8 @@ function loadPersistedConfig(): PersistedScalePracticeConfig {
 		progressionTemplateId:
 			(raw.progressionTemplateId as string | null | undefined) ??
 			DEFAULT_CONFIG.progressionTemplateId,
-		barsPerChord: (raw.barsPerChord as number | undefined) ?? DEFAULT_CONFIG.barsPerChord
+		barsPerChord: (raw.barsPerChord as number | undefined) ?? DEFAULT_CONFIG.barsPerChord,
+		countIn: (raw.countIn as CountIn | undefined) ?? DEFAULT_CONFIG.countIn
 	};
 }
 
@@ -179,19 +175,19 @@ export class ScalePracticeStore {
 	progressionChordScaleOverrides = $state<Record<number, string | null>>({});
 	/** Which of the 16 grid steps is currently sounding -- drives the step-grid's playhead pulse. `null` whenever the drum machine isn't running. */
 	activeStepIndex = $state<number | null>(null);
+	countIn = $state<CountIn>(this.persisted.countIn);
+	/** True for the count-in bar(s) after `start()`, before real playback (and `activeStepIndex`/`activeChordIndex` updates) begins. */
+	isCountingIn = $state(false);
 
 	private readonly tuning: Tuning;
 	private readonly fretCount: number;
+	private readonly transport: GrooveTransport;
 	private audioContext: AudioContext | null = null;
-	private schedulerHandle: ReturnType<typeof setInterval> | null = null;
-	private currentStep = 0;
-	private currentBar = 0;
-	private nextStepTime = 0;
-	/** Whichever pattern the current bar's arrangement slot points at -- resolved once per bar (not per step) in `scheduler()`. */
+	/** Whichever pattern the current bar's arrangement slot points at -- resolved once per bar (not per step) in `handleBarStart`. */
 	private currentBarPattern: GroovePattern = this.groove.patterns.A;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
-	// (see the scheduler doc comment below), but the *highlight* has to flip at
-	// the same wall-clock moment the chord actually starts sounding, which a
+	// (the transport's own clock), but the *highlight* has to flip at the same
+	// wall-clock moment the chord/step actually starts sounding, which a
 	// setTimeout keyed off (gridTime - ctx.currentTime) approximates closely
 	// enough for a UI cue. Tracked so stop()/a progression change can cancel
 	// any still-pending ones instead of leaving a stale highlight to fire late.
@@ -202,6 +198,14 @@ export class ScalePracticeStore {
 	constructor(tuning: Tuning = STANDARD_4_STRING_TUNING, fretCount: number = DEFAULT_FRET_COUNT) {
 		this.tuning = tuning;
 		this.fretCount = fretCount;
+		this.transport = new GrooveTransport({
+			onBarStart: (bar, gridTime) => this.handleBarStart(bar, gridTime),
+			onStep: (_bar, stepIndex, gridTime) => this.handleStep(stepIndex, gridTime),
+			onCountInStep: (stepIndex, gridTime) => this.handleCountInStep(stepIndex, gridTime),
+			onCountInEnd: () => {
+				this.isCountingIn = false;
+			}
+		});
 	}
 
 	/**
@@ -276,6 +280,14 @@ export class ScalePracticeStore {
 
 	setBpm(bpm: number): void {
 		this.bpm = clampBpm(bpm);
+		// Live tempo changes take effect immediately, mid-playback -- the
+		// transport keeps its own copy since it can't read `this.bpm` directly.
+		this.transport.setBpm(this.bpm);
+		this.persist();
+	}
+
+	setCountIn(countIn: CountIn): void {
+		this.countIn = countIn;
 		this.persist();
 	}
 
@@ -344,7 +356,8 @@ export class ScalePracticeStore {
 			bpm: this.bpm,
 			groove: this.groove,
 			progressionTemplateId: this.progressionTemplateId,
-			barsPerChord: this.barsPerChord
+			barsPerChord: this.barsPerChord,
+			countIn: this.countIn
 		});
 	}
 
@@ -362,19 +375,14 @@ export class ScalePracticeStore {
 
 		this.audioContext = new AudioContextCtor();
 		this.running = true;
-		this.currentStep = 0;
-		this.currentBar = 0;
-		this.currentBarPattern = this.activePatternForBar(0);
-		this.nextStepTime = this.audioContext.currentTime + 0.05;
-		this.schedulerHandle = setInterval(() => this.scheduler(), SCHEDULER_INTERVAL_MS);
+		this.isCountingIn = this.countIn !== 'off';
+		this.transport.start(this.audioContext, this.bpm, this.countIn);
 	}
 
 	stop(): void {
 		this.running = false;
-		if (this.schedulerHandle !== null) {
-			clearInterval(this.schedulerHandle);
-			this.schedulerHandle = null;
-		}
+		this.isCountingIn = false;
+		this.transport.stop();
 		void this.audioContext?.close();
 		this.audioContext = null;
 		this.cancelPendingChordHighlights();
@@ -382,25 +390,13 @@ export class ScalePracticeStore {
 		this.activeStepIndex = null;
 	}
 
-	/** Schedules every step whose (unswung) grid time falls within the lookahead window. */
-	private scheduler(): void {
-		const ctx = this.audioContext;
-		if (!this.running || ctx === null) return;
-
-		while (this.nextStepTime < ctx.currentTime + SCHEDULE_AHEAD_SECONDS) {
-			if (this.currentStep === 0) {
-				this.scheduleBarChord(this.currentBar, this.nextStepTime);
-				this.currentBarPattern = this.activePatternForBar(this.currentBar);
-				this.currentBar += 1;
-			}
-			this.scheduleStep(this.currentStep, this.nextStepTime);
-			const stepDurationSeconds = 60 / this.bpm / 4; // 4 sixteenth notes per beat
-			this.currentStep = (this.currentStep + 1) % STEPS_PER_BAR;
-			this.nextStepTime += stepDurationSeconds;
-		}
+	/** Fires once per bar of real playback (never during count-in) -- resolves which pattern the bar plays and triggers the chord pad. */
+	private handleBarStart(bar: number, gridTime: number): void {
+		this.scheduleBarChord(bar, gridTime);
+		this.currentBarPattern = this.activePatternForBar(bar);
 	}
 
-	private scheduleStep(stepIndex: number, gridTime: number): void {
+	private handleStep(stepIndex: number, gridTime: number): void {
 		const ctx = this.audioContext;
 		if (ctx === null) return;
 		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, this.groove.swing) / 1000;
@@ -417,6 +413,13 @@ export class ScalePracticeStore {
 			this.stepHighlightTimeouts = this.stepHighlightTimeouts.filter((id) => id !== timeoutId);
 		}, delayMs);
 		this.stepHighlightTimeouts = [...this.stepHighlightTimeouts, timeoutId];
+	}
+
+	/** A simple percussive click on every beat (not every 16th-note step) of a count-in bar -- "a simple percussive cue," per AGENTS.md. */
+	private handleCountInStep(stepIndex: number, gridTime: number): void {
+		const ctx = this.audioContext;
+		if (ctx === null || stepIndex % 4 !== 0) return;
+		triggerClosedHat(ctx, gridTime, 1);
 	}
 
 	/**

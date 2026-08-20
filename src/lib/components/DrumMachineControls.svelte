@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { DRUM_VOICES, type DrumVoice, type Groove } from '$lib/groove/types';
 	import { listGroovePresets } from '$lib/groove/presets';
+	import type { CountIn } from '$lib/groove/transport';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
 	import { listScales, suggestedScalesFor } from '$lib/music/scales';
@@ -64,6 +65,10 @@
 
 	function handleBarsPerChordChange(event: Event): void {
 		scalePractice.setBarsPerChord(Number((event.currentTarget as HTMLInputElement).value));
+	}
+
+	function handleCountInChange(event: Event): void {
+		scalePractice.setCountIn((event.currentTarget as HTMLSelectElement).value as CountIn);
 	}
 
 	function handleChordScaleChange(index: number, event: Event): void {
@@ -189,6 +194,14 @@
 				<span class="swing-readout">{scalePractice.groove.swing}%</span>
 			</span>
 		</label>
+		<label class="field">
+			<span class="field-label">Count-in</span>
+			<select aria-label="Count-in" value={scalePractice.countIn} onchange={handleCountInChange}>
+				<option value="off">Off</option>
+				<option value="1-bar">1 bar</option>
+				<option value="2-bars">2 bars</option>
+			</select>
+		</label>
 		{#if savingAs}
 			<input
 				class="name-input"
@@ -218,7 +231,9 @@
 		>
 			{scalePractice.running ? 'Stop' : 'Play'}
 		</button>
-		{#if scalePractice.running}
+		{#if scalePractice.isCountingIn}
+			<span class="beat-readout">Count-in…</span>
+		{:else if scalePractice.running}
 			<span class="beat-readout">♩ = {scalePractice.bpm}</span>
 		{/if}
 	</div>

@@ -74,11 +74,29 @@ test.describe('Drum Machine', () => {
 
 	test('Start/Stop toggles the drum machine', async ({ page }) => {
 		await openScalePractice(page);
+		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
 
 		const toggle = page.getByRole('button', { name: 'Play' });
 		await toggle.click();
 		await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
 		await expect(page.getByText(/♩ = \d+/)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Stop' }).click();
+		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+	});
+
+	test('a count-in plays before the tempo readout appears, and Stop cancels it', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+		await expect(page.getByLabel('Count-in')).toHaveValue('1-bar');
+
+		await page.getByRole('button', { name: 'Play' }).click();
+		await expect(page.getByText('Count-in…')).toBeVisible();
+		await expect(page.getByText(/♩ = \d+/)).not.toBeVisible();
+
+		await expect(page.getByText(/♩ = \d+/)).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText('Count-in…')).not.toBeVisible();
 
 		await page.getByRole('button', { name: 'Stop' }).click();
 		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
@@ -153,10 +171,11 @@ test.describe('Drum Machine: chord-progression backing', () => {
 		await openScalePractice(page);
 		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
-		// A fast tempo and one bar per chord keeps the wait for the first
-		// highlight change short and deterministic.
+		// A fast tempo, one bar per chord, and no count-in keeps the wait for
+		// the first highlight change short and deterministic.
 		await page.getByLabel('Metronome BPM').fill('240');
 		await page.getByLabel('Bars per chord').fill('1');
+		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
 		await page.keyboard.press('Tab');
 
 		const strip = page.locator('.chord-strip');
