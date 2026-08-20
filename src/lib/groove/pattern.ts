@@ -33,10 +33,17 @@ export function setStepVelocity(
 	return { ...pattern, steps: { ...pattern.steps, [voice]: steps } };
 }
 
-/** A plain on/off toggle (0 <-> 0.7) -- becomes a full off/ghost/normal/accent cycle once the expressive-step UI lands. */
-export function toggleStep(pattern: GroovePattern, voice: DrumVoice, index: number): GroovePattern {
+const VELOCITY_CYCLE: readonly StepVelocity[] = [0, 0.35, 0.7, 1];
+
+/** Clicking a step advances it off -> ghost -> normal -> accent -> off. */
+export function cycleStepVelocity(
+	pattern: GroovePattern,
+	voice: DrumVoice,
+	index: number
+): GroovePattern {
 	const current = pattern.steps[voice][index].velocity;
-	return setStepVelocity(pattern, voice, index, current === 0 ? 0.7 : 0);
+	const next = VELOCITY_CYCLE[(VELOCITY_CYCLE.indexOf(current) + 1) % VELOCITY_CYCLE.length];
+	return setStepVelocity(pattern, voice, index, next);
 }
 
 export function setSwing(groove: Groove, swing: number): Groove {

@@ -4,16 +4,19 @@ import {
 	triggerClosedHat,
 	triggerKick,
 	triggerOpenHat,
+	triggerRide,
+	triggerRim,
 	triggerSnare
 } from '$lib/audio/drum-voices';
 import { coerceGroove } from '$lib/groove/migrate';
 import {
+	cycleStepVelocity as cycleGrooveStepVelocity,
 	setArrangementBar as setGrooveArrangementBar,
 	setArrangementLength as setGrooveArrangementLength,
 	setPatternForRole,
+	setStepVelocity as setGrooveStepVelocity,
 	setSwing as setGrooveSwing,
-	stepOffsetMs,
-	toggleStep as toggleGrooveStep
+	stepOffsetMs
 } from '$lib/groove/pattern';
 import { listGroovePresets } from '$lib/groove/presets';
 import { GrooveTransport, type CountIn } from '$lib/groove/transport';
@@ -23,7 +26,8 @@ import {
 	type DrumVoice,
 	type Groove,
 	type GroovePattern,
-	type PatternRole
+	type PatternRole,
+	type StepVelocity
 } from '$lib/groove/types';
 import { midiToFrequency } from '$lib/audio/note-mapping';
 import { getChordDefinition } from '$lib/music/chords';
@@ -74,7 +78,9 @@ const VOICE_TRIGGERS: Record<DrumVoice, (ctx: AudioContext, time: number, gain?:
 		kick: triggerKick,
 		snare: triggerSnare,
 		closedHat: triggerClosedHat,
-		openHat: triggerOpenHat
+		openHat: triggerOpenHat,
+		ride: triggerRide,
+		rim: triggerRim
 	};
 
 export const STORAGE_KEY = 'fretfield-scale-practice';
@@ -306,9 +312,25 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
-	/** Edits whichever pattern `selectedPatternRole` currently points at. */
-	toggleStep(voice: DrumVoice, index: number): void {
-		const pattern = toggleGrooveStep(this.groove.patterns[this.selectedPatternRole], voice, index);
+	/** Clicking a step: cycles it off -> ghost -> normal -> accent -> off, on whichever pattern `selectedPatternRole` currently points at. */
+	cycleStep(voice: DrumVoice, index: number): void {
+		const pattern = cycleGrooveStepVelocity(
+			this.groove.patterns[this.selectedPatternRole],
+			voice,
+			index
+		);
+		this.groove = setPatternForRole(this.groove, this.selectedPatternRole, pattern);
+		this.persist();
+	}
+
+	/** Shift-click (accent) / Alt-click (off): sets a step's velocity directly rather than cycling. */
+	setStepVelocity(voice: DrumVoice, index: number, velocity: StepVelocity): void {
+		const pattern = setGrooveStepVelocity(
+			this.groove.patterns[this.selectedPatternRole],
+			voice,
+			index,
+			velocity
+		);
 		this.groove = setPatternForRole(this.groove, this.selectedPatternRole, pattern);
 		this.persist();
 	}

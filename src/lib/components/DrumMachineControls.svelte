@@ -20,7 +20,16 @@
 		kick: 'Kick',
 		snare: 'Snare',
 		closedHat: 'Closed Hat',
-		openHat: 'Open Hat'
+		openHat: 'Open Hat',
+		ride: 'Ride',
+		rim: 'Rim'
+	};
+
+	const VELOCITY_LABELS: Record<number, string> = {
+		0: 'off',
+		0.35: 'ghost',
+		0.7: 'normal',
+		1: 'accent'
 	};
 
 	const presets = listGroovePresets();
@@ -92,6 +101,17 @@
 	function handleAssignBar(barIndex: number, role: PatternRole): void {
 		scalePractice.setArrangementBar(barIndex, role);
 		scalePractice.setSelectedPatternRole(role);
+	}
+
+	/** Click cycles off->ghost->normal->accent->off; Shift-click jumps straight to accent; Alt/Option-click clears to off. */
+	function handleStepClick(voice: DrumVoice, index: number, event: MouseEvent): void {
+		if (event.altKey) {
+			scalePractice.setStepVelocity(voice, index, 0);
+		} else if (event.shiftKey) {
+			scalePractice.setStepVelocity(voice, index, 1);
+		} else {
+			scalePractice.cycleStep(voice, index);
+		}
 	}
 
 	function addBar(): void {
@@ -315,11 +335,15 @@
 							type="button"
 							class="step"
 							class:active={step.velocity > 0}
+							class:velocity-ghost={step.velocity === 0.35}
+							class:velocity-accent={step.velocity === 1}
 							class:beat-start={index % 4 === 0}
 							class:current={index === scalePractice.activeStepIndex}
+							data-velocity={step.velocity}
 							aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
 							aria-pressed={step.velocity > 0}
-							onclick={() => scalePractice.toggleStep(voice, index)}
+							title={`${VOICE_LABELS[voice]} step ${index + 1}: ${VELOCITY_LABELS[step.velocity]}`}
+							onclick={(event) => handleStepClick(voice, index, event)}
 						>
 							{#if step.velocity > 0}
 								<span class="dot" aria-hidden="true"></span>
@@ -750,6 +774,23 @@
 		height: 0.55rem;
 		border-radius: 50%;
 		background: var(--practice-target-accent, #10b981);
+	}
+
+	/* Velocity is encoded by more than color alone (AGENTS.md): dot size,
+	   opacity, and (for accent) a thicker border ring. */
+	.step.velocity-ghost .dot {
+		width: 0.3rem;
+		height: 0.3rem;
+		opacity: 0.6;
+	}
+
+	.step.velocity-accent {
+		border-width: 2px;
+	}
+
+	.step.velocity-accent .dot {
+		width: 0.8rem;
+		height: 0.8rem;
 	}
 
 	/* The playhead: whichever 16th-note step is sounding right now, pulsing in

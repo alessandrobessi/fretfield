@@ -2,23 +2,22 @@ import { describe, expect, it } from 'vitest';
 import {
 	createEmptyGroove,
 	createEmptyPattern,
+	cycleStepVelocity,
 	setArrangementBar,
 	setArrangementLength,
 	setStepVelocity,
 	setSwing,
-	stepOffsetMs,
-	toggleStep
+	stepOffsetMs
 } from '../pattern';
-import { STEPS_PER_BAR, type PatternRole } from '../types';
+import { DRUM_VOICES, STEPS_PER_BAR, type PatternRole } from '../types';
 
 describe('createEmptyPattern', () => {
-	it('has 16 off steps per voice', () => {
+	it('has 16 off steps for all six voices', () => {
 		const pattern = createEmptyPattern();
-		expect(pattern.steps.kick).toHaveLength(STEPS_PER_BAR);
-		expect(pattern.steps.kick.every((step) => step.velocity === 0)).toBe(true);
-		expect(pattern.steps.snare.every((step) => step.velocity === 0)).toBe(true);
-		expect(pattern.steps.closedHat.every((step) => step.velocity === 0)).toBe(true);
-		expect(pattern.steps.openHat.every((step) => step.velocity === 0)).toBe(true);
+		for (const voice of DRUM_VOICES) {
+			expect(pattern.steps[voice]).toHaveLength(STEPS_PER_BAR);
+			expect(pattern.steps[voice].every((step) => step.velocity === 0)).toBe(true);
+		}
 	});
 });
 
@@ -31,7 +30,7 @@ describe('createEmptyGroove', () => {
 	});
 });
 
-describe('setStepVelocity / toggleStep', () => {
+describe('setStepVelocity', () => {
 	it('sets only the targeted voice/step, leaving the rest untouched', () => {
 		const pattern = createEmptyPattern();
 		const updated = setStepVelocity(pattern, 'kick', 3, 1);
@@ -41,13 +40,19 @@ describe('setStepVelocity / toggleStep', () => {
 		// The original pattern is untouched (pure function).
 		expect(pattern.steps.kick[3].velocity).toBe(0);
 	});
+});
 
-	it('toggleStep flips between off and normal', () => {
+describe('cycleStepVelocity', () => {
+	it('advances off -> ghost -> normal -> accent -> off', () => {
 		const pattern = createEmptyPattern();
-		const once = toggleStep(pattern, 'snare', 5);
-		expect(once.steps.snare[5].velocity).toBe(0.7);
-		const twice = toggleStep(once, 'snare', 5);
-		expect(twice.steps.snare[5].velocity).toBe(0);
+		const ghost = cycleStepVelocity(pattern, 'snare', 5);
+		expect(ghost.steps.snare[5].velocity).toBe(0.35);
+		const normal = cycleStepVelocity(ghost, 'snare', 5);
+		expect(normal.steps.snare[5].velocity).toBe(0.7);
+		const accent = cycleStepVelocity(normal, 'snare', 5);
+		expect(accent.steps.snare[5].velocity).toBe(1);
+		const off = cycleStepVelocity(accent, 'snare', 5);
+		expect(off.steps.snare[5].velocity).toBe(0);
 	});
 });
 

@@ -80,9 +80,9 @@ const GROOVE_PRESETS: GroovePreset[] = [
 			{
 				kick: [0],
 				snare: [6],
-				// The classic ride pattern ("1, 2-and, 3, 4-and") -- open hat for
-				// a washier, more ride-cymbal-like sustain than the closed hat.
-				openHat: [0, 6, 8, 14]
+				// The classic "1, 2-and, 3, 4-and" ride pattern -- a real ride
+				// voice now, rather than faking it with the open hat.
+				ride: [0, 6, 8, 14]
 			},
 			70
 		)

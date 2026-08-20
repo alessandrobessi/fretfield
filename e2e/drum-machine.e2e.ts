@@ -13,15 +13,37 @@ async function openScalePractice(page: import('@playwright/test').Page): Promise
 }
 
 test.describe('Drum Machine', () => {
-	test('toggling a step updates the grid', async ({ page }) => {
+	test('clicking a step cycles off -> ghost -> normal -> accent -> off', async ({ page }) => {
 		await openScalePractice(page);
 
 		const step = page.getByLabel('Open Hat step 5', { exact: true });
 		await expect(step).toHaveAttribute('aria-pressed', 'false');
+		await expect(step).toHaveAttribute('data-velocity', '0');
+
 		await step.click();
 		await expect(step).toHaveAttribute('aria-pressed', 'true');
+		await expect(step).toHaveAttribute('data-velocity', '0.35');
+
+		await step.click();
+		await expect(step).toHaveAttribute('data-velocity', '0.7');
+
+		await step.click();
+		await expect(step).toHaveAttribute('data-velocity', '1');
+
 		await step.click();
 		await expect(step).toHaveAttribute('aria-pressed', 'false');
+		await expect(step).toHaveAttribute('data-velocity', '0');
+	});
+
+	test('Shift-click jumps straight to accent; Alt-click clears to off', async ({ page }) => {
+		await openScalePractice(page);
+
+		const step = page.getByLabel('Open Hat step 5', { exact: true });
+		await step.click({ modifiers: ['Shift'] });
+		await expect(step).toHaveAttribute('data-velocity', '1');
+
+		await step.click({ modifiers: ['Alt'] });
+		await expect(step).toHaveAttribute('data-velocity', '0');
 	});
 
 	test('selecting a genre preset overwrites the whole grid and swing together', async ({
@@ -66,7 +88,7 @@ test.describe('Drum Machine', () => {
 
 		await expect(page.getByLabel('Swing')).toHaveValue('70');
 		await expect(page.getByLabel('Metronome BPM')).toHaveValue('110');
-		await expect(page.getByLabel('Open Hat step 1', { exact: true })).toHaveAttribute(
+		await expect(page.getByLabel('Ride step 1', { exact: true })).toHaveAttribute(
 			'aria-pressed',
 			'true'
 		);

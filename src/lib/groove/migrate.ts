@@ -7,9 +7,12 @@ import {
 	type StepVelocity
 } from './types';
 
+/** The kit as it existed pre-Groove-Engine -- frozen here rather than reusing the current (six-voice) `DrumVoice`, since a legacy pattern was only ever recorded for these four. */
+type LegacyDrumVoice = 'kick' | 'snare' | 'closedHat' | 'openHat';
+
 /** The pre-Groove-Engine shape: one boolean pattern, no arrangement, no roles. */
 interface LegacyGroovePattern {
-	steps: Record<DrumVoice, boolean[]>;
+	steps: Record<LegacyDrumVoice, boolean[]>;
 	swing: number;
 }
 
@@ -28,10 +31,15 @@ function isLegacyGroovePattern(value: unknown): value is LegacyGroovePattern {
 export function migrateLegacyPattern(legacy: LegacyGroovePattern): Groove {
 	const groove = createEmptyGroove();
 	const patternA = groove.patterns.A;
+	const legacySteps = legacy.steps as Partial<Record<DrumVoice, boolean[]>>;
 	for (const voice of DRUM_VOICES) {
-		const legacySteps = legacy.steps[voice] ?? [];
+		// Voices added after the legacy shape was recorded (ride/rim) simply
+		// have nothing to migrate -- `createEmptyGroove()` already leaves them
+		// all-off, so there's nothing to overwrite here for those voices.
+		const steps = legacySteps[voice];
+		if (steps === undefined) continue;
 		patternA.steps[voice] = Array.from({ length: STEPS_PER_BAR }, (_, i) => ({
-			velocity: (legacySteps[i] ? 0.7 : 0) as StepVelocity
+			velocity: (steps[i] ? 0.7 : 0) as StepVelocity
 		}));
 	}
 	return {

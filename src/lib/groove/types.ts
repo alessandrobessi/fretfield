@@ -9,19 +9,21 @@
  * without needing twelve separate hand-authored patterns.
  */
 
-export type DrumVoice = 'kick' | 'snare' | 'closedHat' | 'openHat';
+/** The six-voice kit recommended by AGENTS.md -- enough for funk/blues/jazz/soul/rock/bossa without a full General-MIDI-style drum palette. */
+export type DrumVoice = 'kick' | 'snare' | 'closedHat' | 'openHat' | 'ride' | 'rim';
 
-export const DRUM_VOICES: readonly DrumVoice[] = ['kick', 'snare', 'closedHat', 'openHat'];
+export const DRUM_VOICES: readonly DrumVoice[] = [
+	'kick',
+	'snare',
+	'closedHat',
+	'openHat',
+	'ride',
+	'rim'
+];
 
 export const STEPS_PER_BAR = 16;
 
-/**
- * 0 = off, 0.35 = ghost, 0.7 = normal, 1 = accent. Only 0/0.7 are reachable
- * through the UI today (a plain toggle) -- the full four-state cycle is a
- * later milestone -- but the type already carries every value the engine
- * will ultimately support, so nothing about `GrooveStep`'s shape needs to
- * change when that UI lands.
- */
+/** 0 = off, 0.35 = ghost, 0.7 = normal, 1 = accent -- cycled off->ghost->normal->accent->off by clicking a step, or set directly (Shift-click = accent, Alt/Option-click = off). */
 export type StepVelocity = 0 | 0.35 | 0.7 | 1;
 
 export interface GrooveStep {

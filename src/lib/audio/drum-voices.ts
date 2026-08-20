@@ -1,7 +1,8 @@
 /**
- * Scale Practice's drum machine voices — synthesized, not sampled (no
+ * Scale Practice's Groove Engine voices — synthesized, not sampled (no
  * asset-loading pipeline), extending metronome.ts's single-click approach to
- * four distinct percussive sounds. Each trigger function builds a fresh
+ * a six-voice kit (kick/snare/closed hat/open hat/ride/rim). Each trigger
+ * function builds a fresh
  * oscillator/noise-buffer graph per hit (cheap, no reuse — the same pattern
  * the old click used), scheduled at a precise `AudioContext.currentTime` by
  * the lookahead scheduler in scale-practice.svelte.ts.
@@ -97,4 +98,43 @@ export function triggerClosedHat(ctx: AudioContext, time: number, gain = 1): voi
 
 export function triggerOpenHat(ctx: AudioContext, time: number, gain = 1): void {
 	playNoiseBurst(ctx, time, { durationSeconds: 0.22, peakGain: gain * 0.22, highpassHz: 6000 });
+}
+
+/**
+ * A longer, brighter noise wash than the open hat, plus a couple of
+ * inharmonic sine partials layered on top for the metallic "ping" a real
+ * ride cymbal has -- the same trick real cymbal synthesis uses (non-integer
+ * overtone ratios), without needing FM or physical modeling.
+ */
+export function triggerRide(ctx: AudioContext, time: number, gain = 1): void {
+	playNoiseBurst(ctx, time, { durationSeconds: 0.5, peakGain: gain * 0.16, highpassHz: 5000 });
+
+	for (const frequencyHz of [523.3, 1108.7]) {
+		const osc = ctx.createOscillator();
+		const envelope = ctx.createGain();
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(frequencyHz, time);
+		envelope.gain.setValueAtTime(gain * 0.05, time);
+		envelope.gain.exponentialRampToValueAtTime(0.0001, time + 0.4);
+		osc.connect(envelope);
+		envelope.connect(ctx.destination);
+		osc.start(time);
+		osc.stop(time + 0.4);
+	}
+}
+
+/** A short, sharp click -- tighter and higher-pitched than the snare's own tonal layer, for a cross-stick/rim-click sound. */
+export function triggerRim(ctx: AudioContext, time: number, gain = 1): void {
+	playNoiseBurst(ctx, time, { durationSeconds: 0.03, peakGain: gain * 0.2, highpassHz: 3000 });
+
+	const osc = ctx.createOscillator();
+	const envelope = ctx.createGain();
+	osc.type = 'square';
+	osc.frequency.setValueAtTime(420, time);
+	envelope.gain.setValueAtTime(gain * 0.25, time);
+	envelope.gain.exponentialRampToValueAtTime(0.0001, time + 0.04);
+	osc.connect(envelope);
+	envelope.connect(ctx.destination);
+	osc.start(time);
+	osc.stop(time + 0.04);
 }
