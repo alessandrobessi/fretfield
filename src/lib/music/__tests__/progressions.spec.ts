@@ -30,6 +30,22 @@ describe('buildProgression — exact chord sequences', () => {
 	it('C minor iiø-V-i -> Dm7b5 G7 Cm', () => {
 		expect(symbols('C', 'minor-ii-v-i')).toEqual(['Dm7b5', 'G7', 'Cm']);
 	});
+
+	it('C backdoor ii-V-I -> Fm7 Bb7 Cmaj7', () => {
+		expect(symbols('C', 'backdoor-ii-v-i')).toEqual(['Fm7', 'Bb7', 'Cmaj7']);
+	});
+
+	it('C Coltrane changes -> Cmaj7 Eb7 Abmaj7 B7 Emaj7 G7 Cmaj7', () => {
+		expect(symbols('C', 'coltrane-changes')).toEqual([
+			'Cmaj7',
+			'Eb7',
+			'Abmaj7',
+			'B7',
+			'Emaj7',
+			'G7',
+			'Cmaj7'
+		]);
+	});
 });
 
 describe('buildProgression — transposition invariance', () => {
@@ -52,9 +68,20 @@ describe('buildProgression — transposition invariance', () => {
 });
 
 describe('listProgressionTemplates / getProgressionTemplate', () => {
-	it('exposes all 5 MVP templates', () => {
+	it('exposes all 10 curated templates', () => {
 		const ids = listProgressionTemplates().map((t) => t.id);
-		expect(ids).toEqual(['major-ii-v-i', 'minor-ii-v-i', 'i-vi-ii-v', 'i-iv-v', '12-bar-blues']);
+		expect(ids).toEqual([
+			'major-ii-v-i',
+			'minor-ii-v-i',
+			'i-vi-ii-v',
+			'i-iv-v',
+			'12-bar-blues',
+			'12-bar-minor-blues',
+			'i-vi7-ii-v',
+			'iii-vi7-ii-v',
+			'backdoor-ii-v-i',
+			'coltrane-changes'
+		]);
 	});
 
 	it('the 12-bar blues template has exactly 12 degrees, all dominant 7', () => {

@@ -69,6 +69,71 @@ const PROGRESSION_TEMPLATES: ProgressionTemplate[] = [
 		degrees: (['1', '4', '1', '1', '4', '4', '1', '1', '5', '4', '1', '5'] as IntervalId[]).map(
 			(fromTonic) => ({ fromTonic, chordId: 'dominant-7' })
 		)
+	},
+	{
+		id: '12-bar-minor-blues',
+		label: '12-Bar Minor Blues',
+		mode: 'minor',
+		degrees: [
+			{ fromTonic: '1', chordId: 'minor-7' },
+			{ fromTonic: '1', chordId: 'minor-7' },
+			{ fromTonic: '1', chordId: 'minor-7' },
+			{ fromTonic: '1', chordId: 'minor-7' },
+			{ fromTonic: '4', chordId: 'minor-7' },
+			{ fromTonic: '4', chordId: 'minor-7' },
+			{ fromTonic: '1', chordId: 'minor-7' },
+			{ fromTonic: '1', chordId: 'minor-7' },
+			{ fromTonic: 'b6', chordId: 'major-7' }, // bVImaj7
+			{ fromTonic: '5', chordId: 'dominant-7' }, // V7
+			{ fromTonic: '1', chordId: 'minor-7' },
+			{ fromTonic: '5', chordId: 'dominant-7' } // V7 turnaround
+		]
+	},
+	{
+		id: 'i-vi7-ii-v',
+		label: 'I–VI7–ii–V (Rhythm Changes)',
+		mode: 'major',
+		degrees: [
+			{ fromTonic: '1', chordId: 'major-7' }, // I
+			{ fromTonic: '6', chordId: 'dominant-7' }, // VI7 (secondary dominant of ii)
+			{ fromTonic: '2', chordId: 'minor-7' }, // ii
+			{ fromTonic: '5', chordId: 'dominant-7' } // V
+		]
+	},
+	{
+		id: 'iii-vi7-ii-v',
+		label: 'iii–VI7–ii–V (Extended Turnaround)',
+		mode: 'major',
+		degrees: [
+			{ fromTonic: '3', chordId: 'minor-7' }, // iii
+			{ fromTonic: '6', chordId: 'dominant-7' }, // VI7 (secondary dominant of ii)
+			{ fromTonic: '2', chordId: 'minor-7' }, // ii
+			{ fromTonic: '5', chordId: 'dominant-7' } // V
+		]
+	},
+	{
+		id: 'backdoor-ii-v-i',
+		label: 'Backdoor ii–V–I',
+		mode: 'major',
+		degrees: [
+			{ fromTonic: '4', chordId: 'minor-7' }, // iv-7 (borrowed from the parallel minor)
+			{ fromTonic: 'b7', chordId: 'dominant-7' }, // bVII7
+			{ fromTonic: '1', chordId: 'major-7' } // I
+		]
+	},
+	{
+		id: 'coltrane-changes',
+		label: 'Coltrane Changes (Major-3rd Turnaround)',
+		mode: 'major',
+		degrees: [
+			{ fromTonic: '1', chordId: 'major-7' }, // I
+			{ fromTonic: 'b3', chordId: 'dominant-7' }, // V7 of bVI
+			{ fromTonic: 'b6', chordId: 'major-7' }, // bVI
+			{ fromTonic: '7', chordId: 'dominant-7' }, // V7 of III
+			{ fromTonic: '3', chordId: 'major-7' }, // III
+			{ fromTonic: '5', chordId: 'dominant-7' }, // V7 of I
+			{ fromTonic: '1', chordId: 'major-7' } // I
+		]
 	}
 ];
 
