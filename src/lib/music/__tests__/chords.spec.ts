@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getChordDefinition, listChords } from '../chords';
-import { intervalFromRoot, transposeByInterval } from '../intervals';
+import { intervalFromRoot, intervalSemitones, transposeByInterval } from '../intervals';
 import { normalizePitchClass } from '../pitch';
 
 describe('listChords / getChordDefinition', () => {
@@ -68,5 +68,20 @@ describe('known chord spellings (pitch-class level)', () => {
 		const root = normalizePitchClass(0);
 		const pitchClasses = chord.required.map((interval) => transposeByInterval(root, interval));
 		expect(pitchClasses).toEqual([0, 4, 7, 10]);
+	});
+});
+
+describe('chord-pad voicing (Scale Practice drum machine backing)', () => {
+	it('every chord family’s required intervals are in strictly ascending semitone order', () => {
+		// scale-practice.svelte.ts voices a chord by adding each required
+		// interval's semitone offset to the same root MIDI note -- ascending
+		// semitone order here is what guarantees a correct, non-inverted closed
+		// voicing rather than one that wraps below the root.
+		for (const chord of listChords()) {
+			const semitones = chord.required.map(intervalSemitones);
+			for (let i = 1; i < semitones.length; i++) {
+				expect(semitones[i]).toBeGreaterThan(semitones[i - 1]);
+			}
+		}
 	});
 });

@@ -162,4 +162,30 @@ test.describe('Saved Material Library: My Presets', () => {
 		await expect(page.getByLabel('Scale Practice root')).toHaveValue('2');
 		await expect(page.getByLabel('Scale Practice scale')).toHaveValue('dorian');
 	});
+
+	test('a saved Scale Practice preset restores its chord backing too', async ({ page }) => {
+		await page.goto('/');
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: /^Scales/ }).click();
+		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
+		await page.getByLabel('Scale Practice scale').selectOption({ label: 'Major Pentatonic' });
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		await page.getByLabel('Bars per chord').fill('1');
+		await page.keyboard.press('Tab');
+
+		const scaleControls = page.locator('.scale-practice-controls');
+		await scaleControls.getByRole('button', { name: /^Save as preset/ }).click();
+		await page.getByLabel('Preset name').fill('E2E Backing Preset');
+		await scaleControls.getByRole('button', { name: 'Save', exact: true }).click();
+
+		await page.getByRole('button', { name: '← Back to Practice' }).click();
+		await page.getByRole('button', { name: /^Presets/ }).click();
+		await expect(
+			page.getByRole('button', { name: 'E2E Backing Preset', exact: true })
+		).toBeVisible();
+
+		await page.getByRole('button', { name: 'E2E Backing Preset', exact: true }).click();
+		await expect(page.getByLabel('Progression')).toHaveValue('major-ii-v-i');
+		await expect(page.getByLabel('Bars per chord')).toHaveValue('1');
+	});
 });

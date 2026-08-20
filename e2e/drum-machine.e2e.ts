@@ -115,3 +115,57 @@ test.describe('Drum Machine', () => {
 		).not.toBeVisible();
 	});
 });
+
+test.describe('Drum Machine: chord-progression backing', () => {
+	test('a chosen progression and bars-per-chord survive a reload', async ({ page }) => {
+		await openScalePractice(page);
+
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		// fill() only dispatches an 'input' event; the store's onchange handler
+		// needs a real 'change' (fired on blur/commit), so move focus away
+		// before reloading -- same gotcha as the BPM field above.
+		await page.getByLabel('Bars per chord').fill('1');
+		await page.keyboard.press('Tab');
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+
+		await expect(page.getByLabel('Progression')).toHaveValue('major-ii-v-i');
+		await expect(page.getByLabel('Bars per chord')).toHaveValue('1');
+	});
+
+	test('choosing "None" turns the chord backing off', async ({ page }) => {
+		await openScalePractice(page);
+
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		await expect(page.getByLabel('Progression')).toHaveValue('major-ii-v-i');
+
+		await page.getByLabel('Progression').selectOption({ label: 'Choose a progression…' });
+		await expect(page.getByLabel('Progression')).toHaveValue('');
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await expect(page.getByLabel('Progression')).toHaveValue('');
+	});
+
+	test('a custom progression saved from Explore is selectable from Scale Practice too', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.getByTestId('fret-A-3').click(); // root C
+		await page.getByRole('tab', { name: /^Progression/ }).click();
+		await page.getByRole('button', { name: '+ Build your own' }).click();
+
+		await page.getByLabel('Step 1 interval').selectOption({ label: '1' });
+		await page.getByLabel('Step 1 chord').selectOption({ label: 'Major' });
+		await page.getByLabel('Progression name').fill('E2E Backing Progression');
+		await page
+			.locator('.progression-builder')
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
+
+		await openScalePractice(page);
+		await page.getByLabel('Progression').selectOption({ label: 'E2E Backing Progression' });
+		await expect(page.getByLabel('Progression')).not.toHaveValue('');
+	});
+});
