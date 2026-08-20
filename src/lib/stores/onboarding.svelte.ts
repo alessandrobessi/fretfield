@@ -7,7 +7,7 @@ import { SvelteSet } from 'svelte/reactivity';
  * reappears after — teach through doing, not through a modal the user has
  * to click past before touching anything.
  */
-export type OnboardingStep = 'explore-intro' | 'explore-guidance' | 'practice-intro';
+export type OnboardingStep = 'explore-intro' | 'explore-guidance';
 
 const STORAGE_KEY = 'fretfield-onboarding-seen';
 

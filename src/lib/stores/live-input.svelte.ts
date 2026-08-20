@@ -9,7 +9,7 @@ import {
 	type AbsoluteTuning
 } from '$lib/music/absolute-pitch';
 import type { FretPosition } from '$lib/music/fretboard';
-import { inferLivePosition, type LivePositionContext } from '$lib/music/live-position';
+import { inferLivePosition } from '$lib/music/live-position';
 import { DEFAULT_FRET_COUNT } from '$lib/music/tuning';
 
 export type LiveInputStatus = 'idle' | 'listening' | 'tracking' | 'silence' | 'error';
@@ -27,9 +27,6 @@ function classifyInputLevel(rms: number): InputLevel {
 	return 'healthy';
 }
 
-/** Supplies the harmonic/positional context this store cannot know about itself (per the audio/music boundary) without depending on the main FretField store. */
-export type LiveInputContextProvider = () => LivePositionContext;
-
 function computeRms(samples: Float32Array): number {
 	let sumSquares = 0;
 	for (let i = 0; i < samples.length; i++) {
@@ -43,9 +40,7 @@ function computeRms(samples: Float32Array): number {
  * and the pure absolute-pitch → fretboard mapping. Deliberately separate
  * from `fretfield.svelte.ts`: AudioContext/MediaStream/AnalyserNode must
  * never leak into the music-theory store. The main store consumes only this
- * store's plain `DetectedNote`/`FretPosition` state and wires a context
- * provider back in so ambiguous positions can be sharpened by whatever
- * Voice-Leading Path/Local Field is currently active.
+ * store's plain `DetectedNote`/`FretPosition` state.
  */
 export class LiveInputStore {
 	enabled = $state(false);
@@ -72,7 +67,6 @@ export class LiveInputStore {
 	private readonly tracker: PitchTracker;
 	private readonly tuning: AbsoluteTuning;
 	private readonly fretCount: number;
-	private contextProvider: LiveInputContextProvider = () => ({});
 	private lastLikelyPosition: FretPosition | null = null;
 	private lastTrackedMidi: number | null = null;
 
@@ -85,10 +79,6 @@ export class LiveInputStore {
 		this.tracker = new PitchTracker(DEFAULT_PITCH_TRACKER_CONFIG);
 		this.tuning = tuning;
 		this.fretCount = fretCount;
-	}
-
-	setContextProvider(provider: LiveInputContextProvider): void {
-		this.contextProvider = provider;
 	}
 
 	/**
@@ -209,7 +199,6 @@ export class LiveInputStore {
 		this.candidatePositions = candidates;
 
 		const inference = inferLivePosition(candidates, {
-			...this.contextProvider(),
 			previousLikelyPosition: this.lastLikelyPosition
 		});
 		this.likelyPosition = inference.likelyPosition;

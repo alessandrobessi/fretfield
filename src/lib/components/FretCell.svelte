@@ -10,7 +10,6 @@
 		intervalFromRoot,
 		noteNameForPosition
 	} from '$lib/music/intervals';
-	import { practice } from '$lib/stores/practice.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	interface Props {
@@ -41,24 +40,11 @@
 	const isSamePosition = (p: { stringIndex: number; fret: number }): boolean =>
 		p.stringIndex === position.stringIndex && p.fret === position.fret;
 
-	// Guided Practice's hint layer (§11): a target only ever lights up the
-	// fretboard at 'positions' hint level — 'hidden'/'interval' keep the
-	// prompt purely conceptual, so `practice.targetPositions` is already
-	// empty at those levels (see stores/practice.svelte.ts).
-	const isPracticeTarget = $derived(practice.targetPositions.some(isSamePosition));
-
-	// Guided Practice's result layer (§9): only the fret(s) that could have
-	// produced the just-played note get a result marker, and only while
-	// feedback is actually showing.
-	const practiceResult = $derived.by(() =>
-		practice.lastPlayedPositions.some(isSamePosition) ? practice.lastResult : null
-	);
-
 	// Scale Practice's own layers: computed locally from the `scalePractice`
-	// store, same "independent store, no fretfield.svelte.ts fields" approach
-	// Guided Practice already uses above. Gated on the mode being active —
-	// deliberately NOT on `scalePractice.running`, since the metronome only
-	// controls the click; which notes are highlighted is independent of it.
+	// store, same "independent store, no fretfield.svelte.ts fields" approach.
+	// Gated on the mode being active — deliberately NOT on
+	// `scalePractice.running`, since the metronome only controls the click;
+	// which notes are highlighted is independent of it.
 	const isScalePracticeMode = $derived(fretfield.mode === 'scale-practice');
 	// Every note of the configured scale, shown at once — not one target at a time.
 	const isScalePracticeNote = $derived(
@@ -137,22 +123,8 @@
 			parts.push(`interval ${position.intervalLabel}`);
 		}
 		if (roleStyle !== null) parts.push(roleStyle.label.toLowerCase());
-		if (position.pathRole === 'current') parts.push('current path step');
-		else if (position.pathRole === 'previous') parts.push('previous path step');
-		else if (position.pathRole === 'next') parts.push('next path step');
 		if (position.isLiveLikely) parts.push('currently played');
 		else if (position.isLivePlayed) parts.push('possible played position');
-		if (position.isLiveNextTarget) parts.push('best resolution target');
-		if (isPracticeTarget) parts.push('practice target');
-		if (practiceResult !== null && practiceResult !== 'ignored') {
-			parts.push(`practice result: ${practiceResult.replace('-', ' ')}`);
-		}
-		if (position.scaleBlockMembership.length > 0) {
-			parts.push(
-				`in scale for block ${position.scaleBlockMembership.map((i) => i + 1).join(', block ')}`
-			);
-		}
-		if (position.isScaleBlockCommonNote) parts.push('common to every block');
 		if (isScalePracticeNote) parts.push('in the practiced scale');
 		if (isScalePracticeJustPlayed) parts.push('just played');
 		return parts.join(', ');
@@ -165,19 +137,12 @@
 	class:open={position.fret === 0}
 	class:root-pitch={position.isRootPitchClass}
 	class:selected-root={position.isSelectedRootPosition}
-	class:region-active={position.isInActiveRegion === true}
-	class:region-dimmed={position.isInActiveRegion === false}
 	class:live-played={position.isLivePlayed}
 	class:live-likely={position.isLiveLikely}
-	class:live-next-target={position.isLiveNextTarget}
-	class:practice-target={isPracticeTarget}
-	class:scale-block-common={position.isScaleBlockCommonNote}
 	class:scale-practice-note={isScalePracticeNote}
 	class:scale-practice-root={isScalePracticeRoot}
 	class:scale-practice-just-played={isScalePracticeJustPlayed}
 	class:scale-practice-zone-dimmed={isScalePracticeZoneDimmed}
-	data-path-role={position.pathRole}
-	data-practice-result={practiceResult}
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
@@ -189,22 +154,9 @@
 	onfocus={() => onInspect(position)}
 	onmouseenter={() => onInspect(position)}
 >
-	{#if isPracticeTarget}
-		<span class="practice-target-marker" aria-hidden="true"></span>
-	{/if}
-	{#if practiceResult !== null && practiceResult !== 'ignored'}
-		<span class="practice-result-marker" data-result={practiceResult} aria-hidden="true"></span>
-	{/if}
 	<span class="pill" data-role={visibleRole} data-shape={roleStyle?.shape}>
 		<span class="label">{label}</span>
 	</span>
-	{#if position.scaleBlockMembership.length > 0}
-		<div class="scale-block-chips" aria-hidden="true">
-			{#each position.scaleBlockMembership as blockIndex (blockIndex)}
-				<span class="chip" data-block={blockIndex}>{blockIndex + 1}</span>
-			{/each}
-		</div>
-	{/if}
 </button>
 
 <style>
@@ -337,39 +289,12 @@
 		box-shadow: inset 0 0 0 3px var(--selected-root-ring, #ec4899);
 	}
 
-	.fret-cell.region-active {
-		background: color-mix(in srgb, var(--nut, #7c3aed) 8%, var(--fret-bg, #fff));
-	}
-
-	.fret-cell.region-active:hover {
-		background: color-mix(in srgb, var(--nut, #7c3aed) 14%, var(--fret-bg, #fff));
-	}
-
-	.fret-cell.region-dimmed .pill {
-		opacity: 0.35;
-	}
-
-	.fret-cell[data-path-role='current'] {
-		box-shadow: 0 0 0 3px var(--nut, #7c3aed);
-		z-index: 1;
-	}
-
-	.fret-cell[data-path-role='previous'] {
-		outline: 2px dashed color-mix(in srgb, var(--nut, #7c3aed) 45%, transparent);
-		outline-offset: -2px;
-	}
-
-	.fret-cell[data-path-role='next'] {
-		outline: 2px dotted color-mix(in srgb, var(--nut, #7c3aed) 65%, transparent);
-		outline-offset: -2px;
-	}
-
 	/*
 	 * Live Input layer: an independent ::after pseudo-element rather than
 	 * outline/box-shadow on .fret-cell itself, so it never collides with
-	 * pathRole's outline or selected-root's box-shadow — a fret can be
-	 * structural + a path step + a live candidate all at once, and every
-	 * distinction has to stay visible (product spec §9/§15).
+	 * selected-root's box-shadow — a fret can be structural + a live
+	 * candidate at once, and every distinction has to stay visible (product
+	 * spec §9/§15).
 	 */
 	.fret-cell.live-played::after {
 		content: '';
@@ -415,144 +340,6 @@
 	}
 
 	/*
-	 * Progression Field's "where this note wants to go" layer (§13) — a
-	 * separate ::before pseudo-element so it composes independently of the
-	 * ::after played/likely ring above and of .selected-root's box-shadow.
-	 */
-	.fret-cell.live-next-target::before {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		box-shadow: inset 0 0 0 2px var(--live-target-accent, #10b981);
-		pointer-events: none;
-	}
-
-	/*
-	 * Guided Practice layers: real (aria-hidden) elements rather than more
-	 * pseudo-elements — ::before/::after are already spoken for by the Live
-	 * Input layers above, and a fret can be a target AND show a result AND
-	 * be a live-played candidate all at once (product spec §10).
-	 */
-	.practice-target-marker {
-		position: absolute;
-		inset: 3px;
-		border-radius: 6px;
-		border: 2px dashed var(--practice-target-accent, #10b981);
-		pointer-events: none;
-	}
-
-	.practice-result-marker {
-		position: absolute;
-		inset: 1px;
-		border-radius: 8px;
-		pointer-events: none;
-	}
-
-	.practice-result-marker[data-result='exact'],
-	.practice-result-marker[data-result='strong-alternative'] {
-		border: 3px solid var(--practice-correct-accent, #10b981);
-	}
-
-	/* Double border (vs. exact/strong-alternative's solid, incorrect's dashed) so the distinction doesn't rely on color alone (AGENTS.md §7). */
-	.practice-result-marker[data-result='valid-alternative'] {
-		border: 4px double var(--practice-caution-accent, #eab308);
-	}
-
-	/* Restrained on purpose (product spec §10/§21): no red flash, just a calm, dismissable outline. */
-	.practice-result-marker[data-result='incorrect'] {
-		border: 2px dashed var(--practice-incorrect-accent, #94a3b8);
-	}
-
-	@media (prefers-reduced-motion: no-preference) {
-		.practice-result-marker[data-result='exact'],
-		.practice-result-marker[data-result='strong-alternative'] {
-			animation: live-pulse 700ms ease-out 1;
-		}
-	}
-
-	/*
-	 * Scale Blocks: a note shared by every configured block's scale gets a
-	 * bright fill of its own, distinct from any single block's chip color
-	 * (blue/rose/amber/violet) so it reads as "common to all", not "in one
-	 * more block". The numbered chips still show underneath/around it —
-	 * this never replaces that per-block detail, only adds to it.
-	 */
-	.fret-cell.scale-block-common {
-		background: var(--scale-block-common, #10b981);
-	}
-
-	.fret-cell.scale-block-common:hover {
-		background: var(--scale-block-common-hover, #059669);
-	}
-
-	/*
-	 * Scale Blocks: a small row of numbered chips, one per matching block —
-	 * a real element (not a 3rd/4th pseudo-element) since ::before/::after
-	 * are already spoken for above, and a fret can belong to several blocks'
-	 * scales at once. The digit itself (not just color) identifies the
-	 * block, per AGENTS.md §7's non-color-signal rule. Wraps onto a second
-	 * row past 4 chips — up to `MAX_CHORD_BLOCKS` (8) can theoretically
-	 * stack on one fret at once.
-	 */
-	.scale-block-chips {
-		position: absolute;
-		bottom: 2px;
-		left: 2px;
-		right: 2px;
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 1px;
-		pointer-events: none;
-	}
-
-	.chip {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 0.72rem;
-		height: 0.72rem;
-		border-radius: 50%;
-		font-size: 0.48rem;
-		font-weight: 700;
-		color: #fff;
-		line-height: 1;
-	}
-
-	.chip[data-block='0'] {
-		background: var(--scale-block-1, #3b82f6);
-	}
-
-	.chip[data-block='1'] {
-		background: var(--scale-block-2, #f43f5e);
-	}
-
-	.chip[data-block='2'] {
-		background: var(--scale-block-3, #eab308);
-	}
-
-	.chip[data-block='3'] {
-		background: var(--scale-block-4, #8b5cf6);
-	}
-
-	.chip[data-block='4'] {
-		background: var(--scale-block-5, #14b8a6);
-	}
-
-	.chip[data-block='5'] {
-		background: var(--scale-block-6, #84cc16);
-	}
-
-	.chip[data-block='6'] {
-		background: var(--scale-block-7, #d946ef);
-	}
-
-	.chip[data-block='7'] {
-		background: var(--scale-block-8, #0ea5e9);
-	}
-
-	/*
 	 * Scale Practice: the whole scale is shown at once — every matching fret
 	 * gets a soft, permanent tint (not gated on the metronome running at
 	 * all), so the player can see the full shape before playing a note.
@@ -573,12 +360,12 @@
 	/*
 	 * The root gets its own color, distinct from the rest of the scale —
 	 * same --role-root amber the app already uses for "root" everywhere else
-	 * (Chord Field's star pill, the root chip in HarmonyControls/
-	 * ProgressionWorkspace). Same-specificity selector placed after
-	 * .scale-practice-note above, so it wins on source order for the one
-	 * fret that's both. The "R" label (scalePracticeIntervalLabel) and bold
-	 * weight are the non-color signals already carrying this distinction
-	 * (AGENTS.md §7) — color is a third, reinforcing one, not the only one.
+	 * (Chord Field's star pill, the root chip). Same-specificity selector
+	 * placed after .scale-practice-note above, so it wins on source order
+	 * for the one fret that's both. The "R" label (scalePracticeIntervalLabel)
+	 * and bold weight are the non-color signals already carrying this
+	 * distinction (AGENTS.md §7) — color is a third, reinforcing one, not the
+	 * only one.
 	 */
 	.fret-cell.scale-practice-root {
 		background: color-mix(in srgb, var(--role-root, #f59e0b) 20%, var(--fret-bg, #fff));

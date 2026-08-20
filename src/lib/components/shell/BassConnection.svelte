@@ -40,8 +40,6 @@
 
 	const liveNote = $derived(fretfield.liveNote);
 	const chordInterpretation = $derived(fretfield.liveChordInterpretation);
-	const progressionInterpretation = $derived(fretfield.liveProgressionInterpretation);
-	const pathMatch = $derived(fretfield.livePathMatch);
 
 	// Same auto-reveal LiveInputControls always had: the detail dropdown
 	// shows itself whenever there's something to show (connected or errored),
@@ -121,23 +119,6 @@
 				{#if fretfield.mode === 'chord' && chordInterpretation}
 					<p class="interpretation">
 						{chordInterpretation.noteName} — {chordInterpretation.intervalLabel}, {chordInterpretation.roleLabel}
-					</p>
-				{:else if fretfield.mode === 'progression' && progressionInterpretation}
-					<p class="interpretation">
-						{progressionInterpretation.noteName} — {progressionInterpretation.intervalLabel} of current
-						chord, {progressionInterpretation.roleLabel}
-						{#if progressionInterpretation.bestTargetNoteName !== null}
-							<br />Best resolution: {progressionInterpretation.bestTargetNoteName} ({progressionInterpretation.semitoneMovement !==
-							null
-								? `${progressionInterpretation.semitoneMovement > 0 ? '+' : ''}${progressionInterpretation.semitoneMovement} semitone${Math.abs(progressionInterpretation.semitoneMovement) === 1 ? '' : 's'}`
-								: ''}) into {progressionInterpretation.nextChordSymbol}
-						{/if}
-					</p>
-				{:else if fretfield.mode === 'paths' && pathMatch}
-					<p class="interpretation" data-matched={pathMatch.matched}>
-						Expected {pathMatch.expectedNoteName} — played {pathMatch.detectedNoteName} ({pathMatch.matched
-							? 'matched'
-							: 'not yet'})
 					</p>
 				{/if}
 			{:else if liveInput.status === 'listening' || liveInput.status === 'silence'}
@@ -272,11 +253,6 @@
 		margin: 0;
 		padding-top: 0.35rem;
 		border-top: 1px dashed var(--fret-border, #ddd3f7);
-	}
-
-	.interpretation[data-matched='true'] {
-		color: var(--role-stable, #059669);
-		font-weight: 600;
 	}
 
 	.waiting {

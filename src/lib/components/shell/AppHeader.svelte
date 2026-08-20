@@ -6,8 +6,7 @@
 
 	const DESTINATIONS: { id: Destination; label: string }[] = [
 		{ id: 'explore', label: 'Explore' },
-		{ id: 'practice', label: 'Practice' },
-		{ id: 'progress', label: 'Progress' }
+		{ id: 'practice', label: 'Practice' }
 	];
 
 	const activeDestinationIndex = $derived(

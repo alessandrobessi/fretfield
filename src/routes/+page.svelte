@@ -4,32 +4,23 @@
 	import AppHeader from '$lib/components/shell/AppHeader.svelte';
 	import ChordExplorer from '$lib/components/explore/ChordExplorer.svelte';
 	import ExploreOnboarding from '$lib/components/explore/ExploreOnboarding.svelte';
-	import FieldModeSwitcher from '$lib/components/FieldModeSwitcher.svelte';
 	import Fretboard from '$lib/components/Fretboard.svelte';
-	import GuidedPracticeControls from '$lib/components/GuidedPracticeControls.svelte';
 	import Legend from '$lib/components/Legend.svelte';
-	import LocalFieldControls from '$lib/components/LocalFieldControls.svelte';
 	import NoteInspector from '$lib/components/NoteInspector.svelte';
-	import PracticeHome from '$lib/components/practice/PracticeHome.svelte';
 	import ScalePracticeSession from '$lib/components/practice/ScalePracticeSession.svelte';
-	import ProgressionWorkspace from '$lib/components/explore/ProgressionWorkspace.svelte';
-	import ScaleExplorer from '$lib/components/explore/ScaleExplorer.svelte';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { navigation } from '$lib/stores/navigation.svelte';
 	import { installLiveInputTestHooks } from '$lib/testing/live-input-test-hooks';
 	import { installPersistenceTestHooks } from '$lib/testing/persistence-test-hooks';
-	import { installPracticeTestHooks } from '$lib/testing/practice-test-hooks';
 	import { decodeStateFromSearchParams, encodeStateToSearchParams } from '$lib/utils/url-state';
 
-	// Restore once on load; URL-shareable state only (root/mode/chord/display/
-	// progression/region) — never blocks first render if the query is absent
-	// or stale.
+	// Restore once on load; URL-shareable state only (root/chord/display/
+	// analysis) — never blocks first render if the query is absent or stale.
 	if (browser) {
 		fretfield.restoreFromURLState(
 			decodeStateFromSearchParams(new URLSearchParams(window.location.search))
 		);
 		installLiveInputTestHooks();
-		installPracticeTestHooks();
 		installPersistenceTestHooks();
 	}
 
@@ -58,29 +49,12 @@
 
 	{#if navigation.destination === 'explore'}
 		<ExploreOnboarding />
-		<FieldModeSwitcher />
-		<GuidedPracticeControls />
-
-		{#if fretfield.mode === 'progression' || fretfield.mode === 'paths' || fretfield.mode === 'progression-scales' || fretfield.mode === 'scale-blocks'}
-			<ProgressionWorkspace />
-		{:else if fretfield.mode === 'scale'}
-			<ScaleExplorer />
-		{:else}
-			<ChordExplorer />
-		{/if}
-
+		<ChordExplorer />
 		<Fretboard />
 		<Legend />
 		<NoteInspector />
-		<LocalFieldControls />
-	{:else if navigation.destination === 'practice'}
-		{#if fretfield.mode === 'scale-practice'}
-			<ScalePracticeSession />
-		{:else}
-			<PracticeHome />
-		{/if}
 	{:else}
-		<p class="destination-stub">Progress tracking is coming soon.</p>
+		<ScalePracticeSession />
 	{/if}
 </main>
 
@@ -139,15 +113,5 @@
 		color: #fff;
 		opacity: 0.9;
 		font-weight: 500;
-	}
-
-	.destination-stub {
-		margin: 0;
-		padding: 2rem 1.5rem;
-		text-align: center;
-		background: var(--fret-bg, #fff);
-		border: 1px dashed var(--fret-border, #ddd3f7);
-		border-radius: 14px;
-		opacity: 0.7;
 	}
 </style>

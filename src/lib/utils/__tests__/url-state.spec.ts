@@ -8,26 +8,16 @@ import {
 
 const FULL_STATE: URLState = {
 	root: noteNameToPitchClass('C'),
-	mode: 'progression',
 	chordId: 'dominant-7',
 	displayMode: 'both',
-	analysisMode: 'chord-tones',
-	progressionTemplateId: 'major-ii-v-i',
-	activeChordIndex: 1,
-	pathPreset: 'guide-tones',
-	region: { minFret: 2, maxFret: 6 }
+	analysisMode: 'chord-tones'
 };
 
 const DEFAULT_STATE: URLState = {
 	root: null,
-	mode: 'chord',
 	chordId: 'major',
 	displayMode: 'intervals',
-	analysisMode: 'field',
-	progressionTemplateId: null,
-	activeChordIndex: 0,
-	pathPreset: 'balanced',
-	region: null
+	analysisMode: 'field'
 };
 
 describe('encodeStateToSearchParams', () => {
@@ -39,14 +29,9 @@ describe('encodeStateToSearchParams', () => {
 	it('encodes every non-default field', () => {
 		const params = encodeStateToSearchParams(FULL_STATE);
 		expect(params.get('root')).toBe('C');
-		expect(params.get('mode')).toBe('progression');
 		expect(params.get('chord')).toBe('dominant-7');
 		expect(params.get('display')).toBe('both');
 		expect(params.get('analysis')).toBe('chord-tones');
-		expect(params.get('progression')).toBe('major-ii-v-i');
-		expect(params.get('chordIndex')).toBe('1');
-		expect(params.get('pathPreset')).toBe('guide-tones');
-		expect(params.get('region')).toBe('2-6');
 	});
 });
 
@@ -66,25 +51,9 @@ describe('decodeStateFromSearchParams', () => {
 		expect(decoded.root).toBeUndefined();
 	});
 
-	it('silently ignores an unknown mode/chord/progression/preset', () => {
-		const decoded = decodeStateFromSearchParams(
-			new URLSearchParams('mode=bogus&chord=bogus&progression=bogus&pathPreset=bogus')
-		);
+	it('silently ignores an unknown chord id', () => {
+		const decoded = decodeStateFromSearchParams(new URLSearchParams('chord=bogus'));
 		expect(decoded).toEqual({});
-	});
-
-	it('silently ignores a malformed region', () => {
-		expect(decodeStateFromSearchParams(new URLSearchParams('region=abc')).region).toBeUndefined();
-		expect(decodeStateFromSearchParams(new URLSearchParams('region=6-2')).region).toBeUndefined();
-	});
-
-	it('silently ignores a negative or non-numeric chordIndex', () => {
-		expect(
-			decodeStateFromSearchParams(new URLSearchParams('chordIndex=-1')).activeChordIndex
-		).toBeUndefined();
-		expect(
-			decodeStateFromSearchParams(new URLSearchParams('chordIndex=abc')).activeChordIndex
-		).toBeUndefined();
 	});
 
 	it('never throws on a garbage query string', () => {

@@ -1,7 +1,5 @@
 <script lang="ts">
-	import CustomProgressionBuilder from '$lib/components/CustomProgressionBuilder.svelte';
 	import { listProgressionTemplates } from '$lib/music/progressions';
-	import { savedProgressions } from '$lib/stores/saved-progressions.svelte';
 
 	interface Props {
 		value: string | null;
@@ -9,8 +7,6 @@
 	}
 
 	const { value, onChange }: Props = $props();
-
-	let showBuilder = $state(false);
 
 	function handleChange(event: Event & { currentTarget: HTMLSelectElement }): void {
 		onChange(event.currentTarget.value || null);
@@ -25,21 +21,8 @@
 			{#each listProgressionTemplates() as template (template.id)}
 				<option value={template.id}>{template.label}</option>
 			{/each}
-			{#if savedProgressions.items.length > 0}
-				<optgroup label="My Progressions">
-					{#each savedProgressions.items as item (item.id)}
-						<option value={item.id}>{item.name}</option>
-					{/each}
-				</optgroup>
-			{/if}
 		</select>
 	</label>
-	<button type="button" class="toggle-builder" onclick={() => (showBuilder = !showBuilder)}>
-		{showBuilder ? '← Hide builder' : '+ Build your own'}
-	</button>
-	{#if showBuilder}
-		<CustomProgressionBuilder />
-	{/if}
 </div>
 
 <style>
@@ -60,23 +43,6 @@
 	.field-label {
 		font-weight: 700;
 		color: var(--nut, #7c3aed);
-	}
-
-	.toggle-builder {
-		font: inherit;
-		font-weight: 600;
-		font-size: 0.8rem;
-		padding: 0;
-		border: none;
-		background: transparent;
-		color: var(--nut, #7c3aed);
-		cursor: pointer;
-		text-decoration: underline;
-	}
-
-	.toggle-builder:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
 	}
 
 	select {

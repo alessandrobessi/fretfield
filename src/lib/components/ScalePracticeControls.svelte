@@ -4,32 +4,10 @@
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
 	import type { FretRange } from '$lib/music/fret-range';
 	import { DEFAULT_FRET_COUNT } from '$lib/music/tuning';
-	import { captureCurrentPreset } from '$lib/practice/preset-library';
 	import { liveInput } from '$lib/stores/live-input.svelte';
-	import { savedPresets } from '$lib/stores/saved-presets.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	const ALL_ROOTS: PitchClass[] = Array.from({ length: 12 }, (_, i) => i as PitchClass);
-
-	let savingAs = $state(false);
-	let newPresetName = $state('');
-
-	function startSaving(): void {
-		savingAs = true;
-		newPresetName = '';
-	}
-
-	function confirmSave(): void {
-		const name = newPresetName.trim();
-		const captured = captureCurrentPreset();
-		if (!name || captured === null) return;
-		savedPresets.save(name, captured);
-		savingAs = false;
-	}
-
-	function cancelSaving(): void {
-		savingAs = false;
-	}
 
 	// This component only mounts while the Scale Practice tab is active (see
 	// +page.svelte), so a plain effect-cleanup is enough to stop the
@@ -64,27 +42,6 @@
 <div class="scale-practice-controls">
 	<div class="top-row">
 		<span class="field-label">Scale Practice</span>
-		{#if savingAs}
-			<input
-				class="name-input"
-				type="text"
-				placeholder="Name this preset…"
-				aria-label="Preset name"
-				bind:value={newPresetName}
-				onkeydown={(e) => e.key === 'Enter' && confirmSave()}
-			/>
-			<button
-				type="button"
-				class="save-confirm"
-				onclick={confirmSave}
-				disabled={!newPresetName.trim()}
-			>
-				Save
-			</button>
-			<button type="button" class="save-cancel" onclick={cancelSaving}>Cancel</button>
-		{:else}
-			<button type="button" class="save-as" onclick={startSaving}>Save as preset…</button>
-		{/if}
 	</div>
 
 	<div class="fields">
@@ -187,46 +144,5 @@
 		margin: 0;
 		font-size: 0.8rem;
 		opacity: 0.65;
-	}
-
-	.name-input {
-		font: inherit;
-		font-size: 0.8rem;
-		padding: 0.35rem 0.6rem;
-		border-radius: 999px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-	}
-
-	.name-input:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 1px;
-	}
-
-	.save-as,
-	.save-confirm,
-	.save-cancel {
-		font: inherit;
-		font-weight: 700;
-		font-size: 0.8rem;
-		padding: 0.35rem 0.8rem;
-		border-radius: 999px;
-		border: 1px solid var(--nut, #7c3aed);
-		background: transparent;
-		color: var(--nut, #7c3aed);
-		cursor: pointer;
-	}
-
-	.save-confirm:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.save-as:focus-visible,
-	.save-confirm:focus-visible,
-	.save-cancel:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
 	}
 </style>

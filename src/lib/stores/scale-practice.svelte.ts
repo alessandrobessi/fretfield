@@ -21,17 +21,26 @@ import { getChordDefinition } from '$lib/music/chords';
 import type { FretPosition } from '$lib/music/fretboard';
 import { intervalSemitones } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
-import { buildProgression, type ResolvedChord } from '$lib/music/progressions';
+import {
+	buildProgression,
+	getProgressionTemplate,
+	type ResolvedChord
+} from '$lib/music/progressions';
 import { getScaleDefinition, suggestedScalesFor } from '$lib/music/scales';
 import { DEFAULT_FRET_COUNT, STANDARD_4_STRING_TUNING, type Tuning } from '$lib/music/tuning';
 import { positionsForPitchClass, scalePositions } from '$lib/scale-practice/positions';
 import type { PracticeZone } from '$lib/scale-practice/types';
 import { liveInput } from '$lib/stores/live-input.svelte';
-import {
-	resolveProgressionTemplate,
-	savedProgressions
-} from '$lib/stores/saved-progressions.svelte';
 import { readJSON, writeJSON } from '$lib/utils/local-storage';
+
+/** Looks up one of the curated progression templates, never a user-saved custom one (that feature no longer exists) — null for an unrecognized id, e.g. a stale persisted id from a deleted custom progression, rather than throwing. */
+function resolveProgressionTemplate(id: string) {
+	try {
+		return getProgressionTemplate(id);
+	} catch {
+		return null;
+	}
+}
 
 const DEFAULT_BPM = 80;
 const MIN_BPM = 30;
@@ -166,10 +175,7 @@ export class ScalePracticeStore {
 	 */
 	readonly resolvedProgression = $derived.by<ResolvedChord[]>(() => {
 		if (this.root === null || this.progressionTemplateId === null) return [];
-		const template = resolveProgressionTemplate(
-			this.progressionTemplateId,
-			savedProgressions.items
-		);
+		const template = resolveProgressionTemplate(this.progressionTemplateId);
 		if (template === null) return [];
 		return buildProgression(this.root, template);
 	});
