@@ -1,15 +1,48 @@
 <script lang="ts">
 	import { PRACTICE_MODE_STYLES } from '$lib/practice/presets';
-	import { listPracticePresets, openPreset } from '$lib/practice/preset-library';
+	import {
+		listPracticePresets,
+		openPreset,
+		type PracticePreset
+	} from '$lib/practice/preset-library';
 	import type { PracticeMode } from '$lib/practice/types';
 	import { fretfield } from '$lib/stores/fretfield.svelte';
 	import { navigation } from '$lib/stores/navigation.svelte';
 	import { onboarding } from '$lib/stores/onboarding.svelte';
 	import { practice } from '$lib/stores/practice.svelte';
 	import { practiceHistory } from '$lib/stores/practice-history.svelte';
+	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
+	import { savedPresets } from '$lib/stores/saved-presets.svelte';
 
 	let view = $state<'cards' | 'presets'>('cards');
 	const presets = listPracticePresets();
+
+	let renamingId = $state<string | null>(null);
+	let renameValue = $state('');
+
+	function openSavedPreset(
+		item: SavedItem<Omit<PracticePreset, 'id' | 'title' | 'description'>>
+	): void {
+		openPreset({ id: item.id, title: item.name, description: '', ...item.data });
+	}
+
+	function startRenaming(
+		item: SavedItem<Omit<PracticePreset, 'id' | 'title' | 'description'>>
+	): void {
+		renamingId = item.id;
+		renameValue = item.name;
+	}
+
+	function confirmRename(id: string): void {
+		const trimmed = renameValue.trim();
+		if (!trimmed) return;
+		savedPresets.rename(id, trimmed);
+		renamingId = null;
+	}
+
+	function cancelRenaming(): void {
+		renamingId = null;
+	}
 
 	const streakLabel = $derived(
 		practiceHistory.currentStreak > 0
@@ -84,6 +117,47 @@
 		</div>
 	{:else}
 		<button type="button" class="back" onclick={() => (view = 'cards')}>← Back to Practice</button>
+
+		{#if savedPresets.items.length > 0}
+			<div class="saved-list">
+				<span class="field-label">My Presets</span>
+				<ul class="saved-items">
+					{#each savedPresets.items as item (item.id)}
+						<li class="saved-item">
+							{#if renamingId === item.id}
+								<input
+									class="name-input"
+									type="text"
+									aria-label="Rename preset"
+									bind:value={renameValue}
+									onkeydown={(e) => e.key === 'Enter' && confirmRename(item.id)}
+								/>
+								<button
+									type="button"
+									onclick={() => confirmRename(item.id)}
+									disabled={!renameValue.trim()}>Save</button
+								>
+								<button type="button" onclick={cancelRenaming}>Cancel</button>
+							{:else}
+								<button type="button" class="saved-name" onclick={() => openSavedPreset(item)}>
+									{item.name}
+								</button>
+								<button type="button" onclick={() => startRenaming(item)}>Rename</button>
+								<button
+									type="button"
+									class="remove"
+									aria-label={`Delete ${item.name}`}
+									onclick={() => savedPresets.remove(item.id)}
+								>
+									×
+								</button>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+
 		<p class="intro">Curated sessions — pick one to start practicing immediately.</p>
 		<div class="cards presets">
 			{#each presets as preset (preset.id)}
@@ -219,5 +293,99 @@
 
 	.presets .card {
 		flex: 1 1 16rem;
+	}
+
+	.saved-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.field-label {
+		font-weight: 700;
+		text-transform: uppercase;
+		font-size: 0.65rem;
+		letter-spacing: 0.04em;
+		color: var(--nut, #7c3aed);
+		opacity: 0.85;
+	}
+
+	.saved-items {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.saved-item {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.saved-name {
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.85rem;
+		flex: 1 1 auto;
+		text-align: left;
+		background: transparent;
+		border: none;
+		color: var(--nut, #7c3aed);
+		cursor: pointer;
+		padding: 0.2rem 0;
+	}
+
+	.saved-name:hover {
+		text-decoration: underline;
+	}
+
+	.saved-item button:not(.saved-name) {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.75rem;
+		padding: 0.3rem 0.7rem;
+		border-radius: 999px;
+		border: 1px solid var(--fret-border, #ddd3f7);
+		background: transparent;
+		color: var(--fret-fg, #241a3d);
+		cursor: pointer;
+	}
+
+	.saved-item button:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.saved-item button:focus-visible,
+	.saved-name:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
+	.saved-item .remove {
+		color: var(--role-alteration, #ef4444);
+	}
+
+	.saved-item .remove:hover {
+		border-color: var(--role-alteration, #ef4444);
+	}
+
+	.name-input {
+		font: inherit;
+		font-size: 0.8rem;
+		padding: 0.3rem 0.6rem;
+		border-radius: 999px;
+		border: 2px solid var(--fret-border, #ddd3f7);
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+	}
+
+	.name-input:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 1px;
 	}
 </style>
