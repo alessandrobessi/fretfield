@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DrumMachineControls from '$lib/components/DrumMachineControls.svelte';
 	import PositionRangeInputs from '$lib/components/shared/PositionRangeInputs.svelte';
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
 	import type { FretRange } from '$lib/music/fret-range';
@@ -59,18 +60,6 @@
 
 	function handleZoneChange(range: FretRange): void {
 		scalePractice.setZone(range.minFret, range.maxFret);
-	}
-
-	function handleBpmChange(event: Event): void {
-		scalePractice.setBpm(Number((event.currentTarget as HTMLInputElement).value));
-	}
-
-	function toggleMetronome(): void {
-		if (scalePractice.running) {
-			scalePractice.stop();
-		} else {
-			scalePractice.start();
-		}
 	}
 </script>
 
@@ -141,31 +130,7 @@
 		<p class="hint">Enable Live Input above to see the notes you play highlighted.</p>
 	{/if}
 
-	<div class="metronome">
-		<span class="field-label">Metronome</span>
-		<label class="field">
-			<span class="field-label">Tempo</span>
-			<input
-				type="number"
-				aria-label="Metronome BPM"
-				min="30"
-				max="240"
-				value={scalePractice.bpm}
-				onchange={handleBpmChange}
-			/>
-		</label>
-		<button
-			type="button"
-			class="toggle"
-			class:active={scalePractice.running}
-			onclick={toggleMetronome}
-		>
-			{scalePractice.running ? 'Stop Metronome' : 'Start Metronome'}
-		</button>
-		{#if scalePractice.running}
-			<span class="beat-readout">♩ = {scalePractice.bpm}</span>
-		{/if}
-	</div>
+	<DrumMachineControls />
 </div>
 
 <style>
@@ -211,8 +176,7 @@
 		font-size: 0.8rem;
 	}
 
-	select,
-	input[type='number'] {
+	select {
 		font: inherit;
 		font-weight: 600;
 		padding: 0.4rem 0.5rem;
@@ -223,18 +187,11 @@
 		cursor: pointer;
 	}
 
-	input[type='number'] {
-		width: 4.5rem;
-		cursor: text;
-	}
-
-	select:hover,
-	input[type='number']:hover {
+	select:hover {
 		border-color: var(--nut, #7c3aed);
 	}
 
-	select:focus-visible,
-	input[type='number']:focus-visible {
+	select:focus-visible {
 		outline: 3px solid var(--focus-ring, #7c3aed);
 		outline-offset: 1px;
 	}
@@ -284,47 +241,5 @@
 	.save-cancel:focus-visible {
 		outline: 3px solid var(--focus-ring, #7c3aed);
 		outline-offset: 2px;
-	}
-
-	/*
-	 * Visually separated from the root/scale/zone fields above — those drive
-	 * what's highlighted on the fretboard and take effect immediately; this
-	 * is the only thing Start/Stop touches (product request: make it
-	 * unambiguous that the button is just a metronome toggle).
-	 */
-	.metronome {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-		padding-top: 0.6rem;
-		border-top: 1px dashed var(--fret-border, #ddd3f7);
-	}
-
-	.toggle {
-		font: inherit;
-		font-weight: 700;
-		padding: 0.4rem 0.9rem;
-		border-radius: 999px;
-		border: 1px solid var(--practice-target-accent, #10b981);
-		background: transparent;
-		color: var(--practice-target-accent, #10b981);
-		cursor: pointer;
-	}
-
-	.toggle.active {
-		background: var(--practice-target-accent, #10b981);
-		color: #fff;
-	}
-
-	.toggle:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
-	}
-
-	.beat-readout {
-		font-size: 0.85rem;
-		font-weight: 600;
-		opacity: 0.85;
 	}
 </style>
