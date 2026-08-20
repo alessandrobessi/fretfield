@@ -53,9 +53,7 @@ test.describe('Drum Machine', () => {
 		await expect(step).toHaveAttribute('data-velocity', '0');
 	});
 
-	test('selecting a genre preset overwrites the whole grid and swing together', async ({
-		page
-	}) => {
+	test('selecting a genre preset overwrites the whole grid and feel together', async ({ page }) => {
 		await openScalePractice(page);
 
 		await expect(page.getByLabel('Feel')).toHaveValue('straight');
@@ -78,7 +76,7 @@ test.describe('Drum Machine', () => {
 		);
 	});
 
-	test('swing and tempo survive a reload', async ({ page }) => {
+	test('feel and tempo survive a reload', async ({ page }) => {
 		await openScalePractice(page);
 
 		await page.getByLabel('Groove preset').selectOption({ label: 'Jazz Swing' });
