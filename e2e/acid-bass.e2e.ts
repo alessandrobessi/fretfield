@@ -36,7 +36,7 @@ test.describe('Acid Bass: on/off', () => {
 });
 
 test.describe('Acid Bass: synth controls', () => {
-	test('the Bass tab in the Band panel shows Wave/Tone/Resonance/Motion/Decay/Drive', async ({
+	test('the Bass tab in the Band panel shows Wave/Cutoff/Resonance/Env Mod/Decay/Drive', async ({
 		page
 	}) => {
 		await page.goto('/');
@@ -45,9 +45,9 @@ test.describe('Acid Bass: synth controls', () => {
 
 		await expect(page.getByRole('button', { name: 'Saw', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Square', exact: true })).toBeVisible();
-		await expect(page.getByRole('slider', { name: 'Tone' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Cutoff' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Resonance' })).toBeVisible();
-		await expect(page.getByRole('slider', { name: 'Motion' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Env Mod' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Decay' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Drive' })).toBeVisible();
 	});
@@ -64,10 +64,12 @@ test.describe('Acid Bass: synth controls', () => {
 		);
 
 		// Knob.svelte is a role="slider" div, not a native <input> -- keyboard
-		// PageUp/PageDown move by a tenth of the 0-100 range (see Knob's own
-		// bigStep), so 8 presses from the default 0 lands exactly on 80.
+		// Home resets to the knob's min (0) regardless of the patch's own
+		// default Drive value, then PageUp/PageDown move by a tenth of the
+		// 0-100 range (see Knob's own bigStep), so 8 presses lands exactly on 80.
 		const drive = page.getByRole('slider', { name: 'Drive' });
 		await drive.focus();
+		await drive.press('Home');
 		for (let i = 0; i < 8; i++) {
 			await drive.press('PageUp');
 		}
@@ -185,6 +187,7 @@ test.describe('Acid Bass: persistence', () => {
 		await page.getByRole('button', { name: 'Square', exact: true }).click();
 		const drive = page.getByRole('slider', { name: 'Drive' });
 		await drive.focus();
+		await drive.press('Home');
 		for (let i = 0; i < 7; i++) {
 			await drive.press('PageUp');
 		}

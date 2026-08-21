@@ -15,8 +15,8 @@
 			<button
 				type="button"
 				class="wave-button"
-				class:active={scalePractice.groove.acidBass.patch.wave === wave.id}
-				aria-pressed={scalePractice.groove.acidBass.patch.wave === wave.id}
+				class:active={scalePractice.groove.acidBass.patch.oscillator.mainWave === wave.id}
+				aria-pressed={scalePractice.groove.acidBass.patch.oscillator.mainWave === wave.id}
 				onclick={() => scalePractice.setAcidBassWave(wave.id)}
 			>
 				{wave.label}
@@ -25,11 +25,11 @@
 	</div>
 
 	<div class="field">
-		<span class="ff-label field-label">Tone</span>
+		<span class="ff-label field-label">Cutoff</span>
 		<Knob
-			label="Tone"
-			value={scalePractice.groove.acidBass.patch.tone}
-			onChange={(value) => scalePractice.setAcidBassTone(value)}
+			label="Cutoff"
+			value={scalePractice.groove.acidBass.patch.filter.cutoff}
+			onChange={(value) => scalePractice.setAcidBassCutoff(value)}
 		/>
 	</div>
 
@@ -37,17 +37,19 @@
 		<span class="ff-label field-label">Resonance</span>
 		<Knob
 			label="Resonance"
-			value={scalePractice.groove.acidBass.patch.resonance}
+			value={scalePractice.groove.acidBass.patch.filter.resonance}
 			onChange={(value) => scalePractice.setAcidBassResonance(value)}
 		/>
 	</div>
 
 	<div class="field">
-		<span class="ff-label field-label">Motion</span>
+		<span class="ff-label field-label">Env Mod</span>
 		<Knob
-			label="Motion"
-			value={scalePractice.groove.acidBass.patch.motion}
-			onChange={(value) => scalePractice.setAcidBassMotion(value)}
+			label="Env Mod"
+			min={-100}
+			max={100}
+			value={scalePractice.groove.acidBass.patch.filter.envAmount}
+			onChange={(value) => scalePractice.setAcidBassEnvAmount(value)}
 		/>
 	</div>
 
@@ -55,7 +57,7 @@
 		<span class="ff-label field-label">Decay</span>
 		<Knob
 			label="Decay"
-			value={scalePractice.groove.acidBass.patch.decay}
+			value={scalePractice.groove.acidBass.patch.envelope.decay}
 			onChange={(value) => scalePractice.setAcidBassDecay(value)}
 		/>
 	</div>
@@ -64,7 +66,7 @@
 		<span class="ff-label field-label">Drive</span>
 		<Knob
 			label="Drive"
-			value={scalePractice.groove.acidBass.patch.drive}
+			value={scalePractice.groove.acidBass.patch.output.drive}
 			onChange={(value) => scalePractice.setAcidBassDrive(value)}
 		/>
 	</div>

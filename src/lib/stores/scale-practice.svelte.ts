@@ -172,6 +172,11 @@ function clampPercent(value: number): number {
 	return Math.min(100, Math.max(0, Math.round(value)));
 }
 
+/** Same idea as `clampPercent`, for a bipolar -100..100 control (Acid Bass's Env Mod). */
+function clampBipolarPercent(value: number): number {
+	return Math.min(100, Math.max(-100, Math.round(value)));
+}
+
 function clampIntensity(intensity: number): number {
 	return clampPercent(intensity);
 }
@@ -435,32 +440,52 @@ export class ScalePracticeStore {
 	}
 
 	setAcidBassWave(wave: AcidWave): void {
-		this.updateAcidBassPatch({ wave });
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, mainWave: wave }
+		}));
 	}
 
-	setAcidBassTone(tone: number): void {
-		this.updateAcidBassPatch({ tone: clampPercent(tone) });
+	/** Was "Tone" in V1 -- see `resolve.ts`'s `cutoffToHz`. */
+	setAcidBassCutoff(cutoff: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			filter: { ...patch.filter, cutoff: clampPercent(cutoff) }
+		}));
 	}
 
 	setAcidBassResonance(resonance: number): void {
-		this.updateAcidBassPatch({ resonance: clampPercent(resonance) });
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			filter: { ...patch.filter, resonance: clampPercent(resonance) }
+		}));
 	}
 
-	setAcidBassMotion(motion: number): void {
-		this.updateAcidBassPatch({ motion: clampPercent(motion) });
+	/** Was "Motion" (unipolar 0-100) in V1 -- now bipolar -100..100, see `resolve.ts`'s `envAmountToRatio`. */
+	setAcidBassEnvAmount(envAmount: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			filter: { ...patch.filter, envAmount: clampBipolarPercent(envAmount) }
+		}));
 	}
 
 	setAcidBassDecay(decay: number): void {
-		this.updateAcidBassPatch({ decay: clampPercent(decay) });
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			envelope: { ...patch.envelope, decay: clampPercent(decay) }
+		}));
 	}
 
 	setAcidBassDrive(drive: number): void {
-		this.updateAcidBassPatch({ drive: clampPercent(drive) });
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			output: { ...patch.output, drive: clampPercent(drive) }
+		}));
 	}
 
 	/** Live parameter editing (spec §33): patch changes apply to the running voice immediately (see `AcidBassVoice.setPatch`), without restarting the transport. */
-	private updateAcidBassPatch(patch: Partial<AcidBassPatch>): void {
-		const nextPatch = { ...this.groove.acidBass.patch, ...patch };
+	private updateAcidBassPatch(mutate: (patch: AcidBassPatch) => AcidBassPatch): void {
+		const nextPatch = mutate(this.groove.acidBass.patch);
 		this.groove = { ...this.groove, acidBass: { ...this.groove.acidBass, patch: nextPatch } };
 		this.acidBassVoice?.setPatch(nextPatch);
 		this.persist();

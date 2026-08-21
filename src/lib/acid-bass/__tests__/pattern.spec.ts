@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	clearAcidStepLocks,
 	createDefaultAcidBassState,
 	createDefaultAcidPattern,
 	createDefaultAcidPatch,
@@ -7,8 +8,12 @@ import {
 	resizeAcidBassState,
 	resizeAcidPattern,
 	setAcidStepActive,
+	setAcidStepGate,
 	setAcidStepInterval,
+	setAcidStepLock,
 	setAcidStepOctave,
+	setAcidStepProbability,
+	setAcidStepRatchet,
 	toggleAcidStepAccent,
 	toggleAcidStepSlide
 } from '../pattern';
@@ -21,14 +26,25 @@ describe('createEmptyAcidStep', () => {
 		expect(step.octave).toBe(0);
 		expect(step.accent).toBe(false);
 		expect(step.slide).toBe(false);
+		expect(step.probability).toBe(100);
+		expect(step.ratchet).toBe(1);
+		expect(step.gate).toBe(82);
+		expect(step.locks).toBeUndefined();
 	});
 });
 
 describe('createDefaultAcidPatch', () => {
-	it('is a clean, round starting point (not the extreme "Acid" preset)', () => {
+	it('defaults to the acid24 filter, not legacy (spec: new users should not default to legacy)', () => {
 		const patch = createDefaultAcidPatch();
-		expect(patch.wave).toBe('saw');
-		expect(patch.drive).toBe(0);
+		expect(patch.oscillator.mainWave).toBe('saw');
+		expect(patch.filter.model).toBe('acid24');
+	});
+
+	it('is conservative, not screaming -- musical on the first note', () => {
+		const patch = createDefaultAcidPatch();
+		expect(patch.filter.cutoff).toBeLessThan(50);
+		expect(patch.output.drive).toBeLessThan(20);
+		expect(patch.lfo.enabled).toBe(false);
 	});
 });
 
@@ -98,6 +114,12 @@ describe('createDefaultAcidBassState', () => {
 			expect(state.patterns[role]).toHaveLength(20);
 		}
 	});
+
+	it('is version 2, with cross-bar slide on by default for freshly-created state', () => {
+		const state = createDefaultAcidBassState(16, 4);
+		expect(state.version).toBe(2);
+		expect(state.crossBarSlide).toBe(true);
+	});
 });
 
 describe('step mutators', () => {
@@ -133,6 +155,47 @@ describe('step mutators', () => {
 		const before = pattern[7].slide;
 		const updated = toggleAcidStepSlide(pattern, 7);
 		expect(updated[7].slide).toBe(!before);
+	});
+
+	it('setAcidStepProbability changes and clamps only the targeted step', () => {
+		const pattern = createDefaultAcidBassState(16, 4).patterns.A;
+		expect(setAcidStepProbability(pattern, 3, 75)[3].probability).toBe(75);
+		expect(setAcidStepProbability(pattern, 3, 150)[3].probability).toBe(100);
+		expect(setAcidStepProbability(pattern, 3, -10)[3].probability).toBe(0);
+	});
+
+	it('setAcidStepRatchet changes only the targeted step', () => {
+		const pattern = createDefaultAcidBassState(16, 4).patterns.A;
+		expect(setAcidStepRatchet(pattern, 3, 3)[3].ratchet).toBe(3);
+	});
+
+	it('setAcidStepGate changes and clamps only the targeted step', () => {
+		const pattern = createDefaultAcidBassState(16, 4).patterns.A;
+		expect(setAcidStepGate(pattern, 3, 50)[3].gate).toBe(50);
+		expect(setAcidStepGate(pattern, 3, 5)[3].gate).toBe(10);
+		expect(setAcidStepGate(pattern, 3, 500)[3].gate).toBe(100);
+	});
+
+	it('setAcidStepLock sets one target without disturbing others already locked', () => {
+		let pattern = createDefaultAcidBassState(16, 4).patterns.A;
+		pattern = setAcidStepLock(pattern, 3, 'cutoff', 80);
+		pattern = setAcidStepLock(pattern, 3, 'drive', 40);
+		expect(pattern[3].locks).toEqual({ cutoff: 80, drive: 40 });
+	});
+
+	it('setAcidStepLock clears a target and drops an empty locks object entirely', () => {
+		let pattern = createDefaultAcidBassState(16, 4).patterns.A;
+		pattern = setAcidStepLock(pattern, 3, 'cutoff', 80);
+		pattern = setAcidStepLock(pattern, 3, 'cutoff', undefined);
+		expect(pattern[3].locks).toBeUndefined();
+	});
+
+	it('clearAcidStepLocks removes every target from one step', () => {
+		let pattern = createDefaultAcidBassState(16, 4).patterns.A;
+		pattern = setAcidStepLock(pattern, 3, 'cutoff', 80);
+		pattern = setAcidStepLock(pattern, 3, 'resonance', 60);
+		pattern = clearAcidStepLocks(pattern, 3);
+		expect(pattern[3].locks).toBeUndefined();
 	});
 });
 

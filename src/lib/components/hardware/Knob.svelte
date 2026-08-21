@@ -13,9 +13,6 @@
 
 	let knobEl: HTMLDivElement | undefined;
 	let dragging = $state(false);
-	let hovering = $state(false);
-	let focused = $state(false);
-	const showValue = $derived(dragging || hovering || focused);
 
 	function clamp(v: number): number {
 		return Math.min(max, Math.max(min, v));
@@ -92,9 +89,6 @@
 </script>
 
 <div class="knob-wrap">
-	{#if showValue}
-		<span class="value-readout">{value}</span>
-	{/if}
 	<div
 		bind:this={knobEl}
 		class="knob"
@@ -109,10 +103,6 @@
 		onpointermove={handlePointerMove}
 		onpointerup={handlePointerUp}
 		onkeydown={handleKeydown}
-		onfocus={() => (focused = true)}
-		onblur={() => (focused = false)}
-		onmouseenter={() => (hovering = true)}
-		onmouseleave={() => (hovering = false)}
 	>
 		<div class="indicator" style:transform={`rotate(${rotationDeg}deg)`}></div>
 	</div>
@@ -160,16 +150,5 @@
 		background: var(--ff-yellow, #e3ac18);
 		transform-origin: bottom center;
 		border-radius: 1px;
-	}
-
-	.value-readout {
-		font-size: 0.7rem;
-		font-weight: 700;
-		font-variant-numeric: tabular-nums;
-		color: var(--ff-ivory, #f1e6c5);
-		background: var(--ff-black, #151411);
-		padding: 0.1rem 0.4rem;
-		border-radius: var(--ff-radius-control, 4px);
-		white-space: nowrap;
 	}
 </style>

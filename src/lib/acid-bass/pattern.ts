@@ -1,10 +1,26 @@
 import type { IntervalId } from '$lib/music/intervals';
 
 import { PATTERN_ROLES, type PatternRole } from '$lib/groove/pattern-role';
-import type { AcidBassPattern, AcidBassPatch, AcidBassState, AcidBassStep } from './types';
+import type {
+	AcidBassPattern,
+	AcidBassPatch,
+	AcidBassState,
+	AcidBassStep,
+	AcidStepLocks
+} from './types';
 
 export function createEmptyAcidStep(): AcidBassStep {
-	return { active: false, interval: '1', octave: 0, accent: false, slide: false };
+	return {
+		active: false,
+		interval: '1',
+		octave: 0,
+		accent: false,
+		slide: false,
+		probability: 100,
+		ratchet: 1,
+		gate: 82,
+		locks: undefined
+	};
 }
 
 function acidStep(interval: IntervalId, overrides: Partial<AcidBassStep> = {}): AcidBassStep {
@@ -99,9 +115,57 @@ export function createDefaultAcidPattern(
 	return ROLE_BUILDERS[role](stepsPerBar, stepsPerBeatGroup);
 }
 
-/** Deliberately not the "Acid" preset -- a clean, round starting point (see the manual listening checklist's "Clean pulse" case) so turning Bass on for the first time doesn't immediately squeal. */
+/**
+ * New users default to the `acid24` filter (spec §79: "should not default to
+ * the legacy filter"), but with conservative cutoff/resonance/env/accent/
+ * drive values -- musical on the first note, not screaming. `legacy` exists
+ * for migration compatibility, not as the new-user starting point.
+ */
 export function createDefaultAcidPatch(): AcidBassPatch {
-	return { wave: 'saw', tone: 35, resonance: 20, motion: 25, decay: 35, drive: 0 };
+	return {
+		oscillator: {
+			mainWave: 'saw',
+			tune: 0,
+			fine: 0,
+			mainLevel: 100,
+			subEnabled: false,
+			subOctave: -1,
+			subWave: 'square',
+			subLevel: 35,
+			pulseWidth: 50
+		},
+		filter: {
+			model: 'acid24',
+			cutoff: 32,
+			resonance: 28,
+			envAmount: 30,
+			keyTracking: 15,
+			saturation: 8
+		},
+		envelope: {
+			attack: 10,
+			decay: 38,
+			release: 30,
+			accentAmount: 45
+		},
+		glide: {
+			time: 55,
+			curve: 'exponential'
+		},
+		lfo: {
+			enabled: false,
+			shape: 'sine',
+			destination: 'cutoff',
+			rateMode: 'free',
+			rateHz: 2,
+			division: '1/8',
+			depth: 0
+		},
+		output: {
+			drive: 4,
+			volume: 70
+		}
+	};
 }
 
 export function createDefaultAcidBassState(
@@ -112,7 +176,13 @@ export function createDefaultAcidBassState(
 	for (const role of PATTERN_ROLES) {
 		patterns[role] = createDefaultAcidPattern(stepsPerBar, stepsPerBeatGroup, role);
 	}
-	return { enabled: false, patch: createDefaultAcidPatch(), patterns };
+	return {
+		version: 2,
+		enabled: false,
+		patch: createDefaultAcidPatch(),
+		patterns,
+		crossBarSlide: true
+	};
 }
 
 export function setAcidStepActive(
@@ -145,6 +215,52 @@ export function toggleAcidStepAccent(pattern: AcidBassPattern, stepIndex: number
 
 export function toggleAcidStepSlide(pattern: AcidBassPattern, stepIndex: number): AcidBassPattern {
 	return pattern.map((step, i) => (i === stepIndex ? { ...step, slide: !step.slide } : step));
+}
+
+export function setAcidStepProbability(
+	pattern: AcidBassPattern,
+	stepIndex: number,
+	probability: number
+): AcidBassPattern {
+	const clamped = Math.min(100, Math.max(0, probability));
+	return pattern.map((step, i) => (i === stepIndex ? { ...step, probability: clamped } : step));
+}
+
+export function setAcidStepRatchet(
+	pattern: AcidBassPattern,
+	stepIndex: number,
+	ratchet: AcidBassStep['ratchet']
+): AcidBassPattern {
+	return pattern.map((step, i) => (i === stepIndex ? { ...step, ratchet } : step));
+}
+
+export function setAcidStepGate(
+	pattern: AcidBassPattern,
+	stepIndex: number,
+	gate: number
+): AcidBassPattern {
+	const clamped = Math.min(100, Math.max(10, gate));
+	return pattern.map((step, i) => (i === stepIndex ? { ...step, gate: clamped } : step));
+}
+
+/** Sets one lock target's value, or clears it (`value === undefined`) -- drops the whole `locks` object once every target on a step is cleared, so an untouched step never carries an empty `{}` around. */
+export function setAcidStepLock(
+	pattern: AcidBassPattern,
+	stepIndex: number,
+	target: keyof AcidStepLocks,
+	value: number | undefined
+): AcidBassPattern {
+	return pattern.map((step, i) => {
+		if (i !== stepIndex) return step;
+		const nextLocks: AcidStepLocks = { ...step.locks, [target]: value };
+		if (value === undefined) delete nextLocks[target];
+		return { ...step, locks: Object.keys(nextLocks).length > 0 ? nextLocks : undefined };
+	});
+}
+
+/** Removes every lock target from one step in one call -- the step editor's "Clear locks" affordance (spec §46), as distinct from `transforms.ts`'s pattern-wide `CLEAR LOCKS` transform. */
+export function clearAcidStepLocks(pattern: AcidBassPattern, stepIndex: number): AcidBassPattern {
+	return pattern.map((step, i) => (i === stepIndex ? { ...step, locks: undefined } : step));
 }
 
 /** Same truncate/pad shape `groove/pattern.ts`'s drum `resizeSteps` uses, applied to an Acid Bass pattern -- preserves existing steps within the new length, pads a shorter-to-longer change with inactive steps. */

@@ -16,7 +16,7 @@ test.describe('Rebrand: Knob keyboard bounds', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 
-		const tone = page.getByRole('slider', { name: 'Tone' });
+		const tone = page.getByRole('slider', { name: 'Cutoff' });
 		await tone.focus();
 
 		await tone.press('End');
