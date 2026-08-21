@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { setTimeSignature as resizeGrooveToTimeSignature } from '$lib/groove/pattern';
 	import { listGroovePresets } from '$lib/groove/presets';
+	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
+	import Led from '$lib/components/hardware/Led.svelte';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
 	import { defaultNoteName, type PitchClass } from '$lib/music/pitch';
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
@@ -94,30 +96,31 @@
 		/>
 	</label>
 
-	<button
-		type="button"
-		class="bass-toggle"
-		class:active={scalePractice.groove.acidBass.enabled}
-		aria-pressed={scalePractice.groove.acidBass.enabled}
-		onclick={() => scalePractice.setAcidBassEnabled(!scalePractice.groove.acidBass.enabled)}
-	>
-		Bass {scalePractice.groove.acidBass.enabled ? 'On' : 'Off'}
-	</button>
+	<div class="transport">
+		<HardwareButton
+			variant="secondary"
+			pressed={scalePractice.groove.acidBass.enabled}
+			onclick={() => scalePractice.setAcidBassEnabled(!scalePractice.groove.acidBass.enabled)}
+		>
+			Bass {scalePractice.groove.acidBass.enabled ? 'On' : 'Off'}
+		</HardwareButton>
 
-	<button
-		type="button"
-		class="toggle"
-		class:active={scalePractice.running}
-		onclick={toggleMetronome}
-	>
-		{scalePractice.running ? 'Stop' : 'Play'}
-	</button>
+		<HardwareButton variant="primary" onclick={toggleMetronome}>
+			{scalePractice.running ? 'Stop' : 'Play'}
+		</HardwareButton>
 
-	{#if scalePractice.isCountingIn}
-		<span class="beat-readout">Count-in…</span>
-	{:else if scalePractice.running}
-		<span class="beat-readout">♩ = {scalePractice.bpm}</span>
-	{/if}
+		{#if scalePractice.isCountingIn}
+			<span class="beat-readout">
+				<Led state="active" />
+				Count-in…
+			</span>
+		{:else if scalePractice.running}
+			<span class="beat-readout">
+				<Led state="current" />
+				♩ = {scalePractice.bpm}
+			</span>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -140,9 +143,9 @@
 			right: 0;
 			bottom: 0;
 			z-index: 5;
-			background: var(--bg, #fff);
+			background: var(--bg, #151411);
 			padding: 0.6rem 0.9rem;
-			box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
+			border-top: 1px solid var(--surface-border, #3a382f);
 		}
 	}
 
@@ -154,12 +157,11 @@
 	}
 
 	.field-label {
-		font-weight: 700;
+		font-weight: 600;
 		text-transform: uppercase;
 		font-size: 0.65rem;
-		letter-spacing: 0.04em;
-		color: var(--nut, #7c3aed);
-		opacity: 0.85;
+		letter-spacing: 0.06em;
+		color: var(--nut, #e3ac18);
 	}
 
 	select,
@@ -167,78 +169,44 @@
 		font: inherit;
 		font-weight: 600;
 		padding: 0.4rem 0.5rem;
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-		border: 2px solid var(--fret-border, #ddd3f7);
-		border-radius: 8px;
+		background: var(--surface, #262521);
+		color: var(--fg, #f1e6c5);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
 		cursor: pointer;
 	}
 
 	input[type='number'] {
 		width: 4.5rem;
 		cursor: text;
+		font-variant-numeric: tabular-nums;
 	}
 
 	select:hover,
 	input[type='number']:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--nut, #e3ac18);
 	}
 
 	select:focus-visible,
 	input[type='number']:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
-	.bass-toggle {
-		font: inherit;
-		font-weight: 600;
-		font-size: 0.8rem;
-		padding: 0.4rem 0.8rem;
-		border-radius: 999px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-		cursor: pointer;
+	.transport {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
 		margin-left: auto;
 	}
 
-	.bass-toggle.active {
-		border-color: var(--live-accent, #06b6d4);
-		background: var(--live-accent, #06b6d4);
-		color: #fff;
-	}
-
-	.bass-toggle:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
-	}
-
-	.toggle {
-		font: inherit;
-		font-weight: 700;
-		padding: 0.45rem 1rem;
-		border-radius: 999px;
-		border: 1px solid var(--practice-target-accent, #10b981);
-		background: transparent;
-		color: var(--practice-target-accent, #10b981);
-		cursor: pointer;
-	}
-
-	.toggle.active {
-		border-color: var(--role-alteration, #ef4444);
-		background: var(--role-alteration, #ef4444);
-		color: #fff;
-	}
-
-	.toggle:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
-	}
-
 	.beat-readout {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 		font-size: 0.85rem;
 		font-weight: 600;
-		opacity: 0.85;
+		font-variant-numeric: tabular-nums;
+		color: var(--fg-muted, #89877f);
 	}
 </style>

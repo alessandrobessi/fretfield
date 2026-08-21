@@ -2,6 +2,9 @@
 	import { TIME_SIGNATURES } from '$lib/groove/time-signature';
 	import type { CountIn } from '$lib/groove/transport';
 	import type { GrooveFeel } from '$lib/groove/types';
+	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
+	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
+	import Led from '$lib/components/hardware/Led.svelte';
 	import AcidBassControls from '$lib/components/practice/AcidBassControls.svelte';
 	import GrooveEditor from '$lib/components/practice/GrooveEditor.svelte';
 	import { defaultNoteName } from '$lib/music/pitch';
@@ -84,86 +87,104 @@
 	</div>
 
 	{#if activeTab === 'drums'}
-		<div class="drums-view">
-			<label class="field">
-				<span class="field-label">Feel</span>
-				<select aria-label="Feel" value={scalePractice.groove.feel} onchange={handleFeelChange}>
-					<option value="straight">Straight</option>
-					<option value="shuffle">Shuffle</option>
-					<option value="swing">Swing</option>
-				</select>
-			</label>
-			<label class="field">
-				<span class="field-label">Amount</span>
-				<span class="swing-control">
-					<input
-						type="range"
-						aria-label="Amount"
-						min="0"
-						max="100"
-						disabled={scalePractice.groove.feel === 'straight' || isCompoundMeter}
-						title={isCompoundMeter
-							? `${scalePractice.groove.timeSignature} already has its own compound feel -- swing doesn't apply`
-							: undefined}
-						value={scalePractice.groove.feelAmount}
-						onchange={handleFeelAmountChange}
-					/>
-					<span class="swing-readout">{scalePractice.groove.feelAmount}%</span>
-				</span>
-			</label>
-			<label class="field">
-				<span class="field-label">Intensity</span>
-				<span class="swing-control">
-					<input
-						type="range"
-						aria-label="Intensity"
-						min="0"
-						max="100"
-						value={scalePractice.intensity}
-						onchange={handleIntensityChange}
-					/>
-					<span class="swing-readout">{scalePractice.intensity}%</span>
-				</span>
-			</label>
-			<label class="field">
-				<span class="field-label">Count-in</span>
-				<select aria-label="Count-in" value={scalePractice.countIn} onchange={handleCountInChange}>
-					<option value="off">Off</option>
-					<option value="1-bar">1 bar</option>
-					<option value="2-bars">2 bars</option>
-				</select>
-			</label>
-			<span class="pattern-readout"
-				>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
-						>· Bar {barPositionLabel}</span
-					>{/if}</span
-			>
-			<button
-				type="button"
-				class="edit-groove-toggle"
-				aria-expanded={editorExpanded}
-				onclick={() => (editorExpanded = !editorExpanded)}
-			>
-				{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
-			</button>
-		</div>
+		<HardwarePanel title="Groove Engine">
+			{#snippet header()}
+				{#if scalePractice.running}
+					<Led state="current" />
+					<span class="ff-label playing-label">Playing</span>
+				{/if}
+			{/snippet}
+			<div class="drums-view">
+				<label class="field">
+					<span class="ff-label field-label">Feel</span>
+					<select aria-label="Feel" value={scalePractice.groove.feel} onchange={handleFeelChange}>
+						<option value="straight">Straight</option>
+						<option value="shuffle">Shuffle</option>
+						<option value="swing">Swing</option>
+					</select>
+				</label>
+				<label class="field">
+					<span class="ff-label field-label">Amount</span>
+					<span class="swing-control">
+						<input
+							type="range"
+							aria-label="Amount"
+							min="0"
+							max="100"
+							disabled={scalePractice.groove.feel === 'straight' || isCompoundMeter}
+							title={isCompoundMeter
+								? `${scalePractice.groove.timeSignature} already has its own compound feel -- swing doesn't apply`
+								: undefined}
+							value={scalePractice.groove.feelAmount}
+							onchange={handleFeelAmountChange}
+						/>
+						<span class="swing-readout">{scalePractice.groove.feelAmount}%</span>
+					</span>
+				</label>
+				<label class="field">
+					<span class="ff-label field-label">Intensity</span>
+					<span class="swing-control">
+						<input
+							type="range"
+							aria-label="Intensity"
+							min="0"
+							max="100"
+							value={scalePractice.intensity}
+							onchange={handleIntensityChange}
+						/>
+						<span class="swing-readout">{scalePractice.intensity}%</span>
+					</span>
+				</label>
+				<label class="field">
+					<span class="ff-label field-label">Count-in</span>
+					<select
+						aria-label="Count-in"
+						value={scalePractice.countIn}
+						onchange={handleCountInChange}
+					>
+						<option value="off">Off</option>
+						<option value="1-bar">1 bar</option>
+						<option value="2-bars">2 bars</option>
+					</select>
+				</label>
+				<span class="pattern-readout"
+					>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
+							>· Bar {barPositionLabel}</span
+						>{/if}</span
+				>
+				<HardwareButton
+					variant="secondary"
+					ariaExpanded={editorExpanded}
+					onclick={() => (editorExpanded = !editorExpanded)}
+				>
+					{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
+				</HardwareButton>
+			</div>
+		</HardwarePanel>
 	{:else if activeTab === 'bass'}
-		<div class="drums-view">
-			<AcidBassControls />
-			<span class="pattern-readout"
-				>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
-						>· Bar {barPositionLabel}</span
-					>{/if}</span
-			>
-			<button
-				type="button"
-				class="edit-groove-toggle"
-				aria-expanded={editorExpanded}
-				onclick={() => (editorExpanded = !editorExpanded)}
-			>
-				{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
-			</button>
-		</div>
+		<HardwarePanel title="Acid Bass">
+			{#snippet header()}
+				{#if scalePractice.running && scalePractice.groove.acidBass.enabled}
+					<Led state="current" />
+					<span class="ff-label playing-label">Playing</span>
+				{/if}
+			{/snippet}
+			<div class="drums-view">
+				<AcidBassControls />
+				<span class="pattern-readout"
+					>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
+							>· Bar {barPositionLabel}</span
+						>{/if}</span
+				>
+				<HardwareButton
+					variant="secondary"
+					ariaExpanded={editorExpanded}
+					onclick={() => (editorExpanded = !editorExpanded)}
+				>
+					{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
+				</HardwareButton>
+			</div>
+		</HardwarePanel>
 	{:else}
 		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
 			{#if scalePractice.resolvedProgression.length === 0}
@@ -231,35 +252,43 @@
 		flex-direction: column;
 		gap: 0.85rem;
 		padding-top: 0.6rem;
-		border-top: 1px dashed var(--fret-border, #ddd3f7);
+		border-top: 1px solid var(--surface-border, #3a382f);
 	}
 
 	.band-tabs {
-		display: flex;
-		gap: 0.3rem;
+		display: inline-flex;
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
+		overflow: hidden;
+		background: var(--surface, #262521);
+		align-self: flex-start;
 	}
 
 	.band-tab {
 		font: inherit;
-		font-weight: 700;
+		font-weight: 600;
 		font-size: 0.8rem;
-		padding: 0.35rem 0.9rem;
-		border-radius: 999px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		padding: 0.45rem 0.9rem;
+		background: transparent;
+		color: var(--fg, #f1e6c5);
+		border: none;
 		cursor: pointer;
 	}
 
 	.band-tab.active {
-		border-color: var(--nut, #7c3aed);
-		background: color-mix(in srgb, var(--nut, #7c3aed) 10%, var(--fret-bg, #fff));
-		color: var(--nut, #7c3aed);
+		background: var(--ff-yellow, #e3ac18);
+		color: var(--ff-black, #151411);
 	}
 
 	.band-tab:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
+		outline: 3px solid var(--focus-ring, #e3ac18);
+		outline-offset: -3px;
+	}
+
+	.playing-label {
+		color: inherit;
 	}
 
 	.drums-view {
@@ -277,32 +306,27 @@
 	}
 
 	.field-label {
-		font-weight: 700;
-		text-transform: uppercase;
-		font-size: 0.65rem;
-		letter-spacing: 0.04em;
-		color: var(--nut, #7c3aed);
-		opacity: 0.85;
+		color: inherit;
 	}
 
 	select {
 		font: inherit;
 		font-weight: 600;
 		padding: 0.4rem 0.5rem;
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-		border: 2px solid var(--fret-border, #ddd3f7);
-		border-radius: 8px;
+		background: var(--ff-black, #151411);
+		color: var(--fg, #f1e6c5);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
 		cursor: pointer;
 	}
 
 	select:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow, #e3ac18);
 	}
 
 	select:focus-visible,
 	input[type='range']:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
@@ -321,33 +345,11 @@
 	.pattern-readout {
 		font-size: 0.85rem;
 		font-weight: 700;
-		opacity: 0.85;
+		margin-left: auto;
 	}
 
 	.bar-suffix {
 		margin-left: 0.35em;
-	}
-
-	.edit-groove-toggle {
-		font: inherit;
-		font-weight: 700;
-		font-size: 0.8rem;
-		padding: 0.4rem 0.8rem;
-		border-radius: 999px;
-		border: 1px solid var(--nut, #7c3aed);
-		background: transparent;
-		color: var(--nut, #7c3aed);
-		cursor: pointer;
-		margin-left: auto;
-	}
-
-	.edit-groove-toggle:hover {
-		background: color-mix(in srgb, var(--nut, #7c3aed) 10%, transparent);
-	}
-
-	.edit-groove-toggle:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
 	}
 
 	.chord-strip {
@@ -376,28 +378,27 @@
 		font-weight: 700;
 		font-size: 0.85rem;
 		padding: 0.3rem 0.7rem;
-		border-radius: 8px;
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-		border: 2px solid var(--fret-border, #ddd3f7);
+		border-radius: var(--ff-radius-control, 4px);
+		background: var(--fret-bg, #262521);
+		color: var(--fret-fg, #f1e6c5);
+		border: 1px solid var(--fret-border, #3a382f);
 		cursor: pointer;
 		min-width: 4.5rem;
 	}
 
 	.chord-chip:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow, #e3ac18);
 	}
 
 	.chord-chip:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
 	.chord-chip.active {
-		background: linear-gradient(135deg, var(--hero-from, #7c3aed), var(--hero-to, #ec4899));
-		color: #fff;
+		background: var(--ff-yellow, #e3ac18);
+		color: var(--ff-black, #151411);
 		border-color: transparent;
-		box-shadow: 0 2px 8px rgb(124 58 237 / 0.35);
 	}
 
 	.chord-scale-select {

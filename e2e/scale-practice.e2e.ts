@@ -102,7 +102,7 @@ test.describe('Scale Practice', () => {
 
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 
-		const toggle = page.locator('.practice-session-bar .toggle');
+		const toggle = page.getByRole('button', { name: /^(Play|Stop)$/ });
 		await toggle.click();
 		await expect(toggle).toHaveText('Stop');
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);

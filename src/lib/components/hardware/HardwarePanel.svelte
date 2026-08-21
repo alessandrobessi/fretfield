@@ -8,13 +8,15 @@
 		header?: Snippet;
 		/** `yellow` is the branded instrument-module chassis (spec §6/§12) -- reserve it for the handful of modules the rebrand calls out (Groove Engine, Acid Bass, transport), not general app chrome. `carbon` is the quieter dark-panel variant for everything else that still wants the rectilinear/bordered panel language without claiming the branded yellow surface. */
 		tone?: 'yellow' | 'carbon';
+		/** Passed through to the root element -- for a test hook or a one-off layout tweak from the call site, not for re-theming the panel itself (use `tone` for that). */
+		class?: string;
 		children?: Snippet;
 	}
 
-	let { title, header, tone = 'yellow', children }: Props = $props();
+	let { title, header, tone = 'yellow', class: className, children }: Props = $props();
 </script>
 
-<section class="hardware-panel" class:carbon={tone === 'carbon'}>
+<section class="hardware-panel {className ?? ''}" class:carbon={tone === 'carbon'}>
 	{#if title || header}
 		<div class="header">
 			{#if title}

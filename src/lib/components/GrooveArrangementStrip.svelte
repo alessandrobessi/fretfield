@@ -67,7 +67,7 @@
 			padding-left: 0;
 			padding-top: 0.5rem;
 			border-left: none;
-			border-top: 2px solid var(--fret-border, #ddd3f7);
+			border-top: 2px solid var(--fret-border, #3a382f);
 		}
 	}
 
@@ -83,7 +83,7 @@
 	.bar.cluster-start {
 		margin-left: 0.45rem;
 		padding-left: 0.45rem;
-		border-left: 2px solid var(--fret-border, #ddd3f7);
+		border-left: 2px solid var(--fret-border, #3a382f);
 	}
 
 	.bar-number {
@@ -98,14 +98,16 @@
 		opacity: 0.85;
 	}
 
+	/* Red, not yellow: this is the bar currently sounding -- the playhead,
+	   same "live/current" meaning as everywhere else red appears. */
 	.bar.active .bar-role {
-		color: var(--nut, #7c3aed);
+		color: var(--live-accent, #e34832);
 	}
 
 	.bar-chord {
 		font-weight: 700;
 		font-size: 0.7rem;
-		color: var(--nut, #7c3aed);
+		color: var(--nut, #e3ac18);
 	}
 
 	.bar select {
@@ -115,24 +117,24 @@
 		padding: 0.25rem 0.15rem;
 		text-align: center;
 		text-align-last: center;
-		border-radius: 6px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--fret-border, #3a382f);
+		background: var(--fret-bg, #262521);
+		color: var(--fret-fg, #f1e6c5);
 		cursor: pointer;
 	}
 
 	.bar select:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow, #e3ac18);
 	}
 
 	.bar.active select {
-		border-color: var(--nut, #7c3aed);
-		background: color-mix(in srgb, var(--nut, #7c3aed) 14%, var(--fret-bg, #fff));
+		border-color: var(--live-accent, #e34832);
+		background: color-mix(in srgb, var(--live-accent, #e34832) 14%, var(--fret-bg, #262521));
 	}
 
 	.bar select:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 </style>

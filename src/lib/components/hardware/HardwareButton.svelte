@@ -9,6 +9,8 @@
 		disabled?: boolean;
 		type?: 'button' | 'submit';
 		ariaLabel?: string;
+		/** For a disclosure-widget button (Edit Groove, etc). Omitted entirely (not just `false`) unless passed, since `aria-expanded="false"` and "not a disclosure widget at all" are different things to assistive tech. */
+		ariaExpanded?: boolean;
 		onclick?: (event: MouseEvent) => void;
 		children: Snippet;
 	}
@@ -19,6 +21,7 @@
 		disabled = false,
 		type = 'button',
 		ariaLabel,
+		ariaExpanded,
 		onclick,
 		children
 	}: Props = $props();
@@ -31,6 +34,7 @@
 	class:pressed
 	aria-pressed={pressed}
 	aria-label={ariaLabel}
+	aria-expanded={ariaExpanded}
 	{disabled}
 	{onclick}
 >

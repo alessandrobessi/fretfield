@@ -12,6 +12,8 @@
 		TIME_SIGNATURES,
 		type TimeSignature
 	} from '$lib/groove/time-signature';
+	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
+	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import AcidBassStepEditor from '$lib/components/practice/AcidBassStepEditor.svelte';
 	import AcidBassStepGrid from '$lib/components/practice/AcidBassStepGrid.svelte';
 	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
@@ -150,10 +152,10 @@
 	}
 </script>
 
-<div class="groove-editor">
+<HardwarePanel class="groove-editor">
 	<div class="controls-row">
 		<label class="field">
-			<span class="field-label">Time Signature</span>
+			<span class="ff-label field-label">Time Signature</span>
 			<select
 				aria-label="Time Signature"
 				value={scalePractice.groove.timeSignature}
@@ -165,7 +167,7 @@
 			</select>
 		</label>
 		<label class="field">
-			<span class="field-label">Bars per chord</span>
+			<span class="ff-label field-label">Bars per chord</span>
 			<input
 				type="number"
 				aria-label="Bars per chord"
@@ -184,22 +186,17 @@
 				bind:value={newGrooveName}
 				onkeydown={(e) => e.key === 'Enter' && confirmSave()}
 			/>
-			<button
-				type="button"
-				class="save-confirm"
-				onclick={confirmSave}
-				disabled={!newGrooveName.trim()}
-			>
+			<HardwareButton variant="secondary" onclick={confirmSave} disabled={!newGrooveName.trim()}>
 				Save
-			</button>
-			<button type="button" class="save-cancel" onclick={cancelSaving}>Cancel</button>
+			</HardwareButton>
+			<HardwareButton variant="secondary" onclick={cancelSaving}>Cancel</HardwareButton>
 		{:else}
-			<button type="button" class="save-as" onclick={startSaving}>Save as…</button>
+			<HardwareButton variant="secondary" onclick={startSaving}>Save as…</HardwareButton>
 		{/if}
 	</div>
 
 	<div class="arrangement-row">
-		<span class="field-label">Arrangement</span>
+		<span class="ff-label field-label">Arrangement</span>
 		<GrooveArrangementStrip
 			arrangement={scalePractice.groove.arrangement}
 			activeBarIndex={scalePractice.activeBarIndex}
@@ -219,7 +216,7 @@
 	</div>
 
 	<div class="pattern-row">
-		<span class="field-label">Editing pattern</span>
+		<span class="ff-label field-label">Editing pattern</span>
 		<div class="role-picker" role="group" aria-label="Pattern to edit">
 			{#each PATTERN_ROLES as role (role)}
 				<button
@@ -306,7 +303,7 @@
 
 	{#if savedGrooves.items.length > 0}
 		<div class="saved-list">
-			<span class="field-label">My Grooves</span>
+			<span class="ff-label field-label">My Grooves</span>
 			<ul class="saved-items">
 				{#each savedGrooves.items as item (item.id)}
 					<li class="saved-item">
@@ -347,17 +344,9 @@
 			</ul>
 		</div>
 	{/if}
-</div>
+</HardwarePanel>
 
 <style>
-	.groove-editor {
-		display: flex;
-		flex-direction: column;
-		gap: 0.85rem;
-		padding-top: 0.6rem;
-		border-top: 1px dashed var(--fret-border, #ddd3f7);
-	}
-
 	.controls-row {
 		display: flex;
 		align-items: center;
@@ -373,12 +362,7 @@
 	}
 
 	.field-label {
-		font-weight: 700;
-		text-transform: uppercase;
-		font-size: 0.65rem;
-		letter-spacing: 0.04em;
-		color: var(--nut, #7c3aed);
-		opacity: 0.85;
+		color: inherit;
 	}
 
 	select,
@@ -386,26 +370,27 @@
 		font: inherit;
 		font-weight: 600;
 		padding: 0.4rem 0.5rem;
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-		border: 2px solid var(--fret-border, #ddd3f7);
-		border-radius: 8px;
+		background: var(--ff-black, #151411);
+		color: var(--fg, #f1e6c5);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
 		cursor: pointer;
 	}
 
 	input[type='number'] {
 		width: 4.5rem;
 		cursor: text;
+		font-variant-numeric: tabular-nums;
 	}
 
 	select:hover,
 	input[type='number']:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow-dark, #c9910d);
 	}
 
 	select:focus-visible,
 	input[type='number']:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
@@ -413,43 +398,36 @@
 		font: inherit;
 		font-size: 0.8rem;
 		padding: 0.35rem 0.6rem;
-		border-radius: 999px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--surface-border, #3a382f);
+		background: var(--ff-black, #151411);
+		color: var(--fg, #f1e6c5);
 	}
 
 	.name-input:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
-	.save-as,
-	.save-confirm,
-	.save-cancel,
 	.saved-item button {
 		font: inherit;
 		font-weight: 700;
 		font-size: 0.8rem;
 		padding: 0.35rem 0.8rem;
-		border-radius: 999px;
-		border: 1px solid var(--nut, #7c3aed);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--ff-black, #151411);
 		background: transparent;
-		color: var(--nut, #7c3aed);
+		color: inherit;
 		cursor: pointer;
 	}
 
-	.save-confirm:disabled,
 	.saved-item button:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
 	}
 
-	.save-as:focus-visible,
-	.save-confirm:focus-visible,
-	.save-cancel:focus-visible,
 	.saved-item button:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
 	}
 
@@ -458,7 +436,7 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		padding-top: 0.5rem;
-		border-top: 1px dashed var(--fret-border, #ddd3f7);
+		border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent);
 	}
 
 	.saved-items {
@@ -483,13 +461,16 @@
 		text-align: left;
 	}
 
+	/* Red, not a role color: this is a destructive action (delete), the same
+	   restrained reuse of Signal Red the rest of the app gives error/danger
+	   UI now that --role-alteration itself no longer means "danger." */
 	.saved-item .remove {
-		border-color: var(--fret-border, #ddd3f7);
-		color: var(--role-alteration, #ef4444);
+		border-color: var(--ff-red, #e34832);
+		color: var(--ff-red, #e34832);
 	}
 
 	.saved-item .remove:hover {
-		border-color: var(--role-alteration, #ef4444);
+		background: color-mix(in srgb, var(--ff-red, #e34832) 16%, transparent);
 	}
 
 	.arrangement-row,
@@ -499,7 +480,7 @@
 		gap: 0.6rem;
 		flex-wrap: wrap;
 		padding-top: 0.6rem;
-		border-top: 1px dashed var(--fret-border, #ddd3f7);
+		border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent);
 	}
 
 	.bar-count {
@@ -507,10 +488,10 @@
 		font-weight: 700;
 		font-size: 0.75rem;
 		padding: 0.3rem 0.6rem;
-		border-radius: 999px;
-		border: 1px solid var(--nut, #7c3aed);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--ff-black, #151411);
 		background: transparent;
-		color: var(--nut, #7c3aed);
+		color: inherit;
 		cursor: pointer;
 	}
 
@@ -520,10 +501,11 @@
 	}
 
 	.bar-count:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
 	}
 
+	/* The A/B/F/T pattern-role selector -- hardware toggle group per spec §12. */
 	.role-picker {
 		display: flex;
 		gap: 0.3rem;
@@ -534,54 +516,56 @@
 		font-weight: 700;
 		width: 2.2rem;
 		padding: 0.3rem 0;
-		border-radius: 6px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--ff-black, #151411);
+		background: var(--ff-black, #151411);
+		color: var(--ff-yellow, #e3ac18);
 		cursor: pointer;
 	}
 
 	.role-button:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow, #e3ac18);
 	}
 
 	.role-button.active {
-		border-color: var(--nut, #7c3aed);
-		background: linear-gradient(135deg, var(--hero-from, #7c3aed), var(--hero-to, #ec4899));
-		color: #fff;
+		background: var(--ff-yellow-dark, #c9910d);
+		color: var(--ff-black, #151411);
+		border-color: var(--ff-black, #151411);
 	}
 
 	.role-button:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
 	}
 
 	.step-grid-tabs {
-		display: flex;
-		gap: 0.3rem;
+		display: inline-flex;
+		border: 1px solid var(--ff-black, #151411);
+		border-radius: var(--ff-radius-control, 4px);
+		overflow: hidden;
 	}
 
 	.step-grid-tab {
 		font: inherit;
-		font-weight: 700;
+		font-weight: 600;
 		font-size: 0.75rem;
-		padding: 0.3rem 0.7rem;
-		border-radius: 999px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		padding: 0.35rem 0.75rem;
+		border: none;
+		background: transparent;
+		color: inherit;
 		cursor: pointer;
 	}
 
 	.step-grid-tab.active {
-		border-color: var(--nut, #7c3aed);
-		background: color-mix(in srgb, var(--nut, #7c3aed) 10%, var(--fret-bg, #fff));
-		color: var(--nut, #7c3aed);
+		background: var(--ff-black, #151411);
+		color: var(--ff-yellow, #e3ac18);
 	}
 
 	.step-grid-tab:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
-		outline-offset: 2px;
+		outline: 3px solid var(--focus-ring, #e3ac18);
+		outline-offset: -3px;
 	}
 
 	.step-grid {
@@ -607,8 +591,8 @@
 		flex: 0 0 5.5rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		opacity: 0.75;
-		background: var(--fret-bg, #fff);
+		color: inherit;
+		background: var(--ff-yellow, #e3ac18);
 	}
 
 	.steps {
@@ -617,6 +601,9 @@
 		flex-wrap: nowrap;
 	}
 
+	/* Black step keys set into the yellow chassis (spec §12/§15), not a
+	   lighter/neutral control -- this is the one place "black controls on a
+	   yellow faceplate" reads most literally. */
 	.step {
 		display: flex;
 		align-items: center;
@@ -624,41 +611,39 @@
 		width: 1.4rem;
 		height: 1.4rem;
 		padding: 0;
-		border-radius: 5px;
-		border: 1px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--ff-carbon, #262521);
+		background: var(--ff-black, #151411);
 		cursor: pointer;
 	}
 
 	/* A subtle visual break every 4 steps (one beat), matching a real step sequencer's grid. */
 	.step.beat-start {
-		border-left-color: var(--nut, #7c3aed);
+		border-left-color: var(--ff-yellow-dark, #c9910d);
 		border-left-width: 2px;
 	}
 
 	.step:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow, #e3ac18);
 	}
 
 	.step:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
+	/* Programmed on -- yellow (selected/intentional), not a status color:
+	   this is authored pattern data, not a live/transient signal. */
 	.step.active {
-		background: color-mix(
-			in srgb,
-			var(--practice-target-accent, #10b981) 18%,
-			var(--fret-bg, #fff)
-		);
-		border-color: var(--practice-target-accent, #10b981);
+		background: color-mix(in srgb, var(--ff-yellow, #e3ac18) 22%, var(--ff-black, #151411));
+		border-color: var(--ff-yellow-dark, #c9910d);
 	}
 
 	.step .dot {
 		width: 0.55rem;
 		height: 0.55rem;
 		border-radius: 50%;
-		background: var(--practice-target-accent, #10b981);
+		background: var(--ff-yellow, #e3ac18);
 	}
 
 	/* Velocity is encoded by more than color alone (AGENTS.md): dot size,
@@ -678,20 +663,26 @@
 		height: 0.8rem;
 	}
 
-	/* The playhead: whichever 16th-note step is sounding right now, pulsing in
-	   time with the beat so the grid gives a visual "click" alongside the audio. */
+	/* The playhead: whichever 16th-note step is sounding right now -- red LED
+	   glow (a static cue, so it survives reduced-motion) plus the spec's own
+	   recommended pulse timing (§10) layered on top. */
 	.step.current {
-		border-color: var(--nut, #7c3aed);
-		box-shadow: 0 0 0 2px var(--nut, #7c3aed);
-		animation: step-pulse 0.12s ease-out;
+		border-color: var(--ff-red, #e34832);
+		box-shadow:
+			0 0 0 2px var(--ff-red, #e34832),
+			0 0 0.5rem 0.05rem var(--ff-red, #e34832);
+		animation: step-pulse 500ms ease-in-out;
 	}
 
 	@keyframes step-pulse {
-		from {
-			transform: scale(1.35);
-		}
-		to {
+		0%,
+		100% {
 			transform: scale(1);
+			opacity: 0.85;
+		}
+		50% {
+			transform: scale(1.12);
+			opacity: 1;
 		}
 	}
 </style>
