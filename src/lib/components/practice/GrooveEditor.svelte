@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { AcidOctaveOffset } from '$lib/acid-bass/types';
 	import {
 		DRUM_VOICES,
 		PATTERN_ROLES,
@@ -11,10 +12,18 @@
 		TIME_SIGNATURES,
 		type TimeSignature
 	} from '$lib/groove/time-signature';
+	import AcidBassStepEditor from '$lib/components/practice/AcidBassStepEditor.svelte';
+	import AcidBassStepGrid from '$lib/components/practice/AcidBassStepGrid.svelte';
 	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
+	import type { IntervalId } from '$lib/music/intervals';
 	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
+
+	type StepGridTab = 'drums' | 'bass';
+	let stepGridTab = $state<StepGridTab>('drums');
+	/** Transient UI focus only -- which Bass step the step editor below is showing, not part of saved groove data. */
+	let selectedAcidStepIndex = $state<number | null>(null);
 
 	const VOICE_LABELS: Record<DrumVoice, string> = {
 		kick: 'Kick',
@@ -107,6 +116,38 @@
 	function removeBar(): void {
 		scalePractice.setArrangementLength(scalePractice.groove.arrangement.length - 1);
 	}
+
+	const selectedAcidPattern = $derived(
+		scalePractice.groove.acidBass.patterns[scalePractice.selectedPatternRole]
+	);
+	const selectedAcidStep = $derived(
+		selectedAcidStepIndex !== null ? (selectedAcidPattern[selectedAcidStepIndex] ?? null) : null
+	);
+
+	function handleSetAcidStepActive(active: boolean): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.setAcidStepActive(selectedAcidStepIndex, active);
+	}
+
+	function handleSetAcidStepInterval(interval: IntervalId): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.setAcidStepInterval(selectedAcidStepIndex, interval);
+	}
+
+	function handleSetAcidStepOctave(octave: AcidOctaveOffset): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.setAcidStepOctave(selectedAcidStepIndex, octave);
+	}
+
+	function handleToggleAcidStepAccent(): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.toggleAcidStepAccent(selectedAcidStepIndex);
+	}
+
+	function handleToggleAcidStepSlide(): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.toggleAcidStepSlide(selectedAcidStepIndex);
+	}
 </script>
 
 <div class="groove-editor">
@@ -193,35 +234,75 @@
 		</div>
 	</div>
 
-	<div class="step-grid">
-		{#each DRUM_VOICES as voice (voice)}
-			<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>
-				<span class="voice-label">{VOICE_LABELS[voice]}</span>
-				<div class="steps">
-					{#each scalePractice.groove.patterns[scalePractice.selectedPatternRole].steps[voice] as step, index (index)}
-						<button
-							type="button"
-							class="step"
-							class:active={step.velocity > 0}
-							class:velocity-ghost={step.velocity === 0.35}
-							class:velocity-accent={step.velocity === 1}
-							class:beat-start={index % stepsPerBeatGroup === 0}
-							class:current={index === scalePractice.activeStepIndex}
-							data-velocity={step.velocity}
-							aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
-							aria-pressed={step.velocity > 0}
-							title={`${VOICE_LABELS[voice]} step ${index + 1}: ${VELOCITY_LABELS[step.velocity]}`}
-							onclick={(event) => handleStepClick(voice, index, event)}
-						>
-							{#if step.velocity > 0}
-								<span class="dot" aria-hidden="true"></span>
-							{/if}
-						</button>
-					{/each}
-				</div>
-			</div>
-		{/each}
+	<div class="step-grid-tabs" role="group" aria-label="Step grid">
+		<button
+			type="button"
+			class="step-grid-tab"
+			class:active={stepGridTab === 'drums'}
+			onclick={() => (stepGridTab = 'drums')}
+		>
+			Drum Steps
+		</button>
+		<button
+			type="button"
+			class="step-grid-tab"
+			class:active={stepGridTab === 'bass'}
+			onclick={() => (stepGridTab = 'bass')}
+		>
+			Bass Steps
+		</button>
 	</div>
+
+	{#if stepGridTab === 'drums'}
+		<div class="step-grid">
+			{#each DRUM_VOICES as voice (voice)}
+				<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>
+					<span class="voice-label">{VOICE_LABELS[voice]}</span>
+					<div class="steps">
+						{#each scalePractice.groove.patterns[scalePractice.selectedPatternRole].steps[voice] as step, index (index)}
+							<button
+								type="button"
+								class="step"
+								class:active={step.velocity > 0}
+								class:velocity-ghost={step.velocity === 0.35}
+								class:velocity-accent={step.velocity === 1}
+								class:beat-start={index % stepsPerBeatGroup === 0}
+								class:current={index === scalePractice.activeStepIndex}
+								data-velocity={step.velocity}
+								aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
+								aria-pressed={step.velocity > 0}
+								title={`${VOICE_LABELS[voice]} step ${index + 1}: ${VELOCITY_LABELS[step.velocity]}`}
+								onclick={(event) => handleStepClick(voice, index, event)}
+							>
+								{#if step.velocity > 0}
+									<span class="dot" aria-hidden="true"></span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		</div>
+	{:else}
+		<div class="step-grid">
+			<AcidBassStepGrid
+				pattern={selectedAcidPattern}
+				{stepsPerBeatGroup}
+				activeStepIndex={scalePractice.activeStepIndex}
+				selectedStepIndex={selectedAcidStepIndex}
+				onSelectStep={(index) => (selectedAcidStepIndex = index)}
+			/>
+		</div>
+		<AcidBassStepEditor
+			step={selectedAcidStep}
+			stepIndex={selectedAcidStepIndex}
+			onSetActive={handleSetAcidStepActive}
+			onSetInterval={handleSetAcidStepInterval}
+			onSetOctave={handleSetAcidStepOctave}
+			onToggleAccent={handleToggleAcidStepAccent}
+			onToggleSlide={handleToggleAcidStepSlide}
+		/>
+	{/if}
 
 	{#if savedGrooves.items.length > 0}
 		<div class="saved-list">
@@ -471,6 +552,34 @@
 	}
 
 	.role-button:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
+	.step-grid-tabs {
+		display: flex;
+		gap: 0.3rem;
+	}
+
+	.step-grid-tab {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.75rem;
+		padding: 0.3rem 0.7rem;
+		border-radius: 999px;
+		border: 2px solid var(--fret-border, #ddd3f7);
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+		cursor: pointer;
+	}
+
+	.step-grid-tab.active {
+		border-color: var(--nut, #7c3aed);
+		background: color-mix(in srgb, var(--nut, #7c3aed) 10%, var(--fret-bg, #fff));
+		color: var(--nut, #7c3aed);
+	}
+
+	.step-grid-tab:focus-visible {
 		outline: 3px solid var(--focus-ring, #7c3aed);
 		outline-offset: 2px;
 	}

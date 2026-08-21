@@ -2,6 +2,7 @@
 	import { TIME_SIGNATURES } from '$lib/groove/time-signature';
 	import type { CountIn } from '$lib/groove/transport';
 	import type { GrooveFeel } from '$lib/groove/types';
+	import AcidBassControls from '$lib/components/practice/AcidBassControls.svelte';
 	import GrooveEditor from '$lib/components/practice/GrooveEditor.svelte';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
@@ -13,7 +14,7 @@
 	} from '$lib/music/scales';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
-	type BandTab = 'drums' | 'harmony';
+	type BandTab = 'drums' | 'harmony' | 'bass';
 	let activeTab = $state<BandTab>('drums');
 	let editorExpanded = $state(false);
 
@@ -71,6 +72,14 @@
 			onclick={() => (activeTab = 'harmony')}
 		>
 			Harmony
+		</button>
+		<button
+			type="button"
+			class="band-tab"
+			class:active={activeTab === 'bass'}
+			onclick={() => (activeTab = 'bass')}
+		>
+			Bass
 		</button>
 	</div>
 
@@ -138,10 +147,23 @@
 				{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
 			</button>
 		</div>
-
-		{#if editorExpanded}
-			<GrooveEditor />
-		{/if}
+	{:else if activeTab === 'bass'}
+		<div class="drums-view">
+			<AcidBassControls />
+			<span class="pattern-readout"
+				>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
+						>· Bar {barPositionLabel}</span
+					>{/if}</span
+			>
+			<button
+				type="button"
+				class="edit-groove-toggle"
+				aria-expanded={editorExpanded}
+				onclick={() => (editorExpanded = !editorExpanded)}
+			>
+				{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
+			</button>
+		</div>
 	{:else}
 		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
 			{#if scalePractice.resolvedProgression.length === 0}
@@ -196,6 +218,10 @@
 				</li>
 			{/each}
 		</ol>
+	{/if}
+
+	{#if editorExpanded}
+		<GrooveEditor />
 	{/if}
 </div>
 

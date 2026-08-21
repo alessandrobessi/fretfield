@@ -96,6 +96,16 @@
 
 	<button
 		type="button"
+		class="bass-toggle"
+		class:active={scalePractice.groove.acidBass.enabled}
+		aria-pressed={scalePractice.groove.acidBass.enabled}
+		onclick={() => scalePractice.setAcidBassEnabled(!scalePractice.groove.acidBass.enabled)}
+	>
+		Bass {scalePractice.groove.acidBass.enabled ? 'On' : 'Off'}
+	</button>
+
+	<button
+		type="button"
 		class="toggle"
 		class:active={scalePractice.running}
 		onclick={toggleMetronome}
@@ -180,6 +190,30 @@
 		outline-offset: 1px;
 	}
 
+	.bass-toggle {
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.8rem;
+		padding: 0.4rem 0.8rem;
+		border-radius: 999px;
+		border: 2px solid var(--fret-border, #ddd3f7);
+		background: var(--fret-bg, #fff);
+		color: var(--fret-fg, #241a3d);
+		cursor: pointer;
+		margin-left: auto;
+	}
+
+	.bass-toggle.active {
+		border-color: var(--live-accent, #06b6d4);
+		background: var(--live-accent, #06b6d4);
+		color: #fff;
+	}
+
+	.bass-toggle:focus-visible {
+		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline-offset: 2px;
+	}
+
 	.toggle {
 		font: inherit;
 		font-weight: 700;
@@ -189,7 +223,6 @@
 		background: transparent;
 		color: var(--practice-target-accent, #10b981);
 		cursor: pointer;
-		margin-left: auto;
 	}
 
 	.toggle.active {
