@@ -379,11 +379,11 @@
 	 * only one.
 	 */
 	.fret-cell.scale-practice-root {
-		background: color-mix(in srgb, var(--role-root, #e3ac18) 20%, var(--fret-bg, #262521));
+		background: color-mix(in srgb, var(--role-root, #e3ac18) 45%, var(--fret-bg, #262521));
 	}
 
 	.fret-cell.scale-practice-root:hover {
-		background: color-mix(in srgb, var(--role-root, #e3ac18) 30%, var(--fret-bg, #262521));
+		background: color-mix(in srgb, var(--role-root, #e3ac18) 55%, var(--fret-bg, #262521));
 	}
 
 	/*
