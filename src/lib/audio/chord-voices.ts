@@ -7,7 +7,7 @@
  * or a single fixed click.
  */
 
-const ATTACK_SECONDS = 0.45;
+const ATTACK_SECONDS = 0.08;
 const RELEASE_SECONDS = 0.55;
 
 // A slow, shared vibrato -- subtle, continuous pitch movement is what keeps
