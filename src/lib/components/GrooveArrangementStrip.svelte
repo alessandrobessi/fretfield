@@ -4,35 +4,45 @@
 	interface Props {
 		arrangement: PatternRole[];
 		activeBarIndex: number | null;
-		onAssign: (barIndex: number, role: PatternRole) => void;
+		onAssign?: (barIndex: number, role: PatternRole) => void;
 		/** Index-aligned with `arrangement` -- the chord backing sounding on each bar, or `null` for "no chord backing." Omitted entirely when there's no progression selected at all. */
 		chordLabels?: (string | null)[];
+		/** Plain-text rendering (no per-bar select) for the always-visible strip shown above the fretboard -- the editable version stays in the Groove Editor. */
+		readOnly?: boolean;
 	}
 
-	let { arrangement, activeBarIndex, onAssign, chordLabels }: Props = $props();
+	let { arrangement, activeBarIndex, onAssign, chordLabels, readOnly = false }: Props = $props();
 
 	function handleChange(barIndex: number, event: Event): void {
-		onAssign(barIndex, (event.currentTarget as HTMLSelectElement).value as PatternRole);
+		onAssign?.(barIndex, (event.currentTarget as HTMLSelectElement).value as PatternRole);
 	}
 </script>
 
 <div class="arrangement-strip" role="group" aria-label="Groove arrangement">
 	{#each arrangement as role, index (index)}
-		<label class="bar" class:active={index === activeBarIndex}>
+		<div
+			class="bar"
+			class:active={index === activeBarIndex}
+			class:cluster-start={index > 0 && index % 4 === 0}
+		>
 			<span class="bar-number">{index + 1}</span>
-			<select
-				aria-label={`Bar ${index + 1} pattern`}
-				value={role}
-				onchange={(event) => handleChange(index, event)}
-			>
-				{#each PATTERN_ROLES as r (r)}
-					<option value={r}>{r}</option>
-				{/each}
-			</select>
+			{#if readOnly}
+				<span class="bar-role">{role}</span>
+			{:else}
+				<select
+					aria-label={`Bar ${index + 1} pattern`}
+					value={role}
+					onchange={(event) => handleChange(index, event)}
+				>
+					{#each PATTERN_ROLES as r (r)}
+						<option value={r}>{r}</option>
+					{/each}
+				</select>
+			{/if}
 			{#if chordLabels}
 				<span class="bar-chord">{chordLabels[index] ?? '—'}</span>
 			{/if}
-		</label>
+		</div>
 	{/each}
 </div>
 
@@ -51,9 +61,27 @@
 		font-size: 0.65rem;
 	}
 
+	/* A visual break every 4 bars, matching the step-grid's own beat grouping. */
+	.bar.cluster-start {
+		margin-left: 0.45rem;
+		padding-left: 0.45rem;
+		border-left: 2px solid var(--fret-border, #ddd3f7);
+	}
+
 	.bar-number {
 		font-weight: 700;
 		opacity: 0.6;
+	}
+
+	.bar-role {
+		font-weight: 700;
+		width: 2.6rem;
+		text-align: center;
+		opacity: 0.85;
+	}
+
+	.bar.active .bar-role {
+		color: var(--nut, #7c3aed);
 	}
 
 	.bar-chord {

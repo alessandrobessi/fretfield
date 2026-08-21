@@ -42,6 +42,7 @@ import type { PitchClass } from '$lib/music/pitch';
 import {
 	buildProgression,
 	getProgressionTemplate,
+	resolvedChordSymbol,
 	type ResolvedChord
 } from '$lib/music/progressions';
 import { getScaleDefinition, suggestedScalesFor } from '$lib/music/scales';
@@ -259,6 +260,15 @@ export class ScalePracticeStore {
 		return this.resolvedProgression.map((chord, index) => {
 			const override = this.progressionChordScaleOverrides[index];
 			return override !== undefined ? override : (suggestedScalesFor(chord.chordId)[0]?.id ?? null);
+		});
+	});
+
+	/** Index-aligned with `groove.arrangement` -- the chord symbol sounding on each bar, `null` for "no chord backing on this bar," `undefined` entirely when there's no progression selected at all. Shared by the always-visible arrangement strip and the Groove Editor's own editable one, so they can never disagree. */
+	readonly barChordLabels = $derived.by<(string | null)[] | undefined>(() => {
+		if (this.resolvedProgression.length === 0) return undefined;
+		return this.groove.arrangement.map((_, barIndex) => {
+			const chordIndex = Math.floor(barIndex / this.barsPerChord) % this.resolvedProgression.length;
+			return resolvedChordSymbol(this.resolvedProgression[chordIndex]);
 		});
 	});
 

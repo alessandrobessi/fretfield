@@ -19,11 +19,11 @@ async function selectScalePractice(
 	scale: string
 ): Promise<void> {
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-	// Progression/chord-scale live behind the Groove Editor disclosure,
-	// collapsed by default (see AGENTS.md's compact Practice UI).
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
 	await page.getByLabel('Scale Practice root').selectOption({ label: root });
 	await page.getByLabel('Progression').selectOption({ label: 'I–IV–V' });
+	// Per-chord scale pickers live in the Band panel's Harmony tab; chord 1 is
+	// the active chord by default, so its own picker is already expanded.
+	await page.getByRole('button', { name: 'Harmony', exact: true }).click();
 	await page.getByLabel('Chord 1 scale').selectOption({ label: scale });
 }
 
@@ -40,7 +40,7 @@ test.describe('Scale Practice', () => {
 		await expect(page.getByTestId('fret-A-1')).not.toHaveClass(/scale-practice-note/);
 
 		await expect(
-			page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' })
+			page.locator('.practice-session-bar').getByRole('button', { name: 'Play' })
 		).toBeVisible();
 	});
 
@@ -102,7 +102,7 @@ test.describe('Scale Practice', () => {
 
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 
-		const toggle = page.locator('.scale-practice-controls .toggle');
+		const toggle = page.locator('.practice-session-bar .toggle');
 		await toggle.click();
 		await expect(toggle).toHaveText('Stop');
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
@@ -169,16 +169,16 @@ test.describe('Scale Practice', () => {
 		await page.goto('/');
 		await selectScalePractice(page, 'C', 'Major Pentatonic');
 
-		await page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' }).click();
+		await page.locator('.practice-session-bar').getByRole('button', { name: 'Play' }).click();
 		await expect(
-			page.locator('.scale-practice-controls').getByRole('button', { name: 'Stop' })
+			page.locator('.practice-session-bar').getByRole('button', { name: 'Stop' })
 		).toBeVisible();
 
 		await page.getByRole('tab', { name: 'Explore', exact: true }).click();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 
 		await expect(
-			page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' })
+			page.locator('.practice-session-bar').getByRole('button', { name: 'Play' })
 		).toBeVisible();
 	});
 });
@@ -195,11 +195,12 @@ test.describe('Scale Practice: live harmonic context', () => {
 		await expect(context).toContainText('Major Pentatonic');
 		await expect(context).not.toContainText('Bar');
 
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
-		await page.locator('.scale-practice-controls').getByRole('button', { name: 'Play' }).click();
+		await page.locator('.practice-session-bar').getByRole('button', { name: 'Play' }).click();
 		await expect(context).toContainText(/Bar \d+\/\d+/);
 
-		await page.locator('.scale-practice-controls').getByRole('button', { name: 'Stop' }).click();
+		await page.locator('.practice-session-bar').getByRole('button', { name: 'Stop' }).click();
 		await expect(context).not.toContainText('Bar');
 	});
 });

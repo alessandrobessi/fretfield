@@ -4,5 +4,5 @@ import { createSavedCollectionStore } from '$lib/stores/saved-collection.svelte'
 
 export const STORAGE_KEY = 'fretfield-saved-grooves';
 
-/** Custom grooves built in DrumMachineControls.svelte, alongside the curated genre presets -- `coerceGroove` migrates anything saved under the pre-Groove-Engine single-pattern shape. */
+/** Custom grooves built in GrooveEditor.svelte, alongside the curated genre presets -- `coerceGroove` migrates anything saved under the pre-Groove-Engine single-pattern shape. */
 export const savedGrooves = createSavedCollectionStore<Groove>(STORAGE_KEY, coerceGroove);

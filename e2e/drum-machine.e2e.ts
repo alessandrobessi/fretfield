@@ -8,20 +8,27 @@ import { expect, test } from '@playwright/test';
  */
 
 /**
- * Navigates to Scale Practice and expands the Groove Editor disclosure --
- * most of these tests exercise progression/genre/arrangement/step-grid
- * controls, which live behind "Edit Groove" and are collapsed by default
- * (see AGENTS.md's compact Practice UI).
+ * Navigates to Scale Practice. Root/Progression/Groove-preset/Tempo/Play
+ * live in the always-visible PracticeSessionBar; Feel/Amount/Intensity/
+ * Count-in/pattern-readout live in the Band panel's Drums tab (the default
+ * tab); the 16-step grid/arrangement editor/time signature/saved grooves
+ * live behind "Edit Groove", collapsed by default (see AGENTS.md's compact
+ * Practice UI).
  */
 async function openScalePractice(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+}
+
+/** `openScalePractice` plus expanding the Groove Editor -- for tests exercising the step grid, arrangement editor, time signature, or saved grooves. */
+async function openGrooveEditor(page: import('@playwright/test').Page): Promise<void> {
+	await openScalePractice(page);
 	await page.getByRole('button', { name: 'Edit Groove' }).click();
 }
 
 test.describe('Drum Machine', () => {
 	test('clicking a step cycles off -> ghost -> normal -> accent -> off', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		const step = page.getByLabel('Open Hat step 5', { exact: true });
 		await expect(step).toHaveAttribute('aria-pressed', 'false');
@@ -43,7 +50,7 @@ test.describe('Drum Machine', () => {
 	});
 
 	test('Shift-click jumps straight to accent; Alt-click clears to off', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		const step = page.getByLabel('Open Hat step 5', { exact: true });
 		await step.click({ modifiers: ['Shift'] });
@@ -54,7 +61,8 @@ test.describe('Drum Machine', () => {
 	});
 
 	test('selecting a genre preset overwrites the whole grid and feel together', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await expect(page.getByLabel('Feel')).toHaveValue('straight');
 		await expect(page.getByLabel('Amount')).toHaveValue('0');
@@ -77,7 +85,7 @@ test.describe('Drum Machine', () => {
 	});
 
 	test('feel and tempo survive a reload', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		await page.getByLabel('Groove preset').selectOption({ label: 'Jazz Swing' });
 		// fill() only dispatches an 'input' event; the store's onchange handler
@@ -96,6 +104,7 @@ test.describe('Drum Machine', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Edit Groove' }).click();
 
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('swing');
 		await expect(page.getByLabel('Amount')).toHaveValue('70');
 		await expect(page.getByLabel('Metronome BPM')).toHaveValue('110');
@@ -136,13 +145,13 @@ test.describe('Drum Machine', () => {
 	});
 
 	test('save a custom groove and reload it via My Grooves', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		await page.getByLabel('Kick step 3', { exact: true }).click();
 
 		await page.getByRole('button', { name: 'Save as…', exact: true }).click();
 		await page.getByLabel('Groove name').fill('E2E Test Groove');
-		await page.locator('.drum-machine').getByRole('button', { name: 'Save', exact: true }).click();
+		await page.locator('.groove-editor').getByRole('button', { name: 'Save', exact: true }).click();
 
 		await expect(page.getByRole('button', { name: 'E2E Test Groove', exact: true })).toBeVisible();
 
@@ -168,7 +177,7 @@ test.describe('Drum Machine', () => {
 
 test.describe('Drum Machine: chord-progression backing', () => {
 	test('a chosen progression and bars-per-chord survive a reload', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
 		// fill() only dispatches an 'input' event; the store's onchange handler
@@ -196,7 +205,6 @@ test.describe('Drum Machine: chord-progression backing', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
 		await expect(page.getByLabel('Progression')).toHaveValue('');
 	});
 
@@ -209,10 +217,13 @@ test.describe('Drum Machine: chord-progression backing', () => {
 		// A fast tempo, one bar per chord, and no count-in keeps the wait for
 		// the first highlight change short and deterministic.
 		await page.getByLabel('Metronome BPM').fill('240');
+		await page.getByRole('button', { name: 'Edit Groove' }).click();
 		await page.getByLabel('Bars per chord').fill('1');
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
 		await page.keyboard.press('Tab');
 
+		await page.getByRole('button', { name: 'Harmony', exact: true }).click();
 		const strip = page.locator('.chord-strip');
 		await expect(strip.locator('.chord-chip')).toHaveCount(3);
 		// Chord 1 previews as soon as the progression is picked, before Play.
@@ -235,6 +246,7 @@ test.describe('Drum Machine: per-chord scales', () => {
 		await openScalePractice(page);
 		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		await page.getByRole('button', { name: 'Harmony', exact: true }).click();
 
 		// Chord 1 is Dm7 -- its suggested default is D Minor Pentatonic, so the
 		// root marker moves to D even though playback never started.
@@ -247,6 +259,7 @@ test.describe('Drum Machine: per-chord scales', () => {
 		await openScalePractice(page);
 		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		await page.getByRole('button', { name: 'Harmony', exact: true }).click();
 
 		await page.locator('.chord-strip').getByRole('button', { name: 'G7', exact: true }).click();
 
@@ -258,6 +271,7 @@ test.describe('Drum Machine: per-chord scales', () => {
 		await openScalePractice(page);
 		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		await page.getByRole('button', { name: 'Harmony', exact: true }).click();
 
 		// Chord 1 (Dm7) defaults to D Minor Pentatonic, which excludes E.
 		await expect(page.getByTestId('fret-E-0')).not.toHaveClass(/scale-practice-note/);
@@ -272,6 +286,7 @@ test.describe('Drum Machine: per-chord scales', () => {
 		await openScalePractice(page);
 		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+		await page.getByRole('button', { name: 'Harmony', exact: true }).click();
 
 		const rows = page.locator('.chord-row');
 		// Dm7 defaults to D Minor Pentatonic: D F G A C.
@@ -290,7 +305,7 @@ test.describe('Drum Machine: multi-bar arrangement', () => {
 	test('assigning a bar to pattern B switches the grid to editing B, leaving A untouched', async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		await page.getByRole('button', { name: 'Add bar' }).click();
 		await expect(page.getByLabel('Bar 1 pattern')).toHaveValue('A');
@@ -313,7 +328,7 @@ test.describe('Drum Machine: multi-bar arrangement', () => {
 	});
 
 	test('Remove bar is disabled at a single bar and re-enabled once grown', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		const removeBar = page.getByRole('button', { name: 'Remove last bar' });
 		await expect(removeBar).toBeDisabled();
@@ -331,12 +346,13 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 	test('choosing the Chicago Shuffle preset builds a 12-bar A/B/F/T arrangement', async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		await page
 			.getByLabel('Groove preset')
 			.selectOption({ label: 'Chicago Shuffle — 12-Bar Blues' });
 
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('shuffle');
 		await expect(page.getByLabel('Amount')).toHaveValue('65');
 		const expectedRoles = ['A', 'A', 'A', 'B', 'A', 'A', 'B', 'F', 'A', 'B', 'T', 'F'];
@@ -349,7 +365,7 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 	test('paired with the 12-Bar Dominant Blues progression at 1 bar/chord, each arrangement bar shows its chord', async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 		await page
 			.getByLabel('Groove preset')
@@ -358,11 +374,14 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 		await page.getByLabel('Bars per chord').fill('1');
 		await page.keyboard.press('Tab');
 
+		// Two arrangement strips render simultaneously for a multi-bar groove --
+		// the always-visible read-only one above the fretboard, and this
+		// editable one in the Groove Editor -- so scope to the latter.
 		const expectedChords = ['C7', 'F7', 'C7', 'C7', 'F7', 'F7', 'C7', 'C7', 'G7', 'F7', 'C7', 'G7'];
 		for (let bar = 0; bar < expectedChords.length; bar++) {
-			await expect(page.locator('.arrangement-strip .bar-chord').nth(bar)).toHaveText(
-				expectedChords[bar]
-			);
+			await expect(
+				page.locator('.groove-editor .arrangement-strip .bar-chord').nth(bar)
+			).toHaveText(expectedChords[bar]);
 		}
 	});
 });
@@ -370,6 +389,7 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 test.describe('Drum Machine: Feel + Intensity', () => {
 	test('Amount is disabled when Feel is Straight, enabled otherwise', async ({ page }) => {
 		await openScalePractice(page);
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await expect(page.getByLabel('Feel')).toHaveValue('straight');
 		await expect(page.getByLabel('Amount')).toBeDisabled();
@@ -380,12 +400,14 @@ test.describe('Drum Machine: Feel + Intensity', () => {
 
 	test('Intensity persists across a reload', async ({ page }) => {
 		await openScalePractice(page);
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await page.getByLabel('Intensity').fill('40');
 		await page.keyboard.press('Tab');
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await expect(page.getByLabel('Intensity')).toHaveValue('40');
 	});
@@ -393,7 +415,7 @@ test.describe('Drum Machine: Feel + Intensity', () => {
 
 test.describe('Drum Machine: time signature', () => {
 	test('changing the time signature resizes the step grid', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		const kickSteps = page.getByRole('group', { name: 'Kick steps' }).locator('.step');
 		await expect(kickSteps).toHaveCount(16);
@@ -411,7 +433,7 @@ test.describe('Drum Machine: time signature', () => {
 	test('beat-start dividers land every 4 steps for a simple meter, every 6 for a compound one', async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		// 4/4 (simple, default): dividers at steps 1, 5, 9, 13.
 		for (const step of [1, 5, 9, 13]) {
@@ -430,7 +452,8 @@ test.describe('Drum Machine: time signature', () => {
 	test('Amount disables for a compound meter regardless of Feel, and re-enables when the meter goes back to simple', async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await page.getByLabel('Feel').selectOption('shuffle');
 		await expect(page.getByLabel('Amount')).toBeEnabled();
@@ -447,7 +470,7 @@ test.describe('Drum Machine: time signature', () => {
 	});
 
 	test('the chosen time signature and its resized grid survive a reload', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		await page.getByLabel('Kick step 3', { exact: true }).click();
 		await page.getByLabel('Time Signature').selectOption('5/4');
@@ -467,7 +490,7 @@ test.describe('Drum Machine: time signature', () => {
 	test('choosing a genre preset keeps the current time signature instead of resetting to 4/4', async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 
 		await page.getByLabel('Time Signature').selectOption('3/4');
 		const kickSteps = page.getByRole('group', { name: 'Kick steps' }).locator('.step');
@@ -477,41 +500,45 @@ test.describe('Drum Machine: time signature', () => {
 
 		await expect(page.getByLabel('Time Signature')).toHaveValue('3/4');
 		await expect(kickSteps).toHaveCount(12);
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('swing');
 	});
 });
 
 test.describe('Drum Machine: compact Practice UI', () => {
-	test('the Groove Editor (progression/genre/arrangement/step grid) is collapsed by default, and toggles open/closed', async ({
+	test('the Groove Editor (arrangement/step grid/saved grooves) is collapsed by default, and toggles open/closed', async ({
 		page
 	}) => {
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 
-		// Always visible: transport/feel/intensity, not the editing surface.
+		// Always visible: session bar transport and the Band panel's Drums tab.
 		await expect(page.getByLabel('Metronome BPM')).toBeVisible();
+		await expect(page.getByLabel('Progression')).toBeVisible();
+		await expect(page.getByLabel('Groove preset')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 		await expect(page.getByLabel('Feel')).toBeVisible();
 		await expect(page.getByLabel('Intensity')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
-		await expect(page.getByLabel('Progression')).not.toBeVisible();
-		await expect(page.getByLabel('Groove preset')).not.toBeVisible();
+		// Gated behind Edit Groove: the step grid, arrangement editor, time
+		// signature, and saved grooves.
+		await expect(page.getByLabel('Time Signature')).not.toBeVisible();
 		await expect(page.getByLabel('Kick step 1', { exact: true })).not.toBeVisible();
 
 		const toggle = page.getByRole('button', { name: 'Edit Groove' });
 		await toggle.click();
-		await expect(page.getByLabel('Progression')).toBeVisible();
-		await expect(page.getByLabel('Groove preset')).toBeVisible();
+		await expect(page.getByLabel('Time Signature')).toBeVisible();
 		await expect(page.getByLabel('Kick step 1', { exact: true })).toBeVisible();
 
 		await page.getByRole('button', { name: 'Hide Groove Editor' }).click();
-		await expect(page.getByLabel('Progression')).not.toBeVisible();
+		await expect(page.getByLabel('Time Signature')).not.toBeVisible();
 	});
 
 	test('the compact row shows which pattern and bar is currently playing', async ({ page }) => {
-		await openScalePractice(page);
+		await openGrooveEditor(page);
 		await page
 			.getByLabel('Groove preset')
 			.selectOption({ label: 'Chicago Shuffle — 12-Bar Blues' });
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
 
 		const readout = page.locator('.pattern-readout');
