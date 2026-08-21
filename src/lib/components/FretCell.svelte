@@ -101,8 +101,14 @@
 				: intervalCompoundLabel(scalePracticeInterval)
 	);
 
+	// Scale Practice still honors the shared Intervals/Notes/Both toggle (the
+	// settings menu applies everywhere, not just Explore) -- it just labels
+	// against the practice root's own R-for-root interval instead of
+	// fretfield's global one.
 	const label = $derived.by(() => {
 		if (scalePracticeIntervalLabel !== null && scalePracticeNoteName !== null) {
+			if (displayMode === 'notes') return scalePracticeNoteName;
+			if (displayMode === 'intervals') return scalePracticeIntervalLabel;
 			return `${scalePracticeIntervalLabel}\n${scalePracticeNoteName}`;
 		}
 		if (position.interval === null) return position.noteName;

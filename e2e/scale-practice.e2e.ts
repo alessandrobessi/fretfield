@@ -112,18 +112,29 @@ test.describe('Scale Practice', () => {
 		await expect(page.getByTestId('fret-A-3')).toHaveClass(/scale-practice-note/);
 	});
 
-	test('every fret shows its interval relative to the chosen root alongside the note name', async ({
+	test('every fret shows its interval relative to the chosen root, honoring the shared Intervals/Notes/Both display setting', async ({
 		page
 	}) => {
 		await page.goto('/');
 		await selectScalePractice(page, 'C', 'Major Pentatonic');
 
-		// The root itself is labeled "R", not "1" — the app's usual convention elsewhere.
-		await expect(page.getByTestId('fret-A-3').locator('.label')).toHaveText('R\nC');
+		// Default display mode is Intervals -- the root itself is labeled "R",
+		// not "1" (the app's usual convention elsewhere).
+		await expect(page.getByTestId('fret-A-3').locator('.label')).toHaveText('R');
 		// The 2nd degree, in the scale.
-		await expect(page.getByTestId('fret-D-0').locator('.label')).toHaveText('2/9\nD');
+		await expect(page.getByTestId('fret-D-0').locator('.label')).toHaveText('2/9');
 		// Bb (b7) is not in C major pentatonic, but its interval still shows —
 		// every fret is labeled, not just the ones in the scale.
+		await expect(page.getByTestId('fret-A-1').locator('.label')).toHaveText('b7');
+
+		// The shared Settings toggle applies here too, not just in Chord Field.
+		await page.getByRole('button', { name: 'Settings' }).click();
+		await page.getByRole('radio', { name: 'Notes' }).click();
+		await expect(page.getByTestId('fret-A-3').locator('.label')).toHaveText('C');
+		await expect(page.getByTestId('fret-A-1').locator('.label')).toHaveText('Bb');
+
+		await page.getByRole('radio', { name: 'Both' }).click();
+		await expect(page.getByTestId('fret-A-3').locator('.label')).toHaveText('R\nC');
 		await expect(page.getByTestId('fret-A-1').locator('.label')).toHaveText('b7\nBb');
 	});
 
