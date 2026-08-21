@@ -267,6 +267,23 @@ test.describe('Drum Machine: per-chord scales', () => {
 		// D Dorian includes E as its 2nd degree.
 		await expect(page.getByTestId('fret-E-0')).toHaveClass(/scale-practice-note/);
 	});
+
+	test("each chord row shows its selected scale's notes next to the picker", async ({ page }) => {
+		await openScalePractice(page);
+		await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
+		await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
+
+		const rows = page.locator('.chord-row');
+		// Dm7 defaults to D Minor Pentatonic: D F G A C.
+		await expect(rows.nth(0).locator('.scale-notes')).toHaveText('D F G A C');
+
+		await page.getByLabel('Chord 1 scale').selectOption({ label: 'Dorian' });
+		// D Dorian: D E F G A B C.
+		await expect(rows.nth(0).locator('.scale-notes')).toHaveText('D E F G A B C');
+
+		await page.getByLabel('Chord 1 scale').selectOption({ label: '—' });
+		await expect(rows.nth(0).locator('.scale-notes')).not.toBeAttached();
+	});
 });
 
 test.describe('Drum Machine: multi-bar arrangement', () => {

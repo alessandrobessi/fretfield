@@ -11,8 +11,14 @@
 	import type { CountIn } from '$lib/groove/transport';
 	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
+	import { defaultNoteName } from '$lib/music/pitch';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
-	import { listScales, suggestedScalesFor } from '$lib/music/scales';
+	import {
+		getScaleDefinition,
+		listScales,
+		scalePitchClasses,
+		suggestedScalesFor
+	} from '$lib/music/scales';
 	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
@@ -284,6 +290,12 @@
 			<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
 				{#each scalePractice.resolvedProgression as chord, index (index)}
 					{@const suggested = new Set(suggestedScalesFor(chord.chordId).map((s) => s.id))}
+					{@const scaleId = scalePractice.progressionChordScales[index]}
+					{@const scaleNotes = scaleId
+						? scalePitchClasses(chord.root, getScaleDefinition(scaleId))
+								.map(defaultNoteName)
+								.join(' ')
+						: null}
 					<li class="chord-row">
 						<button
 							type="button"
@@ -297,7 +309,7 @@
 						<select
 							class="chord-scale-select"
 							aria-label={`Chord ${index + 1} scale`}
-							value={scalePractice.progressionChordScales[index] ?? ''}
+							value={scaleId ?? ''}
 							onchange={(event) => handleChordScaleChange(index, event)}
 						>
 							<option value="">—</option>
@@ -312,6 +324,9 @@
 								{/each}
 							</optgroup>
 						</select>
+						{#if scaleNotes}
+							<span class="scale-notes">{scaleNotes}</span>
+						{/if}
 					</li>
 				{/each}
 			</ol>
@@ -623,6 +638,14 @@
 	.chord-scale-select {
 		font-size: 0.8rem;
 		padding: 0.3rem 0.5rem;
+	}
+
+	.scale-notes {
+		font-size: 0.75rem;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.02em;
+		opacity: 0.7;
 	}
 
 	.swing-control {

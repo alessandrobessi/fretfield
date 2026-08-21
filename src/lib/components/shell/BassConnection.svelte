@@ -137,10 +137,6 @@
 </div>
 
 <style>
-	.bass-connection {
-		position: relative;
-	}
-
 	.bass-toggle {
 		font: inherit;
 		font-weight: 600;

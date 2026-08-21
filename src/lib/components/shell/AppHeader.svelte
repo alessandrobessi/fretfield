@@ -1,6 +1,7 @@
 <script lang="ts">
 	import DisplayModeToggle from '$lib/components/DisplayModeToggle.svelte';
 	import BassConnection from '$lib/components/shell/BassConnection.svelte';
+	import { liveInput } from '$lib/stores/live-input.svelte';
 	import { navigation, type Destination } from '$lib/stores/navigation.svelte';
 	import { nextRovingIndex } from '$lib/utils/roving-index';
 
@@ -29,6 +30,15 @@
 		settingsOpen = false;
 		settingsToggleEl?.focus();
 	}
+
+	// BassConnection's own detail panel isn't a manual toggle — it shows
+	// itself for as long as Live Input stays connected/erroring (see its own
+	// comment), so it can't be closed to make room the way Settings can.
+	// Both panels share the same flush-right anchor below the header (see
+	// .utilities); when the bass panel is up, Settings' panel shifts left to
+	// sit beside it (by its fixed 20rem width, see BassConnection.svelte)
+	// rather than stacking on top of it.
+	const bassPanelVisible = $derived(liveInput.enabled || liveInput.error !== null);
 
 	// Escape-to-close + click-outside-to-close: the app's first manual
 	// disclosure-widget dismissal (every other dropdown/panel in the app is
@@ -97,7 +107,7 @@
 				⚙ Settings
 			</button>
 			{#if settingsOpen}
-				<div id="settings-panel" class="settings-panel">
+				<div id="settings-panel" class="settings-panel" class:beside-live-input={bassPanelVisible}>
 					<span class="settings-label">Display</span>
 					<DisplayModeToggle />
 				</div>
@@ -143,6 +153,7 @@
 	}
 
 	.utilities {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
@@ -181,6 +192,12 @@
 		border: 1px solid var(--fret-border, #ddd3f7);
 		border-radius: 12px;
 		box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+	}
+
+	/* Sits beside BassConnection's own panel (fixed 20rem width) instead of
+	   stacking on top of it when both are open at once. */
+	.settings-panel.beside-live-input {
+		right: calc(20rem + 1rem);
 	}
 
 	.settings-label {
