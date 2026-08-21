@@ -3,6 +3,8 @@
 
 	--bg: #faf8ff;
 	--fg: #241a3d;
+	--bg-glow-1: #f3e8ff;
+	--bg-glow-2: #ffe4f3;
 	--hero-from: #7c3aed;
 	--hero-via: #a855f7;
 	--hero-to: #ec4899;
@@ -62,9 +64,11 @@
 
 body {
 	margin: 0;
+	/* Quieter than the original: smaller, faster-fading glows so the page
+	   background stays out of the way of the fretboard's own color. */
 	background:
-		radial-gradient(ellipse 60rem 30rem at 10% -10%, #f3e8ff 0%, transparent 60%),
-		radial-gradient(ellipse 50rem 25rem at 90% 0%, #ffe4f3 0%, transparent 55%), var(--bg);
+		radial-gradient(ellipse 48rem 22rem at 10% -10%, var(--bg-glow-1) 0%, transparent 50%),
+		radial-gradient(ellipse 40rem 18rem at 90% 0%, var(--bg-glow-2) 0%, transparent 45%), var(--bg);
 	color: var(--fg);
 	font-family:
 		system-ui,

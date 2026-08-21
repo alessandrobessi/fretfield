@@ -60,7 +60,7 @@
 	}
 
 	button.active {
-		background: linear-gradient(135deg, var(--hero-from, #7c3aed), var(--hero-to, #ec4899));
+		background: var(--nut, #7c3aed);
 		color: #fff;
 	}
 
