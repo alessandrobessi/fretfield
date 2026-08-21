@@ -59,7 +59,7 @@
 		align-items: center;
 		gap: 0.4rem;
 		font-weight: 600;
-		color: var(--fret-fg, #241a3d);
+		color: var(--fret-fg, #f1e6c5);
 	}
 
 	.swatch {
@@ -70,57 +70,57 @@
 	}
 
 	.swatch[data-role='root'] {
-		background: var(--role-root, #f59e0b);
+		background: var(--role-root, #e3ac18);
 	}
 
 	.swatch[data-role='structural'] {
-		background: var(--role-structural, #4f46e5);
+		background: var(--role-structural, #c9910d);
 	}
 
 	.swatch[data-role='stable'] {
 		background: transparent;
-		border: 2px solid var(--role-stable, #10b981);
+		border: 2px solid var(--role-stable, #4fd1a5);
 	}
 
 	.swatch[data-role='extension'] {
 		border-radius: 3px;
-		background: var(--role-extension, #a855f7);
+		background: var(--role-extension, #a78bfa);
 	}
 
 	.swatch[data-role='color'] {
 		border-radius: 3px;
 		background: transparent;
-		border: 2px solid var(--role-color, #ec4899);
+		border: 2px solid var(--role-color, #f472b6);
 	}
 
 	.swatch[data-role='tension'] {
-		background: var(--role-tension, #f97316);
-		outline: 2px dashed color-mix(in srgb, var(--role-tension, #f97316) 70%, transparent);
+		background: var(--role-tension, #fb923c);
+		outline: 2px dashed color-mix(in srgb, var(--role-tension, #fb923c) 70%, transparent);
 		outline-offset: 2px;
 	}
 
 	.swatch[data-role='alteration'] {
 		border-radius: 3px;
-		background: var(--role-alteration, #ef4444);
-		outline: 2px dashed color-mix(in srgb, var(--role-alteration, #ef4444) 70%, transparent);
+		background: var(--role-alteration, #38bdf8);
+		outline: 2px dashed color-mix(in srgb, var(--role-alteration, #38bdf8) 70%, transparent);
 		outline-offset: 2px;
 	}
 
 	.swatch[data-role='chromatic-approach'] {
 		background: transparent;
-		border: 2px dotted var(--role-chromatic-approach, #64748b);
+		border: 2px dotted var(--role-chromatic-approach, #94a3b8);
 	}
 
 	.swatch[data-role='avoid'] {
 		border-radius: 3px;
 		background: transparent;
-		border: 2px dotted var(--role-avoid, #78716c);
+		border: 2px dotted var(--role-avoid, #a8a29e);
 		opacity: 0.75;
 	}
 
 	.live-swatch {
 		border-radius: 6px;
 		background: transparent;
-		border: 2px solid var(--live-accent, #06b6d4);
+		border: 2px solid var(--live-accent, #e34832);
 	}
 </style>

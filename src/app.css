@@ -56,7 +56,13 @@
 	   two now that both exist as named concepts. */
 	--nut: var(--ff-yellow);
 	--focus-ring: var(--ff-yellow);
-	--selected-root-ring: var(--ff-yellow);
+	/* Ivory, not yellow: the root pitch class already reads as "selected" via
+	   its own yellow pill everywhere it appears on the neck (see FretCell's
+	   star pill) -- this ring marks the one specific position the user
+	   actually clicked among those, so it needs to stand out *against* that
+	   yellow fill, not blend into it. Still a clear, deliberate accent (not
+	   gray/muted), just not competing for the same hue. */
+	--selected-root-ring: var(--ff-ivory);
 
 	/* Semantic role colors (AGENTS.md §3.3/§7) — the single source both
 	   FretCell and Legend read from, so they stay in sync by construction.

@@ -33,7 +33,7 @@
 		width: 2rem;
 		flex: 0 0 auto;
 		font-weight: 700;
-		color: var(--nut, #7c3aed);
+		color: var(--nut, #e3ac18);
 		font-size: 0.85rem;
 	}
 </style>

@@ -131,9 +131,9 @@
 	.fretboard {
 		display: inline-flex;
 		flex-direction: column;
-		background: var(--fretboard-bg, #ede8fb);
+		background: var(--fretboard-bg, #1c1a16);
 		padding: 0.5rem 0;
-		border-radius: 10px;
+		border-radius: var(--ff-radius-panel, 8px);
 	}
 
 	.fret-row {
@@ -158,18 +158,19 @@
 		flex: 0 0 auto;
 		height: 1rem;
 		font-size: 0.75rem;
-		color: var(--fret-number, #7c6aa8);
+		font-variant-numeric: tabular-nums;
+		color: var(--fret-number, #89877f);
 	}
 
 	.fret-cell-slot.marker-fret {
 		font-weight: 700;
-		color: var(--nut, #7c3aed);
+		color: var(--nut, #e3ac18);
 	}
 
 	.marker-dot {
 		width: 0.4rem;
 		height: 0.4rem;
 		border-radius: 50%;
-		background: var(--fret-marker, #b6a8e6);
+		background: var(--fret-marker, #89877f);
 	}
 </style>

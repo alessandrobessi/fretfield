@@ -54,16 +54,16 @@
 
 <style>
 	.note-inspector {
-		background: var(--fret-bg, #fff);
-		border: 1px solid var(--fret-border, #ddd3f7);
-		border-radius: 14px;
+		background: var(--fret-bg, #262521);
+		border: 1px solid var(--fret-border, #3a382f);
+		border-radius: var(--ff-radius-panel, 8px);
 		padding: 1rem 1.25rem;
 		min-height: 4.5rem;
 	}
 
 	.empty {
 		margin: 0;
-		color: var(--fret-fg, #241a3d);
+		color: var(--fret-fg, #f1e6c5);
 		opacity: 0.6;
 		font-size: 0.9rem;
 	}
@@ -94,39 +94,39 @@
 	}
 
 	/*
-	 * Six of these nine role colors fail WCAG AA (4.5:1) used directly as
-	 * small text against a white background (as low as 2.15:1 for root) --
-	 * darkened via color-mix rather than picking new hex values by hand.
-	 * structural/chromatic-approach/avoid already pass AA as-is (6.29:1,
-	 * 4.76:1, 4.8:1) and are left untouched. The brighter tokens themselves
-	 * are unchanged -- this only affects their use as *text* here.
+	 * All nine role colors are used as-is (no darkening) against this panel's
+	 * dark background (--fret-bg) -- every one already clears WCAG AA at
+	 * 5.5:1+ raw. This inverts the pre-rebrand rule here, which *darkened*
+	 * six of the nine via color-mix specifically for a white background;
+	 * darkening bright colors against a now-dark background would move
+	 * contrast the wrong direction, not the right one.
 	 */
 	.role[data-role='root'] {
-		color: color-mix(in srgb, var(--role-root, #f59e0b) 70%, black);
+		color: var(--role-root, #e3ac18);
 	}
 	.role[data-role='structural'] {
-		color: var(--role-structural, #4f46e5);
+		color: var(--role-structural, #c9910d);
 	}
 	.role[data-role='stable'] {
-		color: color-mix(in srgb, var(--role-stable, #10b981) 70%, black);
+		color: var(--role-stable, #4fd1a5);
 	}
 	.role[data-role='extension'] {
-		color: color-mix(in srgb, var(--role-extension, #a855f7) 70%, black);
+		color: var(--role-extension, #a78bfa);
 	}
 	.role[data-role='color'] {
-		color: color-mix(in srgb, var(--role-color, #ec4899) 70%, black);
+		color: var(--role-color, #f472b6);
 	}
 	.role[data-role='tension'] {
-		color: color-mix(in srgb, var(--role-tension, #f97316) 70%, black);
+		color: var(--role-tension, #fb923c);
 	}
 	.role[data-role='alteration'] {
-		color: color-mix(in srgb, var(--role-alteration, #ef4444) 70%, black);
+		color: var(--role-alteration, #38bdf8);
 	}
 	.role[data-role='chromatic-approach'] {
-		color: var(--role-chromatic-approach, #64748b);
+		color: var(--role-chromatic-approach, #94a3b8);
 	}
 	.role[data-role='avoid'] {
-		color: var(--role-avoid, #78716c);
+		color: var(--role-avoid, #a8a29e);
 	}
 
 	.description {

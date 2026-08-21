@@ -168,10 +168,10 @@
 		width: 3.25rem;
 		height: 2.75rem;
 		flex: 0 0 auto;
-		border: 1px solid var(--fret-border, #ddd3f7);
+		border: 1px solid var(--fret-border, #3a382f);
 		border-left: none;
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
+		background: var(--fret-bg, #262521);
+		color: var(--fret-fg, #f1e6c5);
 		cursor: pointer;
 		font: inherit;
 		font-size: 0.7rem;
@@ -179,15 +179,15 @@
 	}
 
 	.fret-cell.open {
-		border-left: 3px solid var(--nut, #7c3aed);
+		border-left: 3px solid var(--nut, #e3ac18);
 	}
 
 	.fret-cell:hover {
-		background: var(--fret-bg-hover, #f4effe);
+		background: var(--fret-bg-hover, #322f28);
 	}
 
 	.fret-cell:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: -3px;
 		z-index: 1;
 	}
@@ -205,61 +205,68 @@
 	/* Shape + fill/outline/border-style combine so no role relies on color alone (AGENTS.md §7). */
 
 	.pill[data-shape='star'] {
-		/* root */
-		background: var(--role-root, #f59e0b);
-		color: #fff;
+		/* root -- black text, not white: root/structural now live in the
+		   brand's own yellow family (see the rebrand's "9-role palette
+		   preserved" design call), and white-on-yellow fails contrast. */
+		background: var(--role-root, #e3ac18);
+		color: var(--ff-black, #151411);
 		font-weight: 700;
-		box-shadow: 0 1px 4px color-mix(in srgb, var(--role-root, #f59e0b) 60%, transparent);
+		box-shadow: 0 1px 4px color-mix(in srgb, var(--role-root, #e3ac18) 60%, transparent);
 	}
 
 	.pill[data-shape='circle'] {
 		/* structural */
-		background: var(--role-structural, #4f46e5);
-		color: #fff;
+		background: var(--role-structural, #c9910d);
+		color: var(--ff-black, #151411);
 		font-weight: 700;
 	}
 
 	.pill[data-shape='ring'] {
 		/* stable */
-		background: color-mix(in srgb, var(--role-stable, #10b981) 12%, transparent);
-		border: 2px solid var(--role-stable, #10b981);
-		color: var(--role-stable, #059669);
+		background: color-mix(in srgb, var(--role-stable, #4fd1a5) 12%, transparent);
+		border: 2px solid var(--role-stable, #4fd1a5);
+		color: var(--role-stable, #4fd1a5);
 		font-weight: 600;
 	}
 
 	.pill[data-shape='diamond'] {
-		/* extension */
+		/* extension -- black text: this was under contrast even against the
+		   original purple (2.7:1), pre-existing debt fixed while this file
+		   was already being touched for the rebrand. */
 		border-radius: 7px;
-		background: var(--role-extension, #a855f7);
-		color: #fff;
+		background: var(--role-extension, #a78bfa);
+		color: var(--ff-black, #151411);
 		font-weight: 600;
 	}
 
 	.pill[data-shape='square'] {
 		/* color */
 		border-radius: 7px;
-		background: color-mix(in srgb, var(--role-color, #ec4899) 14%, transparent);
-		border: 2px solid var(--role-color, #ec4899);
-		color: var(--role-color, #ec4899);
+		background: color-mix(in srgb, var(--role-color, #f472b6) 14%, transparent);
+		border: 2px solid var(--role-color, #f472b6);
+		color: var(--role-color, #f472b6);
 		font-weight: 600;
 	}
 
 	.pill[data-shape='triangle'] {
-		/* tension */
-		background: var(--role-tension, #f97316);
-		color: #fff;
+		/* tension -- black text, same pre-existing contrast fix as diamond above. */
+		background: var(--role-tension, #fb923c);
+		color: var(--ff-black, #151411);
 		font-weight: 600;
-		outline: 2px dashed color-mix(in srgb, var(--role-tension, #f97316) 70%, transparent);
+		outline: 2px dashed color-mix(in srgb, var(--role-tension, #fb923c) 70%, transparent);
 		outline-offset: 2px;
 	}
 
 	.pill[data-shape='cross'] {
-		/* alteration */
+		/* alteration -- deliberately not red (see app.css): this role would
+		   otherwise be visually indistinguishable from Signal Red's "currently
+		   sounding" meaning. Black text for contrast, same as the other
+		   solid-fill pills above. */
 		border-radius: 7px;
-		background: var(--role-alteration, #ef4444);
-		color: #fff;
+		background: var(--role-alteration, #38bdf8);
+		color: var(--ff-black, #151411);
 		font-weight: 600;
-		outline: 2px dashed color-mix(in srgb, var(--role-alteration, #ef4444) 70%, transparent);
+		outline: 2px dashed color-mix(in srgb, var(--role-alteration, #38bdf8) 70%, transparent);
 		outline-offset: 2px;
 	}
 
@@ -267,17 +274,17 @@
 		/* chromatic-approach */
 		min-width: 1.5rem;
 		min-height: 1.5rem;
-		background: color-mix(in srgb, var(--role-chromatic-approach, #64748b) 16%, transparent);
-		border: 2px dotted var(--role-chromatic-approach, #64748b);
-		color: var(--role-chromatic-approach, #64748b);
+		background: color-mix(in srgb, var(--role-chromatic-approach, #94a3b8) 16%, transparent);
+		border: 2px dotted var(--role-chromatic-approach, #94a3b8);
+		color: var(--role-chromatic-approach, #94a3b8);
 	}
 
 	.pill[data-shape='outline'] {
 		/* avoid */
 		border-radius: 7px;
 		background: transparent;
-		border: 2px dotted var(--role-avoid, #78716c);
-		color: var(--role-avoid, #78716c);
+		border: 2px dotted var(--role-avoid, #a8a29e);
+		color: var(--role-avoid, #a8a29e);
 		opacity: 0.75;
 	}
 
@@ -286,7 +293,7 @@
 	}
 
 	.fret-cell.selected-root {
-		box-shadow: inset 0 0 0 3px var(--selected-root-ring, #ec4899);
+		box-shadow: inset 0 0 0 3px var(--selected-root-ring, #f1e6c5);
 	}
 
 	/*
@@ -301,7 +308,7 @@
 		position: absolute;
 		inset: 3px;
 		border-radius: 6px;
-		border: 2px dashed var(--live-accent, #06b6d4);
+		border: 2px dashed var(--live-accent, #e34832);
 		pointer-events: none;
 	}
 
@@ -313,15 +320,15 @@
 	 * spec §9/§15).
 	 */
 	.fret-cell.live-likely {
-		background: var(--live-accent, #06b6d4);
+		background: var(--live-accent, #e34832);
 	}
 
 	.fret-cell.live-likely:hover {
-		background: var(--live-accent-hover, #0891b2);
+		background: var(--live-accent-hover, #c93a26);
 	}
 
 	.fret-cell.live-likely::after {
-		border: 3px solid var(--live-accent-strong, #0e7490);
+		border: 3px solid var(--live-accent-strong, #6d2a22);
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
@@ -332,7 +339,7 @@
 
 	@keyframes live-pulse {
 		from {
-			box-shadow: 0 0 0 6px color-mix(in srgb, var(--live-accent, #06b6d4) 45%, transparent);
+			box-shadow: 0 0 0 6px color-mix(in srgb, var(--live-accent, #e34832) 45%, transparent);
 		}
 		to {
 			box-shadow: 0 0 0 0 transparent;
@@ -343,13 +350,17 @@
 	 * Scale Practice: the whole scale is shown at once — every matching fret
 	 * gets a soft, permanent tint (not gated on the metronome running at
 	 * all), so the player can see the full shape before playing a note.
+	 * Yellow family (selected/intentional, per the rebrand's semantic model)
+	 * at a restrained 16-24% mix -- deliberately the *dark* yellow shade, one
+	 * step down from the root's own full-strength yellow below, so a scale
+	 * full of notes doesn't read as "everything is yellow" (spec §6/§25).
 	 */
 	.fret-cell.scale-practice-note {
-		background: color-mix(in srgb, var(--scale-practice-note, #6366f1) 16%, var(--fret-bg, #fff));
+		background: color-mix(in srgb, var(--ff-selected, #c9910d) 16%, var(--fret-bg, #262521));
 	}
 
 	.fret-cell.scale-practice-note:hover {
-		background: color-mix(in srgb, var(--scale-practice-note, #6366f1) 24%, var(--fret-bg, #fff));
+		background: color-mix(in srgb, var(--ff-selected, #c9910d) 24%, var(--fret-bg, #262521));
 	}
 
 	/* Bold is a second, non-color signal for scale membership (AGENTS.md §7) — the tint alone shouldn't have to carry it. */
@@ -368,11 +379,11 @@
 	 * only one.
 	 */
 	.fret-cell.scale-practice-root {
-		background: color-mix(in srgb, var(--role-root, #f59e0b) 20%, var(--fret-bg, #fff));
+		background: color-mix(in srgb, var(--role-root, #e3ac18) 20%, var(--fret-bg, #262521));
 	}
 
 	.fret-cell.scale-practice-root:hover {
-		background: color-mix(in srgb, var(--role-root, #f59e0b) 30%, var(--fret-bg, #fff));
+		background: color-mix(in srgb, var(--role-root, #e3ac18) 30%, var(--fret-bg, #262521));
 	}
 
 	/*
@@ -384,7 +395,7 @@
 	 * once (an accepted, pre-existing limitation — see `.selected-root`).
 	 */
 	.fret-cell.scale-practice-just-played {
-		box-shadow: inset 0 0 0 3px var(--live-accent, #06b6d4);
+		box-shadow: inset 0 0 0 3px var(--live-accent, #e34832);
 	}
 
 	.fret-cell.scale-practice-zone-dimmed .pill {
