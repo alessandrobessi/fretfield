@@ -13,6 +13,14 @@ import {
 import { getAcidBassFactoryPatch } from '$lib/acid-bass/factory-patches';
 import { lfoRateHzClamp, pulseWidthClamp, resolveAcidStepMidi } from '$lib/acid-bass/resolve';
 import { ratchetOffsetsSeconds, stepShouldTrigger } from '$lib/acid-bass/sequencer';
+import {
+	clearPatternLocks as clearAcidPatternLocks,
+	densifyPattern as densifyAcidPattern,
+	octaveShiftPattern as octaveShiftAcidPattern,
+	rotatePatternLeft as rotateAcidPatternLeft,
+	rotatePatternRight as rotateAcidPatternRight,
+	simplifyPattern as simplifyAcidPattern
+} from '$lib/acid-bass/transforms';
 import type {
 	AcidBassPattern,
 	AcidBassPatch,
@@ -743,6 +751,31 @@ export class ScalePracticeStore {
 
 	clearAcidStepLocks(stepIndex: number): void {
 		this.updateAcidBassSelectedPattern((pattern) => clearGrooveAcidStepLocks(pattern, stepIndex));
+	}
+
+	/** Basic, pattern-wide transforms (spec: not chord/scale-aware) -- always applied to `selectedPatternRole`'s own pattern, same as every other Acid Bass step edit. */
+	rotateAcidPatternLeft(): void {
+		this.updateAcidBassSelectedPattern(rotateAcidPatternLeft);
+	}
+
+	rotateAcidPatternRight(): void {
+		this.updateAcidBassSelectedPattern(rotateAcidPatternRight);
+	}
+
+	simplifyAcidPattern(): void {
+		this.updateAcidBassSelectedPattern(simplifyAcidPattern);
+	}
+
+	densifyAcidPattern(): void {
+		this.updateAcidBassSelectedPattern(densifyAcidPattern);
+	}
+
+	octaveShiftAcidPattern(direction: 1 | -1): void {
+		this.updateAcidBassSelectedPattern((pattern) => octaveShiftAcidPattern(pattern, direction));
+	}
+
+	clearAcidPatternLocks(): void {
+		this.updateAcidBassSelectedPattern(clearAcidPatternLocks);
 	}
 
 	private updateAcidBassSelectedPattern(

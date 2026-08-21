@@ -155,3 +155,31 @@ test.describe('Acid Bass V2: step editor sequencer powers', () => {
 		await expect(page.getByRole('button', { name: 'Clear locks' })).not.toBeVisible();
 	});
 });
+
+test.describe('Acid Bass V2: pattern transforms', () => {
+	test("Rotate right moves the last step's content to the front", async ({ page }) => {
+		await openBassStepsTab(page);
+
+		const step1 = page.getByLabel(/^Bass step 1,/);
+		await expect(step1).toHaveAttribute('aria-label', /interval 1,/);
+
+		await page.getByRole('button', { name: 'Rotate ▶', exact: true }).click();
+
+		// The default pattern's last step is an accented b3 -- after rotating
+		// right, that content now lives on step 1.
+		await expect(step1).toHaveAttribute('aria-label', /interval b3,/);
+	});
+
+	test('Simplify and Densify are visible and clickable without throwing', async ({ page }) => {
+		await openBassStepsTab(page);
+
+		await page.getByRole('button', { name: 'Simplify', exact: true }).click();
+		await page.getByRole('button', { name: 'Densify', exact: true }).click();
+		await page.getByRole('button', { name: 'Octave ▲', exact: true }).click();
+		await page.getByRole('button', { name: 'Octave ▼', exact: true }).click();
+		await page.getByRole('button', { name: 'Clear All Locks', exact: true }).click();
+
+		// Still a healthy, responsive page after all five transforms.
+		await expect(page.getByRole('group', { name: 'Bass steps' })).toBeVisible();
+	});
+});

@@ -306,6 +306,57 @@
 			{/each}
 		</div>
 	{:else}
+		<div class="transform-row" role="group" aria-label="Bass pattern transforms">
+			<button
+				type="button"
+				class="transform-button"
+				onclick={() => scalePractice.rotateAcidPatternLeft()}
+			>
+				Rotate ◀
+			</button>
+			<button
+				type="button"
+				class="transform-button"
+				onclick={() => scalePractice.rotateAcidPatternRight()}
+			>
+				Rotate ▶
+			</button>
+			<button
+				type="button"
+				class="transform-button"
+				onclick={() => scalePractice.simplifyAcidPattern()}
+			>
+				Simplify
+			</button>
+			<button
+				type="button"
+				class="transform-button"
+				onclick={() => scalePractice.densifyAcidPattern()}
+			>
+				Densify
+			</button>
+			<button
+				type="button"
+				class="transform-button"
+				onclick={() => scalePractice.octaveShiftAcidPattern(1)}
+			>
+				Octave ▲
+			</button>
+			<button
+				type="button"
+				class="transform-button"
+				onclick={() => scalePractice.octaveShiftAcidPattern(-1)}
+			>
+				Octave ▼
+			</button>
+			<button
+				type="button"
+				class="transform-button"
+				onclick={() => scalePractice.clearAcidPatternLocks()}
+			>
+				Clear All Locks
+			</button>
+		</div>
 		<div class="step-grid">
 			<AcidBassStepGrid
 				pattern={selectedAcidPattern}
@@ -531,6 +582,33 @@
 	}
 
 	.bar-count:focus-visible {
+		outline: 3px solid var(--focus-ring, #e3ac18);
+		outline-offset: 2px;
+	}
+
+	.transform-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.transform-button {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.7rem;
+		padding: 0.3rem 0.6rem;
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--ff-black, #151411);
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+	}
+
+	.transform-button:hover {
+		border-color: var(--ff-yellow, #e3ac18);
+	}
+
+	.transform-button:focus-visible {
 		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
 	}
