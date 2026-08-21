@@ -19,13 +19,14 @@ import {
 	setFeelAmount as setGrooveFeelAmount,
 	setPatternForRole,
 	setStepVelocity as setGrooveStepVelocity,
+	setTimeSignature as setGrooveTimeSignature,
 	stepOffsetMs
 } from '$lib/groove/pattern';
 import { listGroovePresets } from '$lib/groove/presets';
+import { TIME_SIGNATURES, type TimeSignature } from '$lib/groove/time-signature';
 import { GrooveTransport, type CountIn } from '$lib/groove/transport';
 import {
 	DRUM_VOICES,
-	STEPS_PER_BAR,
 	type DrumVoice,
 	type Groove,
 	type GrooveFeel,
@@ -363,6 +364,12 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
+	/** Resizes every pattern to the new meter's step count (see `groove/pattern.ts`'s `setTimeSignature`) -- existing steps within the new length survive, a shorter-to-longer change pads with off-steps. */
+	setTimeSignature(timeSignature: TimeSignature): void {
+		this.groove = setGrooveTimeSignature(this.groove, timeSignature);
+		this.persist();
+	}
+
 	setIntensity(intensity: number): void {
 		this.intensity = clampIntensity(intensity);
 		this.persist();
@@ -459,7 +466,8 @@ export class ScalePracticeStore {
 		this.audioContext = new AudioContextCtor();
 		this.running = true;
 		this.isCountingIn = this.countIn !== 'off';
-		this.transport.start(this.audioContext, this.bpm, this.countIn);
+		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
+		this.transport.start(this.audioContext, this.bpm, this.countIn, stepsPerBar);
 	}
 
 	stop(): void {
@@ -494,7 +502,8 @@ export class ScalePracticeStore {
 		const ctx = this.audioContext;
 		if (ctx === null) return;
 		const swing = effectiveSwing(this.groove.feel, this.groove.feelAmount);
-		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, swing) / 1000;
+		const stepsPerBeatGroup = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBeatGroup;
+		const swungTime = gridTime + stepOffsetMs(stepIndex, this.bpm, swing, stepsPerBeatGroup) / 1000;
 		for (const voice of DRUM_VOICES) {
 			const step = this.currentBarPattern.steps[voice][stepIndex];
 			if (stepShouldSound(step, this.intensity)) {
@@ -513,7 +522,8 @@ export class ScalePracticeStore {
 	/** A simple percussive click on every beat (not every 16th-note step) of a count-in bar -- "a simple percussive cue," per AGENTS.md. */
 	private handleCountInStep(stepIndex: number, gridTime: number): void {
 		const ctx = this.audioContext;
-		if (ctx === null || stepIndex % 4 !== 0) return;
+		const stepsPerBeatGroup = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBeatGroup;
+		if (ctx === null || stepIndex % stepsPerBeatGroup !== 0) return;
 		triggerClosedHat(ctx, gridTime, 1);
 	}
 
@@ -535,7 +545,8 @@ export class ScalePracticeStore {
 			midiToFrequency(CHORD_PAD_ROOT_MIDI + chord.root + intervalSemitones(interval))
 		);
 
-		const barDurationSeconds = (60 / this.bpm / 4) * STEPS_PER_BAR;
+		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
+		const barDurationSeconds = (60 / this.bpm / 4) * stepsPerBar;
 		const durationSeconds = barDurationSeconds * this.barsPerChord;
 		triggerChordPad(ctx, gridTime, frequenciesHz, durationSeconds, CHORD_PAD_GAIN);
 

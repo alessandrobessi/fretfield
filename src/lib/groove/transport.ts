@@ -1,5 +1,3 @@
-import { STEPS_PER_BAR } from './types';
-
 // Standard Web Audio "lookahead scheduler" constants: the JS timer only
 // needs to wake up often enough to keep scheduling steps within the lookahead
 // window -- the actual playback timing comes from AudioContext.currentTime,
@@ -41,6 +39,7 @@ export class GrooveTransport {
 	private audioContext: AudioContext | null = null;
 	private schedulerHandle: ReturnType<typeof setInterval> | null = null;
 	private bpm = 80;
+	private stepsPerBar = 16;
 	private nextStepTime = 0;
 	private currentStep = 0;
 	private currentBar = 0;
@@ -54,10 +53,11 @@ export class GrooveTransport {
 		return this.audioContext !== null;
 	}
 
-	/** Starts (or restarts) playback on `ctx`'s clock -- always resets to bar 1/beat 1/step 1, per the roadmap's "stop resets, nothing resumes mid-bar" playback behavior. */
-	start(ctx: AudioContext, bpm: number, countIn: CountIn): void {
+	/** Starts (or restarts) playback on `ctx`'s clock -- always resets to bar 1/beat 1/step 1, per the roadmap's "stop resets, nothing resumes mid-bar" playback behavior. `stepsPerBar` (see `groove/time-signature.ts`) governs both real bars and count-in bars alike -- a count-in bar is the same length as a real one in whatever meter is playing. */
+	start(ctx: AudioContext, bpm: number, countIn: CountIn, stepsPerBar: number): void {
 		this.audioContext = ctx;
 		this.bpm = bpm;
+		this.stepsPerBar = stepsPerBar;
 		this.currentStep = 0;
 		this.currentBar = 0;
 		this.countInBarsRemaining = countInBarCount(countIn);
@@ -93,7 +93,7 @@ export class GrooveTransport {
 			const stepDurationSeconds = 60 / this.bpm / 4; // 4 sixteenth notes per beat
 			this.nextStepTime += stepDurationSeconds;
 			this.currentStep += 1;
-			if (this.currentStep >= STEPS_PER_BAR) {
+			if (this.currentStep >= this.stepsPerBar) {
 				this.currentStep = 0;
 				if (this.countInBarsRemaining > 0) {
 					this.countInBarsRemaining -= 1;
