@@ -126,6 +126,21 @@ export function keyTrackingMultiplier(
 	return Math.pow(2, ((midi - referenceMidi) / 12) * ratio);
 }
 
+const MAX_SATURATION_PREGAIN = 6;
+
+/**
+ * 0-100 -> pregain applied just before the filter's own soft-clip stage --
+ * the classic acid "drive into the filter" character, distinct from
+ * `driveToPregain` (which shapes the voice's *final* output, after the
+ * filter). 1x (effectively clean, same reasoning as `driveToPregain(0)`) at
+ * 0, up to 6x (clearly saturated, still bounded by the shaper's own tanh
+ * curve) at 100.
+ */
+export function saturationToPregain(value: number): number {
+	const t = clamp(value, 0, 100) / 100;
+	return 1 + t * (MAX_SATURATION_PREGAIN - 1);
+}
+
 // ---------------------------------------------------------------------------
 // Envelope / VCA
 // ---------------------------------------------------------------------------

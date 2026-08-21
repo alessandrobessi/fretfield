@@ -16,35 +16,46 @@
  * `PeriodicWave`), plus a sub oscillator (square/triangle, -1/-2 octaves)
  * mixed in via `mixCompensation` so driving both hard never doubles the
  * output unpredictably. Tune/fine apply as one frequency ratio
- * (`tuneFineToRatio`) to every oscillator, main and sub alike. `filter.model`
- * is read but not yet fully honored: until the `acid24` AudioWorklet exists,
- * both `svf12` and `acid24` route through the same Biquad path as an
- * `svf12`-flavored approximation (see `resonanceToModelParameter` in
- * `resolve.ts`) -- only `legacy` gets its own distinct (V1-compatible)
- * resonance curve for now. Pulse Width is patch-driven only (regenerated on
- * `setPatch()`) -- live "LFO -> Pulse Width" modulation needs the worklet
- * oscillator (a later milestone) to stay sample-accurate.
+ * (`tuneFineToRatio`) to every oscillator, main and sub alike. The filter
+ * section adds key tracking (cutoff follows note pitch, via the same
+ * already-tested `keyTrackingMultiplier` MIDI math the rest of the codebase
+ * uses -- the voice converts its own Hz back to a floating MIDI note via
+ * `frequencyToMidi` rather than duplicating that math) and pre-filter
+ * saturation (a second, independent drive stage feeding the filter, distinct
+ * from the post-filter output Drive). `filter.model` is read but not yet
+ * fully honored: until the `acid24` AudioWorklet exists, both `svf12` and
+ * `acid24` route through the same Biquad path as an `svf12`-flavored
+ * approximation (see `resonanceToModelParameter` in `resolve.ts`) -- only
+ * `legacy` gets its own distinct (V1-compatible) resonance curve for now.
+ * Pulse Width is patch-driven only (regenerated on `setPatch()`) -- live
+ * "LFO -> Pulse Width" modulation needs the worklet oscillator (a later
+ * milestone) to stay sample-accurate.
  */
 
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
 import {
 	accentAmountToMultipliers,
 	attackToSeconds,
+	BASS_REFERENCE_OCTAVE_MIDI,
 	clampCutoffHz,
 	cutoffToHz,
 	decayToSeconds,
 	driveToPregain,
 	envAmountToRatio,
 	glideTimeToSeconds,
+	keyTrackingMultiplier,
 	mixCompensation,
 	pulseWidthClamp,
 	releaseToSeconds,
 	resonanceToModelParameter,
+	saturationToPregain,
 	subOctaveToRatio,
 	tuneFineToRatio,
 	volumeToGain
 } from '$lib/acid-bass/resolve';
 import type { AcidBassPatch, AcidFilterModel, AcidGlideCurve } from '$lib/acid-bass/types';
+
+import { frequencyToMidi } from './note-mapping';
 
 export type { AcidBassPatch } from '$lib/acid-bass/types';
 
@@ -181,6 +192,18 @@ export function createAcidBassVoice(
 		ctx.currentTime
 	);
 
+	// A second, independent drive stage feeding the filter -- the classic
+	// acid "drive into the filter" character, distinct from the post-filter
+	// output Drive further down the chain.
+	const saturationInput = ctx.createGain();
+	saturationInput.gain.setValueAtTime(
+		saturationToPregain(currentPatch.filter.saturation),
+		ctx.currentTime
+	);
+	const saturationShaper = ctx.createWaveShaper();
+	saturationShaper.curve = DRIVE_CURVE;
+	saturationShaper.oversample = '2x';
+
 	const filter = ctx.createBiquadFilter();
 	filter.type = 'lowpass';
 	filter.Q.setValueAtTime(
@@ -218,7 +241,9 @@ export function createAcidBassVoice(
 	triangleGain.connect(mixCompensationGain);
 	pulseGain.connect(mixCompensationGain);
 	subGain.connect(mixCompensationGain);
-	mixCompensationGain.connect(filter);
+	mixCompensationGain.connect(saturationInput);
+	saturationInput.connect(saturationShaper);
+	saturationShaper.connect(filter);
 	filter.connect(vca);
 	vca.connect(driveInput);
 	driveInput.connect(shaper);
@@ -272,11 +297,20 @@ export function createAcidBassVoice(
 
 	function retriggerFilterEnvelope(
 		time: number,
+		frequencyHz: number,
 		accent: boolean,
 		decaySeconds: number,
 		patch: AcidBassPatch
 	): void {
-		const baseCutoff = clampCutoffHz(cutoffToHz(patch.filter.cutoff), ctx.sampleRate);
+		const trackingMultiplier = keyTrackingMultiplier(
+			patch.filter.keyTracking,
+			frequencyToMidi(frequencyHz),
+			BASS_REFERENCE_OCTAVE_MIDI
+		);
+		const baseCutoff = clampCutoffHz(
+			cutoffToHz(patch.filter.cutoff) * trackingMultiplier,
+			ctx.sampleRate
+		);
 		const envMultiplier = accentAmountToMultipliers(patch.envelope.accentAmount).env;
 		const envRatio = envAmountToRatio(patch.filter.envAmount) * (accent ? envMultiplier : 1);
 		const peakCutoff = clampCutoffHz(baseCutoff * envRatio, ctx.sampleRate);
@@ -330,11 +364,17 @@ export function createAcidBassVoice(
 			// automation target, so a small discontinuity on change is acceptable.
 			subOsc.type = patch.oscillator.subWave;
 
-			// Resonance/Drive/Volume aren't enveloped per-note, so they can apply
-			// to the currently-sounding note immediately -- Cutoff/EnvMod/Decay
-			// only shape each note's own envelope and simply take effect on the
-			// next scheduled note (ramping a mid-flight envelope would fight its
-			// own automation curve).
+			// Resonance/Drive/Volume/Saturation aren't enveloped per-note, so they
+			// can apply to the currently-sounding note immediately -- Cutoff/
+			// EnvMod/Decay/Key Tracking only shape each note's own envelope and
+			// simply take effect on the next scheduled note (ramping a mid-flight
+			// envelope would fight its own automation curve).
+			saturationInput.gain.cancelScheduledValues(atTime);
+			saturationInput.gain.setTargetAtTime(
+				saturationToPregain(patch.filter.saturation),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
 			filter.Q.cancelScheduledValues(atTime);
 			filter.Q.setTargetAtTime(
 				resonanceToModelParameter(biquadResonanceModel(patch.filter.model), patch.filter.resonance),
@@ -372,7 +412,7 @@ export function createAcidBassVoice(
 
 			if (!legato) {
 				setFrequencyAtTime(frequencyHz, time, patch);
-				retriggerFilterEnvelope(time, accent, decaySeconds, patch);
+				retriggerFilterEnvelope(time, frequencyHz, accent, decaySeconds, patch);
 				vca.gain.cancelScheduledValues(time);
 				vca.gain.setValueAtTime(MIN_GAIN, time);
 				vca.gain.exponentialRampToValueAtTime(peakGain, time + attackSeconds);

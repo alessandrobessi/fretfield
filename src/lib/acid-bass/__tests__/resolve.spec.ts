@@ -19,6 +19,7 @@ import {
 	releaseToSeconds,
 	resolveAcidStepMidi,
 	resonanceToModelParameter,
+	saturationToPregain,
 	subOctaveToRatio,
 	tuneFineToRatio,
 	volumeToGain
@@ -122,6 +123,12 @@ describe('filter mapping', () => {
 		expect(keyTrackingMultiplier(0, 72, 60)).toBeCloseTo(1, 5);
 		expect(keyTrackingMultiplier(100, 72, 60)).toBeCloseTo(2, 5);
 	});
+
+	it('saturationToPregain is 1x (clean) at 0, up to 6x at 100, and monotonic', () => {
+		expect(saturationToPregain(0)).toBeCloseTo(1, 5);
+		expect(saturationToPregain(100)).toBeCloseTo(6, 5);
+		expect(saturationToPregain(75)).toBeGreaterThan(saturationToPregain(25));
+	});
 });
 
 describe('envelope mapping', () => {
@@ -220,6 +227,7 @@ describe('every mapping stays finite across its domain', () => {
 			expect(Number.isFinite(accentAmountToMultipliers(value).vca)).toBe(true);
 			expect(Number.isFinite(accentAmountToMultipliers(value).env)).toBe(true);
 			expect(Number.isFinite(pulseWidthClamp(value))).toBe(true);
+			expect(Number.isFinite(saturationToPregain(value))).toBe(true);
 		}
 	});
 
