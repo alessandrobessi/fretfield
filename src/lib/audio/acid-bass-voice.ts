@@ -31,9 +31,18 @@
  * async load never audibly glitches. If the worklet never loads (unsupported
  * browser, asset fetch failure -- logged to the console only, never a
  * user-facing error), `acid24` silently keeps sounding like the `svf12`
- * approximation instead. Pulse Width is patch-driven only (regenerated on
- * `setPatch()`) -- live "LFO -> Pulse Width" modulation needs the worklet
- * oscillator (a later milestone) to stay sample-accurate.
+ * approximation instead.
+ *
+ * Pulse/PWM (M11): the same worklet-or-fallback pattern applies to the
+ * Pulse wave -- a dedicated `AudioWorkletNode` (`acid-pulse-oscillator-
+ * processor.js`) generates a genuinely live, sample-accurate,
+ * PolyBLEP-band-limited pulse with an a-rate `pulseWidth` AudioParam, and
+ * crossfades in (via `applyPulseOscillatorRouting`) once it loads; until
+ * then (or forever, if it never does) Pulse keeps using the static
+ * `PeriodicWave` regenerated on `setPatch()`. "LFO -> Pulse Width" is only
+ * ever connected to the worklet's own AudioParam, so it stays a genuine
+ * no-op against the `PeriodicWave` fallback -- there's nothing live to
+ * modulate there.
  *
  * Sequencer powers (M5): Gate is now per-trigger (`gatePercent`, replacing
  * the old fixed 82% constant) and parameter locks (`locks`) can override
@@ -46,11 +55,11 @@
  * doctrine above).
  *
  * Modulation (M7): one LFO (`acid-bass-lfo.ts`), free-running and routed to
- * whichever single destination the patch names (Cutoff/Pitch/Sub Level --
- * Pulse Width stays a no-op until the worklet oscillator, same as elsewhere
- * in this file) via a parallel bank of depth-scaling gain nodes, the same
- * "always connected, gain the inactive ones to zero" idiom as everything
- * else here. Sync-mode rate depends on the transport's current BPM, which
+ * whichever single destination the patch names (Cutoff/Pitch/Sub Level/Pulse
+ * Width -- the last only live once the M11 Pulse worklet has loaded, see
+ * above) via a parallel bank of depth-scaling gain nodes, the same "always
+ * connected, gain the inactive ones to zero" idiom as everything else here.
+ * Sync-mode rate depends on the transport's current BPM, which
  * this file otherwise never touches -- `setTempo()` is the one deliberate
  * exception, called by `scale-practice.svelte.ts` whenever tempo changes,
  * so a live tempo edit re-syncs the LFO without needing a full `setPatch()`.
@@ -90,7 +99,7 @@ import type {
 } from '$lib/acid-bass/types';
 
 import { createAcidBassLfo } from './acid-bass-lfo';
-import { createAcid24WorkletNode } from './acid-worklet-node';
+import { createAcid24WorkletNode, createPulseOscillatorWorkletNode } from './acid-worklet-node';
 import { frequencyToMidi } from './note-mapping';
 
 export type { AcidBassPatch } from '$lib/acid-bass/types';
@@ -147,8 +156,12 @@ const DEFAULT_PATCH: AcidBassPatch = createDefaultAcidPatch();
 const MAX_CUTOFF_LFO_SWING_HZ = 2500;
 const MAX_PITCH_LFO_CENTS = 100;
 const MAX_SUBLEVEL_LFO_SWING = 0.5;
+// A fraction of the Pulse worklet's own 0-1 duty-cycle range -- the
+// AudioParam's own declared min/max (0.05-0.95) clamps the summed result,
+// so this doesn't need its own separate safety margin.
+const MAX_PULSE_WIDTH_LFO_SWING = 0.3;
 
-/** 0-100 depth -> the actual modulation amount for one destination -- `pulseWidth` is always 0 (a no-op until the worklet oscillator lands, see file header), and `subLevel` is inert whenever Sub itself is off rather than audibly wobbling around silence. */
+/** 0-100 depth -> the actual modulation amount for one destination -- `subLevel` is inert whenever Sub itself is off rather than audibly wobbling around silence, and `pulseWidth` only reaches anything once the Pulse oscillator worklet has loaded (see `lfoTargetGain`/`pulseWidthLfoGain`); this still resolves a real amount for it regardless, since the gain is what actually gates audibility. */
 function lfoDepthAmount(
 	destination: AcidLfoDestination,
 	depth: number,
@@ -163,7 +176,7 @@ function lfoDepthAmount(
 		case 'subLevel':
 			return subEnabled ? ratio * MAX_SUBLEVEL_LFO_SWING : 0;
 		case 'pulseWidth':
-			return 0;
+			return ratio * MAX_PULSE_WIDTH_LFO_SWING;
 	}
 }
 
@@ -247,6 +260,12 @@ export function createAcidBassVoice(
 		currentPatch.oscillator.mainWave === 'pulse' ? mainLevelRatio : 0,
 		ctx.currentTime
 	);
+	// The worklet-based Pulse oscillator's own output (M11) -- starts silent
+	// regardless of the patch, since the worklet hasn't loaded yet; crossfades
+	// in from pulseGain (the static PeriodicWave fallback) once it has, via
+	// applyPulseOscillatorRouting.
+	const pulseWorkletGain = ctx.createGain();
+	pulseWorkletGain.gain.setValueAtTime(0, ctx.currentTime);
 	const subGain = ctx.createGain();
 	subGain.gain.setValueAtTime(
 		currentPatch.oscillator.subEnabled ? currentPatch.oscillator.subLevel / 100 : 0,
@@ -310,7 +329,7 @@ export function createAcidBassVoice(
 	master.gain.setValueAtTime(volumeToGain(currentPatch.output.volume), ctx.currentTime);
 
 	// One LFO, routed to whichever single destination the patch names via a
-	// parallel bank of depth-scaling gains -- the inactive two always sit at
+	// parallel bank of depth-scaling gains -- the inactive ones always sit at
 	// 0 rather than being connected/disconnected on the fly (see file header).
 	const lfo = createAcidBassLfo(ctx);
 	const cutoffLfoGain = ctx.createGain();
@@ -319,6 +338,11 @@ export function createAcidBassVoice(
 	pitchLfoGain.gain.setValueAtTime(0, ctx.currentTime);
 	const subLevelLfoGain = ctx.createGain();
 	subLevelLfoGain.gain.setValueAtTime(0, ctx.currentTime);
+	// Only ever reaches the worklet Pulse oscillator's own pulseWidth
+	// AudioParam (M11) -- connected once that worklet loads; a genuine no-op
+	// (stays at 0, nothing to connect it to) if it never does, per file header.
+	const pulseWidthLfoGain = ctx.createGain();
+	pulseWidthLfoGain.gain.setValueAtTime(0, ctx.currentTime);
 
 	sawOsc.connect(sawGain);
 	squareOsc.connect(squareGain);
@@ -329,6 +353,7 @@ export function createAcidBassVoice(
 	squareGain.connect(mixCompensationGain);
 	triangleGain.connect(mixCompensationGain);
 	pulseGain.connect(mixCompensationGain);
+	pulseWorkletGain.connect(mixCompensationGain);
 	subGain.connect(mixCompensationGain);
 	mixCompensationGain.connect(saturationInput);
 	saturationInput.connect(saturationShaper);
@@ -358,6 +383,7 @@ export function createAcidBassVoice(
 	lfo.output.connect(cutoffLfoGain);
 	lfo.output.connect(pitchLfoGain);
 	lfo.output.connect(subLevelLfoGain);
+	lfo.output.connect(pulseWidthLfoGain);
 
 	sawOsc.start(ctx.currentTime);
 	squareOsc.start(ctx.currentTime);
@@ -367,6 +393,7 @@ export function createAcidBassVoice(
 	let disposed = false;
 	let currentBpm = 80;
 	let acid24Node: AudioWorkletNode | null = null;
+	let pulseWorkletNode: AudioWorkletNode | null = null;
 
 	/** Crossfades between the Biquad and acid24 outputs -- `acid24` only actually routes to the worklet once it exists; otherwise (still loading, or it failed) this keeps the Biquad path active regardless of what the patch asks for, which is exactly the fallback behavior the file header describes. */
 	function applyFilterModelRouting(patch: AcidBassPatch, atTime: number): void {
@@ -375,6 +402,25 @@ export function createAcidBassVoice(
 		biquadOutputGain.gain.setTargetAtTime(useAcid24 ? 0 : 1, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
 		acid24OutputGain.gain.cancelScheduledValues(atTime);
 		acid24OutputGain.gain.setTargetAtTime(useAcid24 ? 1 : 0, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+	}
+
+	/** Same idea as applyFilterModelRouting, for the Pulse wave's two implementations -- the worklet one only once it exists, the static PeriodicWave one otherwise. Both are silent unless `mainWave === 'pulse'`. */
+	function applyPulseOscillatorRouting(patch: AcidBassPatch, atTime: number): void {
+		const mainLevel = patch.oscillator.mainLevel / 100;
+		const isPulse = patch.oscillator.mainWave === 'pulse';
+		const useWorklet = isPulse && pulseWorkletNode !== null;
+		pulseGain.gain.cancelScheduledValues(atTime);
+		pulseGain.gain.setTargetAtTime(
+			isPulse && !useWorklet ? mainLevel : 0,
+			atTime,
+			WAVE_CROSSFADE_TIME_CONSTANT
+		);
+		pulseWorkletGain.gain.cancelScheduledValues(atTime);
+		pulseWorkletGain.gain.setTargetAtTime(
+			useWorklet ? mainLevel : 0,
+			atTime,
+			WAVE_CROSSFADE_TIME_CONSTANT
+		);
 	}
 
 	// Fire-and-forget: the voice must stay usable (via the Biquad fallback)
@@ -392,14 +438,47 @@ export function createAcidBassVoice(
 		applyFilterModelRouting(currentPatch, ctx.currentTime);
 	});
 
+	// Same fire-and-forget pattern, for the Pulse oscillator worklet (M11).
+	void createPulseOscillatorWorkletNode(ctx).then((node) => {
+		if (disposed) {
+			node?.disconnect();
+			return;
+		}
+		if (node === null) return;
+		pulseWorkletNode = node;
+		node.connect(pulseWorkletGain);
+		const pulseWidthParam = node.parameters.get('pulseWidth');
+		if (pulseWidthParam !== undefined) {
+			pulseWidthParam.setValueAtTime(
+				pulseWidthClamp(currentPatch.oscillator.pulseWidth) / 100,
+				ctx.currentTime
+			);
+			pulseWidthLfoGain.connect(pulseWidthParam);
+		}
+		applyPulseOscillatorRouting(currentPatch, ctx.currentTime);
+	});
+
 	const mainOscillators = [sawOsc, squareOsc, triangleOsc, pulseOsc];
+
+	/** Every AudioParam a new note's frequency should land on -- the native oscillators plus the Pulse worklet's own `frequency` param, once it exists (it has no separate `OscillatorNode` to fall back to for pitch, only for gain-crossfade routing). */
+	function mainFrequencyParams(): AudioParam[] {
+		const params: AudioParam[] = mainOscillators.map((osc) => osc.frequency);
+		const workletFrequency = pulseWorkletNode?.parameters.get('frequency');
+		if (workletFrequency !== undefined) params.push(workletFrequency);
+		return params;
+	}
 
 	function setOscFrequencyAtTime(osc: OscillatorNode, hz: number, time: number): void {
 		osc.frequency.cancelScheduledValues(time);
 		osc.frequency.setValueAtTime(Math.max(hz, MIN_SAFE_OSC_HZ), time);
 	}
 
-	/** Whichever depth-scaling gain node `destination` currently routes through -- `undefined` for `pulseWidth` (no-op, see file header). */
+	function setParamFrequencyAtTime(param: AudioParam, hz: number, time: number): void {
+		param.cancelScheduledValues(time);
+		param.setValueAtTime(Math.max(hz, MIN_SAFE_OSC_HZ), time);
+	}
+
+	/** Whichever depth-scaling gain node `destination` currently routes through. */
 	function lfoTargetGain(destination: AcidLfoDestination): GainNode | undefined {
 		switch (destination) {
 			case 'cutoff':
@@ -409,7 +488,7 @@ export function createAcidBassVoice(
 			case 'subLevel':
 				return subLevelLfoGain;
 			case 'pulseWidth':
-				return undefined;
+				return pulseWidthLfoGain;
 		}
 	}
 
@@ -424,30 +503,27 @@ export function createAcidBassVoice(
 	function setFrequencyAtTime(frequencyHz: number, time: number, patch: AcidBassPatch): void {
 		const ratio = tuneFineToRatio(patch.oscillator.tune, patch.oscillator.fine);
 		const mainHz = frequencyHz * ratio;
-		for (const osc of mainOscillators) {
-			setOscFrequencyAtTime(osc, mainHz, time);
+		for (const param of mainFrequencyParams()) {
+			setParamFrequencyAtTime(param, mainHz, time);
 		}
 		const subHz = mainHz * subOctaveToRatio(patch.oscillator.subOctave);
 		setOscFrequencyAtTime(subOsc, subHz, time);
 	}
 
-	function rampOscFrequency(
-		osc: OscillatorNode,
+	function rampParamFrequency(
+		param: AudioParam,
 		fromHz: number,
 		toHz: number,
 		atTime: number,
 		glideSeconds: number,
 		curve: AcidGlideCurve
 	): void {
-		osc.frequency.cancelScheduledValues(atTime);
-		osc.frequency.setValueAtTime(Math.max(fromHz, MIN_SAFE_OSC_HZ), atTime);
+		param.cancelScheduledValues(atTime);
+		param.setValueAtTime(Math.max(fromHz, MIN_SAFE_OSC_HZ), atTime);
 		if (curve === 'exponential') {
-			osc.frequency.exponentialRampToValueAtTime(
-				Math.max(toHz, MIN_SAFE_OSC_HZ),
-				atTime + glideSeconds
-			);
+			param.exponentialRampToValueAtTime(Math.max(toHz, MIN_SAFE_OSC_HZ), atTime + glideSeconds);
 		} else {
-			osc.frequency.linearRampToValueAtTime(Math.max(toHz, MIN_SAFE_OSC_HZ), atTime + glideSeconds);
+			param.linearRampToValueAtTime(Math.max(toHz, MIN_SAFE_OSC_HZ), atTime + glideSeconds);
 		}
 	}
 
@@ -508,7 +584,6 @@ export function createAcidBassVoice(
 			const sawTarget = patch.oscillator.mainWave === 'saw' ? mainLevel : 0;
 			const squareTarget = patch.oscillator.mainWave === 'square' ? mainLevel : 0;
 			const triangleTarget = patch.oscillator.mainWave === 'triangle' ? mainLevel : 0;
-			const pulseTarget = patch.oscillator.mainWave === 'pulse' ? mainLevel : 0;
 			const subTarget = patch.oscillator.subEnabled ? patch.oscillator.subLevel / 100 : 0;
 
 			sawGain.gain.cancelScheduledValues(atTime);
@@ -517,8 +592,7 @@ export function createAcidBassVoice(
 			squareGain.gain.setTargetAtTime(squareTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
 			triangleGain.gain.cancelScheduledValues(atTime);
 			triangleGain.gain.setTargetAtTime(triangleTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
-			pulseGain.gain.cancelScheduledValues(atTime);
-			pulseGain.gain.setTargetAtTime(pulseTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+			applyPulseOscillatorRouting(patch, atTime);
 			subGain.gain.cancelScheduledValues(atTime);
 			subGain.gain.setTargetAtTime(subTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
 
@@ -529,9 +603,20 @@ export function createAcidBassVoice(
 				PARAM_SMOOTH_TIME_CONSTANT
 			);
 
-			// Pulse Width isn't live-modulatable yet (see file header) -- just
-			// regenerate the waveform to match whatever the patch currently says.
+			// The static PeriodicWave fallback isn't live-modulatable -- just
+			// regenerate the waveform to match whatever the patch currently says
+			// (the worklet path, once loaded, gets its pulseWidth AudioParam
+			// updated just below instead, and *is* live-modulatable via LFO).
 			pulseOsc.setPeriodicWave(createPulseWave(ctx, patch.oscillator.pulseWidth));
+			if (pulseWorkletNode !== null) {
+				const pulseWidthParam = pulseWorkletNode.parameters.get('pulseWidth');
+				pulseWidthParam?.cancelScheduledValues(atTime);
+				pulseWidthParam?.setTargetAtTime(
+					pulseWidthClamp(patch.oscillator.pulseWidth) / 100,
+					atTime,
+					PARAM_SMOOTH_TIME_CONSTANT
+				);
+			}
 			// Sub wave has no crossfade partner (only one sub oscillator) -- a
 			// direct type switch is an infrequent patch edit, not a per-note
 			// automation target, so a small discontinuity on change is acceptable.
@@ -698,12 +783,19 @@ export function createAcidBassVoice(
 				const ratio = tuneFineToRatio(patch.oscillator.tune, patch.oscillator.fine);
 				const fromMainHz = frequencyHz * ratio;
 				const toMainHz = slideToFrequencyHz * ratio;
-				for (const osc of mainOscillators) {
-					rampOscFrequency(osc, fromMainHz, toMainHz, slideStart, glideSeconds, patch.glide.curve);
+				for (const param of mainFrequencyParams()) {
+					rampParamFrequency(
+						param,
+						fromMainHz,
+						toMainHz,
+						slideStart,
+						glideSeconds,
+						patch.glide.curve
+					);
 				}
 				const subRatio = ratio * subOctaveToRatio(patch.oscillator.subOctave);
-				rampOscFrequency(
-					subOsc,
+				rampParamFrequency(
+					subOsc.frequency,
 					frequencyHz * subRatio,
 					slideToFrequencyHz * subRatio,
 					slideStart,
@@ -736,6 +828,7 @@ export function createAcidBassVoice(
 			subOsc.stop(stopTime);
 			lfo.dispose();
 			acid24Node?.disconnect();
+			pulseWorkletNode?.disconnect();
 		}
 	};
 }
