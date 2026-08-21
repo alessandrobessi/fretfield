@@ -78,8 +78,8 @@
 		flex: 0 0 5.5rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		opacity: 0.75;
-		background: var(--fret-bg, #fff);
+		color: inherit;
+		background: var(--ff-yellow, #e3ac18);
 	}
 
 	.steps {
@@ -88,6 +88,9 @@
 		flex-wrap: nowrap;
 	}
 
+	/* Same black-step-keys-on-yellow-chassis language as the drum grid
+	   (GrooveEditor.svelte) -- Acid Bass reuses the Groove Engine's own
+	   component system rather than a separate visual vocabulary (spec §13). */
 	.step {
 		display: flex;
 		flex-direction: column;
@@ -96,49 +99,58 @@
 		width: 2.1rem;
 		height: 1.9rem;
 		padding: 0;
-		border-radius: 5px;
-		border: 1px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--ff-carbon, #262521);
+		background: var(--ff-black, #151411);
 		cursor: pointer;
 		line-height: 1;
 	}
 
 	.step.beat-start {
-		border-left-color: var(--nut, #7c3aed);
+		border-left-color: var(--ff-yellow-dark, #c9910d);
 		border-left-width: 2px;
 	}
 
 	.step:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow, #e3ac18);
 	}
 
 	.step:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
+	/* Programmed on -- yellow, same "selected/intentional" meaning as the
+	   drum grid's own .step.active, not a live/status color. */
 	.step.active {
-		background: color-mix(in srgb, var(--live-accent, #06b6d4) 16%, var(--fret-bg, #fff));
-		border-color: var(--live-accent, #06b6d4);
+		background: color-mix(in srgb, var(--ff-yellow, #e3ac18) 22%, var(--ff-black, #151411));
+		border-color: var(--ff-yellow-dark, #c9910d);
 	}
 
 	.step.accented {
 		border-width: 2px;
 	}
 
+	/* The step currently shown in the editor below -- ivory, not yellow, so
+	   it stays visible against an .active step's own yellow fill (same
+	   reasoning as FretCell's selected-root ring vs. its root pill). */
 	.step.selected {
-		box-shadow: 0 0 0 2px var(--nut, #7c3aed);
+		box-shadow: 0 0 0 2px var(--ff-ivory, #f1e6c5);
 	}
 
+	/* The playhead -- red, matching every other "currently sounding" cue. */
 	.step.current {
-		border-color: var(--nut, #7c3aed);
-		box-shadow: 0 0 0 2px var(--nut, #7c3aed);
-		animation: step-pulse 0.12s ease-out;
+		border-color: var(--ff-red, #e34832);
+		box-shadow:
+			0 0 0 2px var(--ff-red, #e34832),
+			0 0 0.5rem 0.05rem var(--ff-red, #e34832);
+		animation: step-pulse 500ms ease-in-out;
 	}
 
 	.interval {
 		font-size: 0.65rem;
 		font-weight: 700;
+		color: var(--ff-yellow, #e3ac18);
 	}
 
 	.markers {
@@ -146,20 +158,24 @@
 		gap: 0.1rem;
 		font-size: 0.5rem;
 		font-weight: 700;
-		opacity: 0.75;
+		color: var(--ff-yellow, #e3ac18);
+		opacity: 0.85;
 		min-height: 0.6rem;
 	}
 
 	.rest {
-		opacity: 0.35;
+		color: var(--ff-gray, #89877f);
 	}
 
 	@keyframes step-pulse {
-		from {
-			transform: scale(1.35);
-		}
-		to {
+		0%,
+		100% {
 			transform: scale(1);
+			opacity: 0.85;
+		}
+		50% {
+			transform: scale(1.12);
+			opacity: 1;
 		}
 	}
 </style>

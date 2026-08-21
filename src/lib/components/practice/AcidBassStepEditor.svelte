@@ -115,31 +115,30 @@
 	}
 
 	.field-label {
-		font-weight: 700;
+		font-weight: 600;
 		text-transform: uppercase;
 		font-size: 0.65rem;
-		letter-spacing: 0.04em;
-		color: var(--nut, #7c3aed);
-		opacity: 0.85;
+		letter-spacing: 0.06em;
+		color: inherit;
 	}
 
 	select {
 		font: inherit;
 		font-weight: 600;
 		padding: 0.35rem 0.5rem;
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-		border: 2px solid var(--fret-border, #ddd3f7);
-		border-radius: 8px;
+		background: var(--ff-black, #151411);
+		color: var(--fg, #f1e6c5);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
 		cursor: pointer;
 	}
 
 	select:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow-dark, #c9910d);
 	}
 
 	select:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 
@@ -163,26 +162,26 @@
 		font-size: 0.8rem;
 		width: 2.2rem;
 		padding: 0.3rem 0;
-		border-radius: 6px;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
+		border-radius: var(--ff-radius-control, 4px);
+		border: 1px solid var(--ff-black, #151411);
+		background: var(--ff-black, #151411);
+		color: var(--ff-yellow, #e3ac18);
 		cursor: pointer;
 	}
 
 	.octave-button:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--ff-yellow, #e3ac18);
 	}
 
 	.octave-button.active {
-		border-color: var(--nut, #7c3aed);
-		background: var(--nut, #7c3aed);
-		color: #fff;
+		border-color: var(--ff-black, #151411);
+		background: var(--ff-yellow-dark, #c9910d);
+		color: var(--ff-black, #151411);
 	}
 
 	.octave-button:focus-visible,
 	input[type='checkbox']:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
 	}
 </style>

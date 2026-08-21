@@ -45,14 +45,14 @@ test.describe('Acid Bass: synth controls', () => {
 
 		await expect(page.getByRole('button', { name: 'Saw', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Square', exact: true })).toBeVisible();
-		await expect(page.getByLabel('Tone')).toBeVisible();
-		await expect(page.getByLabel('Resonance')).toBeVisible();
-		await expect(page.getByLabel('Motion')).toBeVisible();
-		await expect(page.getByLabel('Decay')).toBeVisible();
-		await expect(page.getByLabel('Drive')).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Tone' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Resonance' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Motion' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Decay' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Drive' })).toBeVisible();
 	});
 
-	test('Wave selection and sliders update state', async ({ page }) => {
+	test('Wave selection and knobs update state', async ({ page }) => {
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
@@ -63,9 +63,15 @@ test.describe('Acid Bass: synth controls', () => {
 			'true'
 		);
 
-		await page.getByLabel('Drive').fill('80');
-		await page.getByLabel('Drive').dispatchEvent('change');
-		await expect(page.getByLabel('Drive')).toHaveValue('80');
+		// Knob.svelte is a role="slider" div, not a native <input> -- keyboard
+		// PageUp/PageDown move by a tenth of the 0-100 range (see Knob's own
+		// bigStep), so 8 presses from the default 0 lands exactly on 80.
+		const drive = page.getByRole('slider', { name: 'Drive' });
+		await drive.focus();
+		for (let i = 0; i < 8; i++) {
+			await drive.press('PageUp');
+		}
+		await expect(drive).toHaveAttribute('aria-valuenow', '80');
 	});
 });
 
@@ -177,8 +183,11 @@ test.describe('Acid Bass: persistence', () => {
 		await page.getByRole('button', { name: /^Bass (On|Off)$/ }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 		await page.getByRole('button', { name: 'Square', exact: true }).click();
-		await page.getByLabel('Drive').fill('70');
-		await page.getByLabel('Drive').dispatchEvent('change');
+		const drive = page.getByRole('slider', { name: 'Drive' });
+		await drive.focus();
+		for (let i = 0; i < 7; i++) {
+			await drive.press('PageUp');
+		}
 
 		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await bassStep(page, 3).click();
@@ -195,7 +204,10 @@ test.describe('Acid Bass: persistence', () => {
 			'aria-pressed',
 			'true'
 		);
-		await expect(page.getByLabel('Drive')).toHaveValue('70');
+		await expect(page.getByRole('slider', { name: 'Drive' })).toHaveAttribute(
+			'aria-valuenow',
+			'70'
+		);
 
 		await page.getByRole('button', { name: 'Edit Groove' }).click();
 		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
