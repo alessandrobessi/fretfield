@@ -362,6 +362,11 @@ export class ScalePracticeStore {
 		// Live tempo changes take effect immediately, mid-playback -- the
 		// transport keeps its own copy since it can't read `this.bpm` directly.
 		this.transport.setBpm(this.bpm);
+		// Same reasoning for the Acid Bass voice's own LFO -- Sync mode needs the
+		// current BPM to re-derive its rate, and only a live tempo edit changes
+		// that (a patch edit already goes through `setPatch`, which re-derives it
+		// too).
+		this.acidBassVoice?.setTempo(this.bpm);
 		this.persist();
 	}
 
@@ -640,6 +645,7 @@ export class ScalePracticeStore {
 		this.audioContext = new AudioContextCtor();
 		this.acidBassVoice = createAcidBassVoice(this.audioContext);
 		this.acidBassVoice.setPatch(this.groove.acidBass.patch);
+		this.acidBassVoice.setTempo(this.bpm);
 		this.running = true;
 		this.isCountingIn = this.countIn !== 'off';
 		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;

@@ -40,6 +40,18 @@
  * shorter `stepDurationSeconds`, so this file stays unaware ratchets exist
  * at all (see the file's own "must not know about `PatternRole` semantics"
  * doctrine above).
+ *
+ * Modulation (M7): one LFO (`acid-bass-lfo.ts`), free-running and routed to
+ * whichever single destination the patch names (Cutoff/Pitch/Sub Level --
+ * Pulse Width stays a no-op until the worklet oscillator, same as elsewhere
+ * in this file) via a parallel bank of depth-scaling gain nodes, the same
+ * "always connected, gain the inactive ones to zero" idiom as everything
+ * else here. Sync-mode rate depends on the transport's current BPM, which
+ * this file otherwise never touches -- `setTempo()` is the one deliberate
+ * exception, called by `scale-practice.svelte.ts` whenever tempo changes,
+ * so a live tempo edit re-syncs the LFO without needing a full `setPatch()`.
+ * `lfoDepth` locks apply the same "override this trigger only, then revert"
+ * treatment `locks.drive` already gets.
  */
 
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
@@ -54,6 +66,7 @@ import {
 	envAmountToRatio,
 	glideTimeToSeconds,
 	keyTrackingMultiplier,
+	lfoSyncFrequencyHz,
 	mixCompensation,
 	pulseWidthClamp,
 	releaseToSeconds,
@@ -68,9 +81,11 @@ import type {
 	AcidBassPatch,
 	AcidFilterModel,
 	AcidGlideCurve,
+	AcidLfoDestination,
 	AcidStepLocks
 } from '$lib/acid-bass/types';
 
+import { createAcidBassLfo } from './acid-bass-lfo';
 import { frequencyToMidi } from './note-mapping';
 
 export type { AcidBassPatch } from '$lib/acid-bass/types';
@@ -93,6 +108,8 @@ export interface AcidBassTrigger {
 export interface AcidBassVoice {
 	setPatch(patch: AcidBassPatch, atTime?: number): void;
 	schedule(trigger: AcidBassTrigger): void;
+	/** Re-syncs the LFO's rate when it's in Sync mode -- the only tempo-related thing this voice ever needs to know (see file header). */
+	setTempo(bpm: number): void;
 	silence(atTime?: number): void;
 	dispose(): void;
 }
@@ -117,6 +134,33 @@ const BASE_VCA_PEAK = 0.6;
 const DRIVE_OUTPUT_TRIM = 0.8;
 
 const DEFAULT_PATCH: AcidBassPatch = createDefaultAcidPatch();
+
+// LFO depth (0-100) -> each destination's own natural swing at full depth --
+// fixed, not proportional to the current cutoff/note/sub level (simpler and
+// predictable, the same "musically convincing, not circuit-accurate" call
+// the acid24 filter's own design makes elsewhere in this codebase).
+const MAX_CUTOFF_LFO_SWING_HZ = 2500;
+const MAX_PITCH_LFO_CENTS = 100;
+const MAX_SUBLEVEL_LFO_SWING = 0.5;
+
+/** 0-100 depth -> the actual modulation amount for one destination -- `pulseWidth` is always 0 (a no-op until the worklet oscillator lands, see file header), and `subLevel` is inert whenever Sub itself is off rather than audibly wobbling around silence. */
+function lfoDepthAmount(
+	destination: AcidLfoDestination,
+	depth: number,
+	subEnabled: boolean
+): number {
+	const ratio = Math.min(1, Math.max(0, depth / 100));
+	switch (destination) {
+		case 'cutoff':
+			return ratio * MAX_CUTOFF_LFO_SWING_HZ;
+		case 'pitch':
+			return ratio * MAX_PITCH_LFO_CENTS;
+		case 'subLevel':
+			return subEnabled ? ratio * MAX_SUBLEVEL_LFO_SWING : 0;
+		case 'pulseWidth':
+			return 0;
+	}
+}
 
 /** Until the `acid24` AudioWorklet exists (a later V2 milestone), both `svf12` and `acid24` share the same Biquad-based approximation -- `acid24`'s own ladder-filter resonance semantics don't apply to a `BiquadFilterNode` at all, and falling back to the cleaner `svf12` curve is closer to the intended character than the V1-compatibility-oriented `legacy` curve would be. */
 function biquadResonanceModel(model: AcidFilterModel): 'legacy' | 'svf12' {
@@ -251,6 +295,17 @@ export function createAcidBassVoice(
 	const master = ctx.createGain();
 	master.gain.setValueAtTime(volumeToGain(currentPatch.output.volume), ctx.currentTime);
 
+	// One LFO, routed to whichever single destination the patch names via a
+	// parallel bank of depth-scaling gains -- the inactive two always sit at
+	// 0 rather than being connected/disconnected on the fly (see file header).
+	const lfo = createAcidBassLfo(ctx);
+	const cutoffLfoGain = ctx.createGain();
+	cutoffLfoGain.gain.setValueAtTime(0, ctx.currentTime);
+	const pitchLfoGain = ctx.createGain();
+	pitchLfoGain.gain.setValueAtTime(0, ctx.currentTime);
+	const subLevelLfoGain = ctx.createGain();
+	subLevelLfoGain.gain.setValueAtTime(0, ctx.currentTime);
+
 	sawOsc.connect(sawGain);
 	squareOsc.connect(squareGain);
 	triangleOsc.connect(triangleGain);
@@ -271,18 +326,58 @@ export function createAcidBassVoice(
 	outputTrim.connect(master);
 	master.connect(destination);
 
+	// Cutoff/pitch modulation add onto whatever's already scheduled there
+	// (AudioParams sum every connected signal with their own automation
+	// curve) -- Sub Level modulation adds onto `subGain`'s own crossfade
+	// target the same way. Pitch reaches every oscillator's `detune`
+	// (cents-based, so the perceived depth stays consistent across notes
+	// regardless of the note's own absolute frequency) -- including the
+	// currently-inactive main waves, which is harmless since their own gain
+	// is 0 anyway.
+	cutoffLfoGain.connect(filter.frequency);
+	for (const osc of [sawOsc, squareOsc, triangleOsc, pulseOsc, subOsc]) {
+		pitchLfoGain.connect(osc.detune);
+	}
+	subLevelLfoGain.connect(subGain.gain);
+	lfo.output.connect(cutoffLfoGain);
+	lfo.output.connect(pitchLfoGain);
+	lfo.output.connect(subLevelLfoGain);
+
 	sawOsc.start(ctx.currentTime);
 	squareOsc.start(ctx.currentTime);
 	triangleOsc.start(ctx.currentTime);
 	pulseOsc.start(ctx.currentTime);
 	subOsc.start(ctx.currentTime);
 	let disposed = false;
+	let currentBpm = 80;
 
 	const mainOscillators = [sawOsc, squareOsc, triangleOsc, pulseOsc];
 
 	function setOscFrequencyAtTime(osc: OscillatorNode, hz: number, time: number): void {
 		osc.frequency.cancelScheduledValues(time);
 		osc.frequency.setValueAtTime(Math.max(hz, MIN_SAFE_OSC_HZ), time);
+	}
+
+	/** Whichever depth-scaling gain node `destination` currently routes through -- `undefined` for `pulseWidth` (no-op, see file header). */
+	function lfoTargetGain(destination: AcidLfoDestination): GainNode | undefined {
+		switch (destination) {
+			case 'cutoff':
+				return cutoffLfoGain;
+			case 'pitch':
+				return pitchLfoGain;
+			case 'subLevel':
+				return subLevelLfoGain;
+			case 'pulseWidth':
+				return undefined;
+		}
+	}
+
+	function applyLfoRate(patch: AcidBassPatch): void {
+		const hz =
+			patch.lfo.rateMode === 'sync'
+				? lfoSyncFrequencyHz(currentBpm, patch.lfo.division)
+				: patch.lfo.rateHz;
+		lfo.setRateHz(hz);
 	}
 
 	function setFrequencyAtTime(frequencyHz: number, time: number, patch: AcidBassPatch): void {
@@ -414,6 +509,26 @@ export function createAcidBassVoice(
 				atTime,
 				PARAM_SMOOTH_TIME_CONSTANT
 			);
+
+			lfo.setShape(patch.lfo.shape);
+			applyLfoRate(patch);
+			const activeLfoGain = lfoTargetGain(patch.lfo.destination);
+			const lfoAmount = patch.lfo.enabled
+				? lfoDepthAmount(patch.lfo.destination, patch.lfo.depth, patch.oscillator.subEnabled)
+				: 0;
+			for (const gainNode of [cutoffLfoGain, pitchLfoGain, subLevelLfoGain]) {
+				gainNode.gain.cancelScheduledValues(atTime);
+				gainNode.gain.setTargetAtTime(
+					gainNode === activeLfoGain ? lfoAmount : 0,
+					atTime,
+					PARAM_SMOOTH_TIME_CONSTANT
+				);
+			}
+		},
+
+		setTempo(bpm) {
+			currentBpm = bpm;
+			applyLfoRate(currentPatch);
 		},
 
 		schedule(trigger) {
@@ -469,6 +584,31 @@ export function createAcidBassVoice(
 				);
 			}
 
+			if (locks?.lfoDepth !== undefined && patch.lfo.enabled) {
+				// Same one-trigger-then-revert treatment as `locks.drive` above --
+				// only meaningful while the LFO is on and actually routed somewhere.
+				const target = lfoTargetGain(patch.lfo.destination);
+				if (target !== undefined) {
+					const lockedAmount = lfoDepthAmount(
+						patch.lfo.destination,
+						resolved.lfoDepth,
+						patch.oscillator.subEnabled
+					);
+					const baseAmount = lfoDepthAmount(
+						patch.lfo.destination,
+						patch.lfo.depth,
+						patch.oscillator.subEnabled
+					);
+					target.gain.cancelScheduledValues(time);
+					target.gain.setValueAtTime(lockedAmount, time);
+					target.gain.setTargetAtTime(
+						baseAmount,
+						time + stepDurationSeconds,
+						PARAM_SMOOTH_TIME_CONSTANT
+					);
+				}
+			}
+
 			if (slideToFrequencyHz !== undefined) {
 				// Glide near the end of this step instead of releasing -- the
 				// destination step's own (legato) call continues from here.
@@ -513,6 +653,7 @@ export function createAcidBassVoice(
 			triangleOsc.stop(stopTime);
 			pulseOsc.stop(stopTime);
 			subOsc.stop(stopTime);
+			lfo.dispose();
 		}
 	};
 }
