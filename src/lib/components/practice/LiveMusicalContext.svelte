@@ -94,7 +94,7 @@
 	.chord {
 		font-weight: 800;
 		font-size: 1.1rem;
-		color: var(--nut, #7c3aed);
+		color: var(--nut, #e3ac18);
 	}
 
 	.detail {

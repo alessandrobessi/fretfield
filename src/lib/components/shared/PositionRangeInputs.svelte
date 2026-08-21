@@ -62,12 +62,11 @@
 	}
 
 	.field-label {
-		font-weight: 700;
+		font-weight: 600;
 		text-transform: uppercase;
 		font-size: 0.65rem;
-		letter-spacing: 0.04em;
-		color: var(--nut, #7c3aed);
-		opacity: 0.85;
+		letter-spacing: 0.06em;
+		color: var(--nut, #e3ac18);
 	}
 
 	input[type='number'] {
@@ -75,19 +74,20 @@
 		font-weight: 600;
 		width: 4.5rem;
 		padding: 0.4rem 0.5rem;
-		background: var(--fret-bg, #fff);
-		color: var(--fret-fg, #241a3d);
-		border: 2px solid var(--fret-border, #ddd3f7);
-		border-radius: 8px;
+		background: var(--surface, #262521);
+		color: var(--fg, #f1e6c5);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
 		cursor: text;
+		font-variant-numeric: tabular-nums;
 	}
 
 	input[type='number']:hover {
-		border-color: var(--nut, #7c3aed);
+		border-color: var(--nut, #e3ac18);
 	}
 
 	input[type='number']:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
 	}
 </style>

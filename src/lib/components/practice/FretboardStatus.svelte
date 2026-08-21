@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Led from '$lib/components/hardware/Led.svelte';
 	import { intervalCompoundLabel, intervalFromRoot } from '$lib/music/intervals';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { liveInput } from '$lib/stores/live-input.svelte';
@@ -18,7 +19,7 @@
 
 {#if liveInput.enabled}
 	<p class="fretboard-status" aria-live="polite">
-		<span class="dot" aria-hidden="true"></span>
+		<Led state="active" />
 		<span class="label">Bass Connected</span>
 		{#if noteName}
 			<span class="detail">Played {noteName}</span>
@@ -38,14 +39,6 @@
 		margin: 0;
 		font-size: 0.85rem;
 		font-weight: 600;
-	}
-
-	.dot {
-		width: 0.5rem;
-		height: 0.5rem;
-		border-radius: 50%;
-		background: var(--live-accent, #10b981);
-		flex: 0 0 auto;
 	}
 
 	.label {

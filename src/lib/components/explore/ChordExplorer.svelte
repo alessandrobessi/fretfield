@@ -27,7 +27,7 @@
 		align-items: center;
 		gap: 1.25rem;
 		padding-bottom: 0.75rem;
-		border-bottom: 1px dashed var(--fret-border, #ddd3f7);
+		border-bottom: 1px solid var(--surface-border, #3a382f);
 	}
 
 	.status {
@@ -41,25 +41,31 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.4rem 0.8rem;
-		border-radius: 999px;
+		border-radius: var(--ff-radius-control, 4px);
 		font-weight: 700;
 	}
 
+	/* Root -- yellow (selected/structural), raw token as text against a dark
+	   chip background (darkening it further, the old white-bg-era approach,
+	   would move contrast the wrong way here -- see the fretboard's own
+	   NoteInspector fix). */
 	.root-chip {
-		background: color-mix(in srgb, var(--role-root, #f59e0b) 16%, transparent);
-		color: color-mix(in srgb, var(--role-root, #f59e0b) 70%, black);
+		background: color-mix(in srgb, var(--role-root, #e3ac18) 16%, var(--surface, #262521));
+		color: var(--role-root, #e3ac18);
 	}
 
+	/* Chord -- ivory (neutral information, not a structural/live emphasis;
+	   per the rebrand's own semantic model, §21). */
 	.chord-chip {
-		background: color-mix(in srgb, var(--hero-from, #7c3aed) 14%, transparent);
-		color: var(--hero-from, #7c3aed);
+		background: var(--surface, #262521);
+		color: var(--fg, #f1e6c5);
 	}
 
 	.field-label {
-		font-weight: 700;
+		font-weight: 600;
 		text-transform: uppercase;
 		font-size: 0.65rem;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.06em;
 		opacity: 0.75;
 	}
 

@@ -231,7 +231,7 @@
 	}
 
 	.status-line [data-status='tracking'] {
-		color: var(--live-accent, #06b6d4);
+		color: var(--live-accent, #e34832);
 	}
 
 	.status-line [data-status='error'] {
@@ -241,19 +241,19 @@
 	.level {
 		font-size: 0.75rem;
 		padding: 0.1rem 0.5rem;
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--fret-fg, #241a3d) 8%, transparent);
+		border-radius: var(--ff-radius-control, 4px);
+		background: color-mix(in srgb, var(--fret-fg, #f1e6c5) 8%, transparent);
 	}
 
 	.level[data-level='healthy'] {
-		background: color-mix(in srgb, var(--role-stable, #10b981) 16%, transparent);
-		color: var(--role-stable, #059669);
+		background: color-mix(in srgb, var(--role-stable, #4fd1a5) 16%, transparent);
+		color: var(--role-stable, #4fd1a5);
 	}
 
 	.level[data-level='too-low'],
 	.level[data-level='clipping'] {
-		background: color-mix(in srgb, var(--role-tension, #f97316) 16%, transparent);
-		color: var(--role-tension, #f97316);
+		background: color-mix(in srgb, var(--role-tension, #fb923c) 16%, transparent);
+		color: var(--role-tension, #fb923c);
 	}
 
 	.detected {
@@ -263,7 +263,7 @@
 	.interpretation {
 		margin: 0;
 		padding-top: 0.35rem;
-		border-top: 1px dashed var(--fret-border, #ddd3f7);
+		border-top: 1px solid var(--fret-border, #3a382f);
 	}
 
 	.waiting {

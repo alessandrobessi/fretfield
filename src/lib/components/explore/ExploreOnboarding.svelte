@@ -46,10 +46,10 @@
 	.onboarding-hint {
 		margin: 0;
 		padding: 0.75rem 1.1rem;
-		border-radius: 12px;
-		background: color-mix(in srgb, var(--nut, #7c3aed) 8%, var(--fret-bg, #fff));
-		border: 1px dashed var(--nut, #7c3aed);
-		color: var(--fret-fg, #241a3d);
+		border-radius: var(--ff-radius-panel, 8px);
+		background: color-mix(in srgb, var(--nut, #e3ac18) 8%, var(--surface, #262521));
+		border: 1px dashed var(--nut, #e3ac18);
+		color: var(--fret-fg, #f1e6c5);
 		font-size: 0.9rem;
 		line-height: 1.5;
 	}
