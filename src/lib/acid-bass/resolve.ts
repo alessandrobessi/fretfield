@@ -139,6 +139,14 @@ export function attackToSeconds(value: number): number {
 	return MIN_ATTACK_SECONDS * Math.pow(MAX_ATTACK_SECONDS / MIN_ATTACK_SECONDS, t);
 }
 
+/** Inverse of `attackToSeconds` -- migration only (spec §74): finds the patch value that reproduces a V1-era fixed attack-time constant, so a migrated groove's attack sounds identical rather than snapping to some new arbitrary default. */
+export function v1AttackSecondsToV2Value(seconds: number): number {
+	return Math.round(
+		(100 * Math.log(seconds / MIN_ATTACK_SECONDS)) /
+			Math.log(MAX_ATTACK_SECONDS / MIN_ATTACK_SECONDS)
+	);
+}
+
 const MIN_RELEASE_SECONDS = 0.002;
 const MAX_RELEASE_SECONDS = 0.6;
 
@@ -146,6 +154,14 @@ const MAX_RELEASE_SECONDS = 0.6;
 export function releaseToSeconds(value: number): number {
 	const t = clamp(value, 0, 100) / 100;
 	return MIN_RELEASE_SECONDS * Math.pow(MAX_RELEASE_SECONDS / MIN_RELEASE_SECONDS, t);
+}
+
+/** Inverse of `releaseToSeconds` -- migration only, see `v1AttackSecondsToV2Value`. */
+export function v1ReleaseSecondsToV2Value(seconds: number): number {
+	return Math.round(
+		(100 * Math.log(seconds / MIN_RELEASE_SECONDS)) /
+			Math.log(MAX_RELEASE_SECONDS / MIN_RELEASE_SECONDS)
+	);
 }
 
 const MIN_DECAY_SECONDS = 0.07;
@@ -166,12 +182,20 @@ export function decayToSeconds(value: number): number {
  * (not linearly) toward 100 for a "substantially stronger" hit, per spec
  * §27's own description of the high end.
  */
+const ACCENT_VCA_RANGE = 0.28;
+
 export function accentAmountToMultipliers(value: number): { vca: number; env: number } {
 	const t = clamp(value, 0, 100) / 50;
 	return {
-		vca: 1 + 0.28 * Math.pow(t, 1.5),
+		vca: 1 + ACCENT_VCA_RANGE * Math.pow(t, 1.5),
 		env: 1 + 0.35 * Math.pow(t, 1.5)
 	};
+}
+
+/** Inverse of `accentAmountToMultipliers`'s VCA half -- migration only. V1's own fixed accent constants (1.28x VCA, 1.35x env) were the compatibility point this curve was built around, so this reproduces exactly 50 for them, not an approximation. */
+export function v1AccentToV2Value(vcaBoost: number): number {
+	const t = Math.pow(Math.max(0, (vcaBoost - 1) / ACCENT_VCA_RANGE), 1 / 1.5);
+	return Math.round(50 * t);
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +211,13 @@ export function glideTimeToSeconds(value: number): number {
 	return MIN_GLIDE_SECONDS * Math.pow(MAX_GLIDE_SECONDS / MIN_GLIDE_SECONDS, t);
 }
 
+/** Inverse of `glideTimeToSeconds` -- migration only, see `v1AttackSecondsToV2Value`. (Spec's own `v1SlideSecondsToV2Value` name.) */
+export function v1SlideSecondsToV2Value(seconds: number): number {
+	return Math.round(
+		(100 * Math.log(seconds / MIN_GLIDE_SECONDS)) / Math.log(MAX_GLIDE_SECONDS / MIN_GLIDE_SECONDS)
+	);
+}
+
 // ---------------------------------------------------------------------------
 // Output
 // ---------------------------------------------------------------------------
@@ -199,9 +230,18 @@ export function driveToPregain(value: number): number {
 	return 1 + t * (MAX_DRIVE_PREGAIN - 1);
 }
 
-/** 0-100 -> a 0-1 output gain. Deliberately linear and headroom-conscious -- this is patch output level against the rest of the Groove Engine's voices, not a mastering control. */
+// Headroom against the rest of the Groove Engine's output (drums, chord
+// pad) -- Volume 100 deliberately doesn't reach a bare 1.0 output gain.
+const MAX_OUTPUT_GAIN = 0.9;
+
+/** 0-100 -> the actual final output gain (headroom already folded in -- there is no separate trim multiplier elsewhere). Deliberately linear; this is patch output level against the rest of the Groove Engine's voices, not a mastering control. */
 export function volumeToGain(value: number): number {
-	return clamp(value, 0, 100) / 100;
+	return (clamp(value, 0, 100) / 100) * MAX_OUTPUT_GAIN;
+}
+
+/** Inverse of `volumeToGain` -- migration only, see `v1AttackSecondsToV2Value`. V1's fixed master gain (0.7) reproduces as ~78. */
+export function v1MasterGainToV2Value(gain: number): number {
+	return Math.round((gain / MAX_OUTPUT_GAIN) * 100);
 }
 
 // ---------------------------------------------------------------------------

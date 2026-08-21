@@ -1,4 +1,4 @@
-import { createDefaultAcidBassState } from '$lib/acid-bass/pattern';
+import { coerceAcidBassState } from '$lib/acid-bass/migrate';
 
 import { createEmptyGroove } from './pattern';
 import { TIME_SIGNATURES } from './time-signature';
@@ -47,7 +47,7 @@ function migratePreFeelGroove(groove: PreFeelGroove): Groove {
 		feel: groove.swing > 0 ? 'swing' : 'straight',
 		feelAmount: groove.swing,
 		timeSignature: '4/4',
-		acidBass: { ...createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup), enabled: false }
+		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup })
 	};
 }
 
@@ -72,7 +72,7 @@ function migratePreTimeSignatureGroove(groove: PreTimeSignatureGroove): Groove {
 	return {
 		...groove,
 		timeSignature: '4/4',
-		acidBass: { ...createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup), enabled: false }
+		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup })
 	};
 }
 
@@ -109,7 +109,7 @@ function migratePreAcidBassGroove(groove: PreAcidBassGroove): Groove {
 	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES[groove.timeSignature];
 	return {
 		...groove,
-		acidBass: { ...createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup), enabled: false }
+		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup })
 	};
 }
 
@@ -143,11 +143,25 @@ export function migrateLegacyPattern(legacy: LegacyGroovePattern): Groove {
 	};
 }
 
-/** Reads any prior shape from storage/a preset and always returns a current-model `Groove`. */
+/**
+ * Reads any prior shape from storage/a preset and always returns a
+ * current-model `Groove`. The final fallthrough case (every top-level
+ * `Groove` field already present) still runs `acidBass` through its own
+ * `coerceAcidBassState` unconditionally -- a groove saved while Acid Bass
+ * existed but before it was versioned has every other current field, yet
+ * `acidBass` itself is still V1-shaped (no `version`), and even an already-
+ * current groove's `acidBass` is untrusted persisted data (spec §78).
+ */
 export function coerceGroove(raw: unknown): Groove {
 	if (isLegacyGroovePattern(raw)) return migrateLegacyPattern(raw);
 	if (isPreFeelGroove(raw)) return migratePreFeelGroove(raw);
 	if (isPreTimeSignatureGroove(raw)) return migratePreTimeSignatureGroove(raw);
 	if (isPreAcidBassGroove(raw)) return migratePreAcidBassGroove(raw);
-	return raw as Groove;
+
+	const groove = raw as Groove;
+	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES[groove.timeSignature];
+	return {
+		...groove,
+		acidBass: coerceAcidBassState(groove.acidBass, { stepsPerBar, stepsPerBeatGroup })
+	};
 }

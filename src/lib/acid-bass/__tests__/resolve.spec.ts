@@ -171,9 +171,10 @@ describe('output mapping', () => {
 		expect(driveToPregain(100)).toBeGreaterThan(driveToPregain(50));
 	});
 
-	it('volumeToGain is 0 at 0, 1 at 100, and monotonic', () => {
+	it('volumeToGain is 0 at 0, capped below unity at 100 (headroom), and monotonic', () => {
 		expect(volumeToGain(0)).toBe(0);
-		expect(volumeToGain(100)).toBe(1);
+		expect(volumeToGain(100)).toBeLessThan(1);
+		expect(volumeToGain(100)).toBeGreaterThan(0.5);
 		expect(volumeToGain(75)).toBeGreaterThan(volumeToGain(25));
 	});
 });

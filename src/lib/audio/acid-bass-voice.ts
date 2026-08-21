@@ -79,9 +79,6 @@ const BASE_VCA_PEAK = 0.6;
 // this is headroom against the rest of the Groove Engine's output, not a
 // precise loudness-compensation curve.
 const DRIVE_OUTPUT_TRIM = 0.8;
-// Multiplied onto `volumeToGain(patch.output.volume)` -- keeps max Volume
-// (100) from landing at a bare 1.0 once combined with drive's own headroom.
-const MAX_OUTPUT_GAIN = 0.9;
 
 const DEFAULT_PATCH: AcidBassPatch = createDefaultAcidPatch();
 
@@ -154,10 +151,7 @@ export function createAcidBassVoice(
 	const outputTrim = ctx.createGain();
 	outputTrim.gain.setValueAtTime(DRIVE_OUTPUT_TRIM, ctx.currentTime);
 	const master = ctx.createGain();
-	master.gain.setValueAtTime(
-		volumeToGain(currentPatch.output.volume) * MAX_OUTPUT_GAIN,
-		ctx.currentTime
-	);
+	master.gain.setValueAtTime(volumeToGain(currentPatch.output.volume), ctx.currentTime);
 
 	sawOsc.connect(sawGain);
 	squareOsc.connect(squareGain);
@@ -235,7 +229,7 @@ export function createAcidBassVoice(
 			);
 			master.gain.cancelScheduledValues(atTime);
 			master.gain.setTargetAtTime(
-				volumeToGain(patch.output.volume) * MAX_OUTPUT_GAIN,
+				volumeToGain(patch.output.volume),
 				atTime,
 				PARAM_SMOOTH_TIME_CONSTANT
 			);
