@@ -926,3 +926,17 @@ The MVP succeeds when a bassist can:
 The strongest test is pedagogical:
 
 > After using FretField, the player should increasingly think in intervals and harmonic function instead of isolated fret numbers and note names.
+
+---
+
+## 27. Visual Identity (2026 Rebrand)
+
+FretField shipped a full visual rebrand in 2026-08, replacing the original soft violet/lavender look with an industrial "musical machine" identity, following a separately-supplied visual-brand spec (`FRETFIELD-REBRAND.md`). §10's own semantic hierarchy (root gets highest emphasis, structural/stable/color/tension/chromatic-approach form a descending scale, non-color signals matter) is unchanged and still the governing rule — this section records the concrete palette/component system that now implements it. See `AGENTS.md` §4/§7 for the full architecture and doctrine.
+
+**Palette** (`src/app.css` tokens): industrial yellow (`--ff-yellow`/`--ff-yellow-dark`) for selected/structural/intentional state, near-black (`--ff-black`/`--ff-carbon`) for the app shell and machine structure, signal red (`--ff-red`) reserved exclusively for live/current/sounding state (the playhead, a connected live input, a currently-playing transport), and ivory (`--ff-ivory`) for neutral information. This mapping is stable across the product (spec §21) — red must never become a generic highlight, and yellow must never expand to cover the whole app (spec §6/§25).
+
+**The 9-role harmonic color system is preserved, not replaced.** Root and structural move into the brand's two yellow shades (they _are_ "selected/structural" in the rebrand's own semantic model); the other seven roles (stable/extension/color/tension/alteration/chromatic-approach/avoid) keep seven distinguishable hues carrying information the brand system has no opinion on — deliberately steered away from yellow (reserved) and pure red (reserved for live signal specifically; `role-alteration` used to be visually near-identical to signal red and was moved off it for exactly this reason).
+
+**Hardware component primitives** (`src/lib/components/hardware/`): `Led` (off/active/current, with a static glow plus an optional reduced-motion-safe pulse — every animated state has a non-motion equivalent, per spec §19), `HardwarePanel` (the yellow-chassis/black-carbon branded faceplate wrapper, used for the Groove Engine and Acid Bass specifically — not general app chrome), `HardwareButton` (primary yellow/black and secondary black/yellow variants), and `Knob` (a real rotary control — vertical-drag plus full keyboard support, `role="slider"` with the value exposed on hover/focus/drag), landing specifically on Acid Bass's six patch macros per the spec's own instruction that it should be "the most explicitly instrument-like module."
+
+**Logo**: the Field Matrix mark (a minimal bordered grid with one red signal node at a deliberate, non-center/non-corner intersection) replaced the original literal fretboard-with-strings drawing across the favicon, header mark, and README banner — chosen over the spec's other two logo directions (Fret Signal, Signal Neck) as the one that doesn't lock the identity to a literal instrument icon.

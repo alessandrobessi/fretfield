@@ -137,6 +137,8 @@ Rendering and interaction only.
 
 Components consume analyzed music data.
 
+`src/lib/components/hardware/` holds the 2026 visual-rebrand's reusable primitives: `Led.svelte` (off/active/current, with a static glow plus an optional `prefers-reduced-motion`-safe pulse — every animated state has a non-motion equivalent, per §17), `HardwarePanel.svelte` (the branded yellow-chassis/carbon-panel wrapper; `tone="yellow"` is reserved for the handful of modules the rebrand calls out — Groove Engine, Acid Bass — not general app chrome), `HardwareButton.svelte` (primary yellow/black and secondary black/yellow variants, with a shared `pressed` deep-yellow state for toggle buttons), and `Knob.svelte` (a real rotary control: vertical-drag plus full keyboard support — arrows/Home/End/PageUp/PageDown — `role="slider"`, value exposed on hover/focus/drag; used specifically for Acid Bass's six patch macros, not as a blanket replacement for every slider — Groove Engine's Amount/Intensity stay plain range inputs). Toggle/switch state elsewhere in the app still uses the existing `aria-pressed`-button pattern directly rather than a dedicated Switch component — a deliberate scope decision, not an oversight.
+
 ### `src/lib/stores/`
 
 Application state only.
@@ -251,6 +253,8 @@ Also use non-color signals where practical:
 
 This is both pedagogically clearer and more accessible.
 
+**Brand palette semantics (2026 visual rebrand, `src/app.css`'s `--ff-*` tokens):** yellow (`--ff-yellow`/`--ff-yellow-dark`) means selected/structural/intentional, near-black (`--ff-black`/`--ff-carbon`) is machine structure and app chrome, signal red (`--ff-red`) means live/current/sounding — reserved exclusively for the playhead, a connected live input, or an actively-playing transport, never a generic highlight or a destructive/danger color's excuse — and ivory (`--ff-ivory`) is neutral information. This is a _separate, additive_ layer on top of the nine role categories above, not a replacement for them: root/structural specifically live in the brand's two yellow shades (they already mean "selected/structural" in both systems at once), but the other seven roles keep distinguishing hues of their own, deliberately steered away from pure red so a harmonic role can never be mistaken for a live-signal cue. If a future palette change is tempted to collapse the nine roles down to fewer colors "for brand consistency," that's the wrong move — this section's own rule (nine semantic categories, not brand chrome) still governs the fretboard, and predates the brand spec.
+
 ---
 
 ## 8. Intervals are the default language
@@ -333,6 +337,10 @@ ProgressionSelector
 AcidBassControls
 AcidBassStepGrid
 AcidBassStepEditor
+Led
+HardwarePanel
+HardwareButton
+Knob
 ```
 
 Avoid premature micro-components for trivial wrappers.

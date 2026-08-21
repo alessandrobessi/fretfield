@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
 	<title>FretField — See the harmonic field. Move through it.</title>
-	<!-- Field Matrix mark (visual-rebrand spec, direction 2) -- see
+	<!-- Field Matrix mark (visual-rebrand spec, direction 2); see
 	     logo-mark.svg for the construction note. Drawn directly onto the
 	     banner's own yellow field rather than as a separate badge. -->
 	<rect width="1200" height="300" rx="40" fill="#E3AC18" />
