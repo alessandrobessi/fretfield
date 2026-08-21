@@ -9,6 +9,10 @@
  * without needing twelve separate hand-authored patterns.
  */
 
+import type { TimeSignature } from './time-signature';
+
+export type { TimeSignature } from './time-signature';
+
 /** The six-voice kit recommended by AGENTS.md -- enough for funk/blues/jazz/soul/rock/bossa without a full General-MIDI-style drum palette. */
 export type DrumVoice = 'kick' | 'snare' | 'closedHat' | 'openHat' | 'ride' | 'rim';
 
@@ -56,4 +60,6 @@ export interface Groove {
 	feel: GrooveFeel;
 	/** 0-100, meaningful only when `feel !== 'straight'`: 0 is a straight halfway split, 100 is a full triplet feel. */
 	feelAmount: number;
+	/** One meter for the whole groove -- every pattern's step count derives from this (see `groove/time-signature.ts`). No per-bar/mixed-meter concept. */
+	timeSignature: TimeSignature;
 }

@@ -41,8 +41,29 @@ function migratePreFeelGroove(groove: PreFeelGroove): Groove {
 		patterns: groove.patterns,
 		arrangement: groove.arrangement,
 		feel: groove.swing > 0 ? 'swing' : 'straight',
-		feelAmount: groove.swing
+		feelAmount: groove.swing,
+		timeSignature: '4/4'
 	};
+}
+
+/** The Groove Engine's own shape before time signatures existed: `feel`/`feelAmount` but no `timeSignature` -- every such groove was implicitly 4/4. */
+interface PreTimeSignatureGroove {
+	patterns: Groove['patterns'];
+	arrangement: Groove['arrangement'];
+	feel: Groove['feel'];
+	feelAmount: number;
+}
+
+function isPreTimeSignatureGroove(value: unknown): value is PreTimeSignatureGroove {
+	if (typeof value !== 'object' || value === null) return false;
+	const v = value as Record<string, unknown>;
+	return (
+		'patterns' in v && 'arrangement' in v && typeof v.feel === 'string' && !('timeSignature' in v)
+	);
+}
+
+function migratePreTimeSignatureGroove(groove: PreTimeSignatureGroove): Groove {
+	return { ...groove, timeSignature: '4/4' };
 }
 
 /**
@@ -70,7 +91,8 @@ export function migrateLegacyPattern(legacy: LegacyGroovePattern): Groove {
 		patterns: { ...groove.patterns, A: patternA },
 		arrangement: ['A'],
 		feel: legacy.swing > 0 ? 'swing' : 'straight',
-		feelAmount: legacy.swing
+		feelAmount: legacy.swing,
+		timeSignature: '4/4'
 	};
 }
 
@@ -78,5 +100,6 @@ export function migrateLegacyPattern(legacy: LegacyGroovePattern): Groove {
 export function coerceGroove(raw: unknown): Groove {
 	if (isLegacyGroovePattern(raw)) return migrateLegacyPattern(raw);
 	if (isPreFeelGroove(raw)) return migratePreFeelGroove(raw);
+	if (isPreTimeSignatureGroove(raw)) return migratePreTimeSignatureGroove(raw);
 	return raw as Groove;
 }

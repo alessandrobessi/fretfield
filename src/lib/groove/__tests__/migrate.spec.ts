@@ -84,4 +84,12 @@ describe('coerceGroove', () => {
 
 		expect(coerceGroove(preFeel).feel).toBe('straight');
 	});
+
+	it('migrates a pre-time-signature Groove (feel/feelAmount, no timeSignature) to 4/4', () => {
+		const preTimeSignature = createEmptyGroove() as unknown as Record<string, unknown>;
+		delete preTimeSignature.timeSignature;
+
+		const coerced = coerceGroove(preTimeSignature);
+		expect(coerced.timeSignature).toBe('4/4');
+	});
 });

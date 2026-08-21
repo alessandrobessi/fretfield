@@ -8,27 +8,44 @@ import {
 	setFeel,
 	setFeelAmount,
 	setStepVelocity,
+	setTimeSignature,
 	stepOffsetMs
 } from '../pattern';
 import { DRUM_VOICES, STEPS_PER_BAR, type PatternRole } from '../types';
 
 describe('createEmptyPattern', () => {
-	it('has 16 off steps for all six voices', () => {
+	it('defaults to 16 off steps for all six voices', () => {
 		const pattern = createEmptyPattern();
 		for (const voice of DRUM_VOICES) {
 			expect(pattern.steps[voice]).toHaveLength(STEPS_PER_BAR);
 			expect(pattern.steps[voice].every((step) => step.velocity === 0)).toBe(true);
 		}
 	});
+
+	it('accepts an explicit step count', () => {
+		const pattern = createEmptyPattern(24);
+		for (const voice of DRUM_VOICES) {
+			expect(pattern.steps[voice]).toHaveLength(24);
+		}
+	});
 });
 
 describe('createEmptyGroove', () => {
-	it('has four empty patterns, a one-bar arrangement, and a straight feel', () => {
+	it('has four empty patterns, a one-bar arrangement, a straight feel, and a 4/4 time signature', () => {
 		const groove = createEmptyGroove();
 		expect(Object.keys(groove.patterns).sort()).toEqual(['A', 'B', 'F', 'T']);
 		expect(groove.arrangement).toEqual(['A']);
 		expect(groove.feel).toBe('straight');
 		expect(groove.feelAmount).toBe(0);
+		expect(groove.timeSignature).toBe('4/4');
+	});
+
+	it('sizes every pattern to the given time signature', () => {
+		const groove = createEmptyGroove('3/4');
+		expect(groove.timeSignature).toBe('3/4');
+		for (const role of ['A', 'B', 'F', 'T'] as const) {
+			expect(groove.patterns[role].steps.kick).toHaveLength(12);
+		}
 	});
 });
 
@@ -109,6 +126,42 @@ describe('setArrangementLength', () => {
 	});
 });
 
+describe('setTimeSignature', () => {
+	it('resizes every pattern to the new step count, padding with off-steps', () => {
+		const groove = setTimeSignature(createEmptyGroove(), '5/4');
+		expect(groove.timeSignature).toBe('5/4');
+		for (const role of ['A', 'B', 'F', 'T'] as const) {
+			for (const voice of DRUM_VOICES) {
+				expect(groove.patterns[role].steps[voice]).toHaveLength(20);
+				expect(groove.patterns[role].steps[voice].every((s) => s.velocity === 0)).toBe(true);
+			}
+		}
+	});
+
+	it('preserves existing steps within the new length', () => {
+		const patternA = setStepVelocity(createEmptyPattern(), 'kick', 3, 1);
+		const groove = {
+			...createEmptyGroove(),
+			patterns: { ...createEmptyGroove().patterns, A: patternA }
+		};
+		const shrunk = setTimeSignature(groove, '3/4');
+		expect(shrunk.patterns.A.steps.kick).toHaveLength(12);
+		expect(shrunk.patterns.A.steps.kick[3].velocity).toBe(1);
+	});
+
+	it('drops steps beyond the new, shorter length', () => {
+		const patternA = setStepVelocity(createEmptyPattern(), 'kick', 15, 1);
+		const groove = {
+			...createEmptyGroove(),
+			patterns: { ...createEmptyGroove().patterns, A: patternA }
+		};
+		const shrunk = setTimeSignature(groove, '3/4');
+		expect(shrunk.patterns.A.steps.kick).toHaveLength(12);
+		// Step 15 no longer exists in a 12-step pattern -- it's simply gone, not shifted.
+		expect(shrunk.patterns.A.steps.kick.every((s) => s.velocity === 0)).toBe(true);
+	});
+});
+
 describe('stepOffsetMs', () => {
 	it('never delays on-beat (multiple of 4) steps, regardless of swing', () => {
 		for (const step of [0, 4, 8, 12]) {
@@ -135,5 +188,24 @@ describe('stepOffsetMs', () => {
 			expect(stepOffsetMs(step, bpm, 100)).toBeCloseTo(fullSwingOffset, 5);
 			expect(stepOffsetMs(step, bpm, 50)).toBeCloseTo(fullSwingOffset / 2, 5);
 		}
+	});
+
+	it('defaults stepsPerBeatGroup to 4, matching every existing 4/4 call site', () => {
+		expect(stepOffsetMs(2, 120, 100)).toBeGreaterThan(0);
+	});
+
+	it('is inert for compound meters (a 6-step beat group), regardless of step index or swing', () => {
+		for (let step = 0; step < 12; step++) {
+			expect(stepOffsetMs(step, 120, 100, 6)).toBe(0);
+		}
+	});
+
+	it('applies at the midpoint of whatever simple-meter beat group is given', () => {
+		const bpm = 120;
+		const beatDurationMs = 60_000 / bpm;
+		const fullSwingOffset = beatDurationMs * (1 / 6);
+		// A 5/4-shaped call still uses 4-step groups (simple meter) -- same offset step positions as 4/4.
+		expect(stepOffsetMs(2, bpm, 100, 4)).toBeCloseTo(fullSwingOffset, 5);
+		expect(stepOffsetMs(18, bpm, 100, 4)).toBeCloseTo(fullSwingOffset, 5);
 	});
 });

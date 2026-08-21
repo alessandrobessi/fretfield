@@ -1,3 +1,4 @@
+import { TIME_SIGNATURES } from './time-signature';
 import {
 	DRUM_VOICES,
 	PATTERN_ROLES,
@@ -6,22 +7,25 @@ import {
 	type Groove,
 	type GrooveFeel,
 	type GroovePattern,
+	type GrooveStep,
 	type PatternRole,
-	type StepVelocity
+	type StepVelocity,
+	type TimeSignature
 } from './types';
 
-export function createEmptyPattern(): GroovePattern {
+export function createEmptyPattern(stepsPerBar: number = STEPS_PER_BAR): GroovePattern {
 	const steps = {} as Record<DrumVoice, GroovePattern['steps'][DrumVoice]>;
 	for (const voice of DRUM_VOICES) {
-		steps[voice] = Array.from({ length: STEPS_PER_BAR }, () => ({ velocity: 0 as StepVelocity }));
+		steps[voice] = Array.from({ length: stepsPerBar }, () => ({ velocity: 0 as StepVelocity }));
 	}
 	return { steps };
 }
 
-export function createEmptyGroove(): Groove {
+export function createEmptyGroove(timeSignature: TimeSignature = '4/4'): Groove {
+	const stepsPerBar = TIME_SIGNATURES[timeSignature].stepsPerBar;
 	const patterns = {} as Record<PatternRole, GroovePattern>;
-	for (const role of PATTERN_ROLES) patterns[role] = createEmptyPattern();
-	return { patterns, arrangement: ['A'], feel: 'straight', feelAmount: 0 };
+	for (const role of PATTERN_ROLES) patterns[role] = createEmptyPattern(stepsPerBar);
+	return { patterns, arrangement: ['A'], feel: 'straight', feelAmount: 0, timeSignature };
 }
 
 export function setStepVelocity(
@@ -76,17 +80,58 @@ export function setArrangementLength(groove: Groove, length: number): Groove {
 	return { ...groove, arrangement };
 }
 
+/** Same truncate/pad shape `setArrangementLength` uses for bars, applied here to one voice's step array instead. */
+function resizeSteps(steps: GrooveStep[], length: number): GrooveStep[] {
+	if (steps.length === length) return steps;
+	if (steps.length > length) return steps.slice(0, length);
+	const padding = Array.from({ length: length - steps.length }, () => ({
+		velocity: 0 as StepVelocity
+	}));
+	return [...steps, ...padding];
+}
+
+/**
+ * Switches the whole groove to a new meter, resizing every pattern's every
+ * voice to the new step count -- steps beyond the new length are dropped,
+ * a shorter-to-longer change pads with off-steps. One meter for the whole
+ * groove, not per-bar (see AGENTS.md).
+ */
+export function setTimeSignature(groove: Groove, timeSignature: TimeSignature): Groove {
+	const stepsPerBar = TIME_SIGNATURES[timeSignature].stepsPerBar;
+	const patterns = {} as Record<PatternRole, GroovePattern>;
+	for (const role of PATTERN_ROLES) {
+		const steps = {} as Record<DrumVoice, GrooveStep[]>;
+		for (const voice of DRUM_VOICES) {
+			steps[voice] = resizeSteps(groove.patterns[role].steps[voice], stepsPerBar);
+		}
+		patterns[role] = { steps };
+	}
+	return { ...groove, patterns, timeSignature };
+}
+
 /**
  * Swing operates at 8th-note resolution, not 16th -- it delays the "and" of
- * each beat (step index 2 within every 4-step quarter-note group: absolute
- * steps 2, 6, 10, 14), sliding it from the straight halfway point (0% swing)
+ * each beat (the step at the midpoint of every `stepsPerBeatGroup`-step
+ * beat group), sliding it from the straight halfway point (0% swing)
  * toward the triplet position two-thirds of the way through the beat (100%
  * swing). This is the classic blues-shuffle/jazz-swing feel; genre patterns
  * that want a straight 16th-note character (e.g. funk) just use 0 swing
  * rather than a second swing resolution.
+ *
+ * Only meaningful for simple meters (`stepsPerBeatGroup === 4`) -- compound
+ * meters (6-step beat groups) already carry their own triplet-like
+ * 3-against-2 feel, so swing is inert on top of that (see AGENTS.md).
+ * `stepsPerBeatGroup` defaults to 4 so existing 4/4 call sites are
+ * unaffected.
  */
-export function stepOffsetMs(stepIndex: number, bpm: number, swing: number): number {
-	if (stepIndex % 4 !== 2) return 0;
+export function stepOffsetMs(
+	stepIndex: number,
+	bpm: number,
+	swing: number,
+	stepsPerBeatGroup: number = 4
+): number {
+	if (stepsPerBeatGroup !== 4) return 0;
+	if (stepIndex % stepsPerBeatGroup !== 2) return 0;
 	const beatDurationMs = 60_000 / bpm;
 	return beatDurationMs * (1 / 6) * (swing / 100);
 }
