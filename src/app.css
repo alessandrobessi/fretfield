@@ -1,61 +1,94 @@
 :root {
-	color-scheme: light;
+	color-scheme: dark;
 
-	--bg: #faf8ff;
-	--fg: #241a3d;
-	--bg-glow-1: #f3e8ff;
-	--bg-glow-2: #ffe4f3;
-	--hero-from: #7c3aed;
-	--hero-via: #a855f7;
-	--hero-to: #ec4899;
-	--fretboard-bg: #ede8fb;
-	--fret-bg: #ffffff;
-	--fret-bg-hover: #f4effe;
-	--fret-border: #ddd3f7;
-	--fret-fg: #241a3d;
-	--fret-marker: #b6a8e6;
-	--fret-number: #7c6aa8;
-	--nut: #7c3aed;
-	--focus-ring: #7c3aed;
-	--selected-root-ring: #ec4899;
+	/* FretField brand primitives (visual-rebrand spec) — industrial yellow /
+	   near-black / signal red. Everything else in this file is a semantic
+	   alias onto these four, so a future palette tweak has one place to
+	   change. Kept as raw hex (not derived via color-mix) so contrast can be
+	   verified directly against these literal values. */
+	--ff-yellow: #e3ac18;
+	--ff-yellow-dark: #c9910d;
+	--ff-black: #151411;
+	--ff-carbon: #262521;
+	--ff-red: #e34832;
+	--ff-red-dim: #6d2a22;
+	--ff-ivory: #f1e6c5;
+	--ff-gray: #89877f;
 
-	/* Semantic role colors (AGENTS.md §7) — the single source both FretCell
-	   and Legend read from, so they stay in sync by construction. */
-	--role-root: #f59e0b;
-	--role-structural: #4f46e5;
-	--role-stable: #10b981;
-	--role-extension: #a855f7;
-	--role-color: #ec4899;
-	--role-tension: #f97316;
-	--role-alteration: #ef4444;
-	--role-chromatic-approach: #64748b;
-	--role-avoid: #78716c;
+	--ff-radius-panel: 8px;
+	--ff-radius-control: 4px;
+	--ff-radius-led: 999px;
 
-	/* Guided Practice feedback colors. --practice-caution-accent is also
-	   FretCell's valid-alternative marker border/fill — components that use
-	   it as *text* darken it with color-mix rather than defining a second
-	   token (see NoteInspector.svelte/GuidedPracticeControls.svelte). */
-	--practice-target-accent: #10b981;
-	--practice-correct-accent: #10b981;
-	--practice-caution-accent: #eab308;
-	--practice-incorrect-accent: #94a3b8;
+	--ff-border-strong: 2px solid var(--ff-black);
+	--ff-panel-gap: 16px;
+	--ff-control-gap: 12px;
 
-	/* Scale Blocks / Custom Scale Map chip colors — up to MAX_CHORD_BLOCKS (8). */
-	--scale-block-1: #3b82f6;
-	--scale-block-2: #f43f5e;
-	--scale-block-3: #eab308;
-	--scale-block-4: #8b5cf6;
-	--scale-block-5: #14b8a6;
-	--scale-block-6: #84cc16;
-	--scale-block-7: #d946ef;
-	--scale-block-8: #0ea5e9;
-	--scale-block-common: #10b981;
+	/* The rebrand's own semantic model (spec §11/§21): yellow means
+	   selected/structural/intentional, red means live/sounding/current.
+	   Named aliases so every "is this the right shade" call site reads the
+	   same word the doctrine uses, not a raw hex or an unrelated legacy
+	   name. */
+	--ff-selected: var(--ff-yellow-dark);
+	--ff-live: var(--ff-red);
+	--ff-live-dim: var(--ff-red-dim);
 
-	/* Live Input / Bass connection colors. */
-	--live-accent: #06b6d4;
-	--live-accent-hover: #0891b2;
-	--live-accent-strong: #0e7490;
-	--live-target-accent: #10b981;
+	/* App shell surfaces. */
+	--bg: var(--ff-black);
+	--fg: var(--ff-ivory);
+	--fg-muted: var(--ff-gray);
+	--surface: var(--ff-carbon);
+	--surface-border: #3a382f;
+
+	--fretboard-bg: #1c1a16;
+	--fret-bg: var(--ff-carbon);
+	--fret-bg-hover: #322f28;
+	--fret-border: var(--surface-border);
+	--fret-fg: var(--ff-ivory);
+	--fret-marker: var(--ff-gray);
+	--fret-number: var(--ff-gray);
+
+	/* Generic brand/selection accent -- kept under its original name since
+	   it's consumed this widely (17 components as of the 2026 rebrand:
+	   hover borders, active tabs/toggles, arrangement/step-role emphasis),
+	   but repointed from the old violet identity onto the new one. Distinct
+	   from --ff-live: this is "selected/intentional," never "sounding right
+	   now" -- see AGENTS.md's rebrand doctrine for the boundary between the
+	   two now that both exist as named concepts. */
+	--nut: var(--ff-yellow);
+	--focus-ring: var(--ff-yellow);
+	--selected-root-ring: var(--ff-yellow);
+
+	/* Semantic role colors (AGENTS.md §3.3/§7) — the single source both
+	   FretCell and Legend read from, so they stay in sync by construction.
+	   Preserved as nine distinguishable hues (this is harmonic-role
+	   information, not brand chrome — see the rebrand doctrine's own "9-role
+	   palette preserved" design call): root/structural move into the brand's
+	   two yellow shades since they *are* "selected/structural" in the
+	   rebrand's own semantic model; the other seven keep a spread across the
+	   hues yellow/red don't own, specifically steering --role-alteration
+	   away from red (it used to be near-identical to signal red, which would
+	   have broken red's "live signal" exclusivity — see §19/§25's own "red
+	   must never be a generic highlight" rule). */
+	--role-root: var(--ff-yellow);
+	--role-structural: var(--ff-yellow-dark);
+	--role-stable: #4fd1a5;
+	--role-extension: #a78bfa;
+	--role-color: #f472b6;
+	--role-tension: #fb923c;
+	--role-alteration: #38bdf8;
+	--role-chromatic-approach: #94a3b8;
+	--role-avoid: #a8a29e;
+
+	/* Live Input / Bass connection / "currently sounding" colors — all one
+	   family, all Signal Red, per the rebrand's central "red = live signal"
+	   rule. Was cyan; every consumer already meant the same thing (a
+	   currently-playing/connected/sounding state), confirmed across
+	   FretCell's played-note ring, BassConnection's connected state,
+	   FretboardStatus's live dot, and AcidBassStepGrid's current-step
+	   highlight before this rename. */
+	--live-accent: var(--ff-red);
+	--live-accent-hover: #c93a26;
+	--live-accent-strong: var(--ff-red-dim);
 }
 
 * {
@@ -64,17 +97,35 @@
 
 body {
 	margin: 0;
-	/* Quieter than the original: smaller, faster-fading glows so the page
-	   background stays out of the way of the fretboard's own color. */
-	background:
-		radial-gradient(ellipse 48rem 22rem at 10% -10%, var(--bg-glow-1) 0%, transparent 50%),
-		radial-gradient(ellipse 40rem 18rem at 90% 0%, var(--bg-glow-2) 0%, transparent 45%), var(--bg);
+	background: var(--bg);
 	color: var(--fg);
+	/* Grotesk-leaning system stack rather than a bundled webfont (see the
+	   rebrand doctrine's "no new font asset" design call) -- Roboto/Segoe
+	   UI/Helvetica Neue/Arial are all true grotesks, so most platforms land
+	   on one of those instead of a more humanist default. */
 	font-family:
-		system-ui,
+		ui-sans-serif,
 		-apple-system,
 		'Segoe UI',
+		Roboto,
+		'Helvetica Neue',
+		Arial,
 		sans-serif;
+	/* Tabular numerals everywhere by default (spec §7: "Tempo, BPM, step
+	   numbers, and meter should use tabular numerals") -- harmless on
+	   non-numeric text, so a global default is simpler than tagging every
+	   readout individually. */
+	font-variant-numeric: tabular-nums;
+}
+
+/* Hardware-style label: TONE, RESONANCE, PATTERN, ACTIVE STEP, etc. (spec
+   §7). Apply directly to whatever element already carries the text -- this
+   is a utility class, not a component. */
+.ff-label {
+	font-weight: 600;
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
 }
 
 @media (prefers-reduced-motion: reduce) {
