@@ -249,6 +249,8 @@ export class ScalePracticeStore {
 	private currentBarChordRoot: PitchClass | null = null;
 	/** The bar index `currentBarPattern`/`currentBarAcidPattern` were resolved for -- kept around so a mid-bar meter change (see `setTimeSignature`) can re-resolve both against the just-resized `groove` for the bar already in progress, instead of leaving them pointed at stale, wrong-length pattern arrays until the next `onBarStart`. */
 	private currentBar = 0;
+	/** Set by `scheduleAcidBassStep` when a bar's *last* step slides into the next bar's first (cross-bar slide, spec §76) -- read and cleared the moment that next bar's own step 0 is scheduled, so legato only ever applies to the one step it was set for. */
+	private pendingCrossBarLegato = false;
 	/** The persistent monophonic synth voice -- created in `start()`, disposed in `stop()`, alongside `audioContext`'s own lifecycle (never a second `AudioContext`). */
 	private acidBassVoice: AcidBassVoice | null = null;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
@@ -650,6 +652,7 @@ export class ScalePracticeStore {
 		this.transport.stop();
 		this.acidBassVoice?.dispose();
 		this.acidBassVoice = null;
+		this.pendingCrossBarLegato = false;
 		void this.audioContext?.close();
 		this.audioContext = null;
 		this.cancelPendingChordHighlights();
@@ -718,12 +721,29 @@ export class ScalePracticeStore {
 	 * sharing the same accent/locks across every hit, and silently ignores the
 	 * step's own outgoing `slide` (spec §42 -- which of several hits would
 	 * glide is undefined, so ratchet wins).
+	 *
+	 * Cross-bar slide (M6, spec §76): a bar's *last* step, if sliding and
+	 * `acidBass.crossBarSlide` is on, peeks one bar ahead via the same
+	 * `activeAcidPatternForBar`/`resolveBarChordRoot` lookups `handleBarStart`
+	 * itself will use once that bar actually starts -- `handleBarStart` hasn't
+	 * run for the next bar yet at this point (see `GrooveTransport`'s
+	 * scheduling order), so this can't just read `currentBarAcidPattern`.
+	 * `pendingCrossBarLegato` carries the "yes, glide into it" decision forward
+	 * to that next bar's own step-0 call, which is the only thing that turns
+	 * it into a `legato` continuation rather than a fresh retrigger. Migrated
+	 * V1 grooves default `crossBarSlide` to `false` (spec §76's own
+	 * compatibility policy, see `acid-bass/migrate.ts`), so this whole branch
+	 * is inert for them -- a bar's last step simply drops its slide at the
+	 * bar boundary, exactly like V1 always did.
 	 */
 	private scheduleAcidBassStep(stepIndex: number, time: number): void {
 		if (!this.groove.acidBass.enabled || this.acidBassVoice === null) return;
 		if (this.currentBarChordRoot === null) return;
 
 		const pattern = this.currentBarAcidPattern;
+		const crossedFromPreviousBar = stepIndex === 0 && this.pendingCrossBarLegato;
+		if (stepIndex === 0) this.pendingCrossBarLegato = false;
+
 		const step = pattern[stepIndex];
 		if (step === undefined || !step.active) return;
 
@@ -731,7 +751,9 @@ export class ScalePracticeStore {
 		if (!stepShouldTrigger(step, this.currentBar, stepIndex, role)) return;
 
 		const previousStep = stepIndex > 0 ? pattern[stepIndex - 1] : undefined;
-		const legato = previousStep !== undefined && previousStep.active && previousStep.slide;
+		const legato =
+			crossedFromPreviousBar ||
+			(previousStep !== undefined && previousStep.active && previousStep.slide);
 
 		const frequencyHz = midiToFrequency(resolveAcidStepMidi(this.currentBarChordRoot, step));
 		const stepDurationSeconds = 60 / this.bpm / 4;
@@ -752,11 +774,24 @@ export class ScalePracticeStore {
 
 		let slideToFrequencyHz: number | undefined;
 		if (step.slide) {
-			const nextStep = pattern[stepIndex + 1];
-			if (nextStep?.active) {
-				slideToFrequencyHz = midiToFrequency(
-					resolveAcidStepMidi(this.currentBarChordRoot, nextStep)
-				);
+			const isLastStepOfBar = stepIndex === pattern.length - 1;
+			if (isLastStepOfBar) {
+				if (this.groove.acidBass.crossBarSlide) {
+					const nextBar = this.currentBar + 1;
+					const nextRoot = this.resolveBarChordRoot(nextBar);
+					const nextStep = this.activeAcidPatternForBar(nextBar)[0];
+					if (nextRoot !== null && nextStep?.active) {
+						slideToFrequencyHz = midiToFrequency(resolveAcidStepMidi(nextRoot, nextStep));
+						this.pendingCrossBarLegato = true;
+					}
+				}
+			} else {
+				const nextStep = pattern[stepIndex + 1];
+				if (nextStep?.active) {
+					slideToFrequencyHz = midiToFrequency(
+						resolveAcidStepMidi(this.currentBarChordRoot, nextStep)
+					);
+				}
 			}
 		}
 
