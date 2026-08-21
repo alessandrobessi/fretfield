@@ -8,6 +8,11 @@
 		type PatternRole
 	} from '$lib/groove/types';
 	import { listGroovePresets } from '$lib/groove/presets';
+	import {
+		listTimeSignatures,
+		TIME_SIGNATURES,
+		type TimeSignature
+	} from '$lib/groove/time-signature';
 	import type { CountIn } from '$lib/groove/transport';
 	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
 	import ProgressionSelector from '$lib/components/ProgressionSelector.svelte';
@@ -40,6 +45,12 @@
 	};
 
 	const presets = listGroovePresets();
+	const timeSignatures = listTimeSignatures();
+
+	const stepsPerBeatGroup = $derived(
+		TIME_SIGNATURES[scalePractice.groove.timeSignature].stepsPerBeatGroup
+	);
+	const isCompoundMeter = $derived(TIME_SIGNATURES[scalePractice.groove.timeSignature].isCompound);
 
 	// Collapsed by default -- the compact row above covers what a player
 	// touches every session (tempo, feel, intensity, count-in, play); the
@@ -114,6 +125,12 @@
 
 	function handleFeelChange(event: Event): void {
 		scalePractice.setFeel((event.currentTarget as HTMLSelectElement).value as GrooveFeel);
+	}
+
+	function handleTimeSignatureChange(event: Event): void {
+		scalePractice.setTimeSignature(
+			(event.currentTarget as HTMLSelectElement).value as TimeSignature
+		);
 	}
 
 	function handleFeelAmountChange(event: Event): void {
@@ -210,7 +227,10 @@
 					aria-label="Amount"
 					min="0"
 					max="100"
-					disabled={scalePractice.groove.feel === 'straight'}
+					disabled={scalePractice.groove.feel === 'straight' || isCompoundMeter}
+					title={isCompoundMeter
+						? `${scalePractice.groove.timeSignature} already has its own compound feel -- swing doesn't apply`
+						: undefined}
 					value={scalePractice.groove.feelAmount}
 					onchange={handleFeelAmountChange}
 				/>
@@ -334,6 +354,18 @@
 
 		<div class="controls-row">
 			<label class="field">
+				<span class="field-label">Time Signature</span>
+				<select
+					aria-label="Time Signature"
+					value={scalePractice.groove.timeSignature}
+					onchange={handleTimeSignatureChange}
+				>
+					{#each timeSignatures as ts (ts)}
+						<option value={ts}>{TIME_SIGNATURES[ts].label}</option>
+					{/each}
+				</select>
+			</label>
+			<label class="field">
 				<span class="field-label">Genre</span>
 				<select aria-label="Groove preset" onchange={handlePresetChange}>
 					<option value="">Choose a preset…</option>
@@ -420,7 +452,7 @@
 								class:active={step.velocity > 0}
 								class:velocity-ghost={step.velocity === 0.35}
 								class:velocity-accent={step.velocity === 1}
-								class:beat-start={index % 4 === 0}
+								class:beat-start={index % stepsPerBeatGroup === 0}
 								class:current={index === scalePractice.activeStepIndex}
 								data-velocity={step.velocity}
 								aria-label={`${VOICE_LABELS[voice]} step ${index + 1}`}
