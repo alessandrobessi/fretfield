@@ -46,30 +46,32 @@
 <style>
 	.display-mode-toggle {
 		display: inline-flex;
-		border: 2px solid var(--fret-border, #ddd3f7);
-		border-radius: 999px;
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
 		overflow: hidden;
-		background: var(--fret-bg, #fff);
+		background: var(--surface, #262521);
 	}
 
 	button {
 		font: inherit;
 		font-weight: 600;
-		font-size: 0.85rem;
-		padding: 0.5rem 0.9rem;
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		padding: 0.45rem 0.8rem;
 		background: transparent;
-		color: var(--fret-fg, #241a3d);
+		color: var(--fg, #f1e6c5);
 		border: none;
 		cursor: pointer;
 	}
 
 	button.active {
-		background: var(--nut, #7c3aed);
-		color: #fff;
+		background: var(--ff-yellow, #e3ac18);
+		color: var(--ff-black, #151411);
 	}
 
 	button:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: -3px;
 	}
 </style>

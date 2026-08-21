@@ -133,14 +133,16 @@
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 0.75rem;
-		padding-block: 0.5rem;
+		padding-block: 0.6rem;
+		padding-inline: 0.25rem;
+		border-bottom: 1px solid var(--surface-border, #3a382f);
 	}
 
 	.left {
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 1.25rem;
+		gap: 1.5rem;
 	}
 
 	.brand {
@@ -151,44 +153,48 @@
 
 	.logo {
 		flex: 0 0 auto;
-		border-radius: 7px;
+		border-radius: 6px;
 	}
 
 	.brand h1 {
 		margin: 0;
-		font-size: 1.15rem;
+		font-size: 1.05rem;
 		font-weight: 800;
-		letter-spacing: -0.01em;
-		background: linear-gradient(135deg, var(--hero-from, #7c3aed), var(--hero-to, #ec4899));
-		background-clip: text;
-		-webkit-background-clip: text;
-		color: transparent;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--ff-yellow, #e3ac18);
 	}
 
 	.destinations {
 		display: flex;
-		gap: 0.5rem;
+		gap: 1.25rem;
 	}
 
 	.destinations button {
 		font: inherit;
 		font-weight: 700;
-		font-size: 0.95rem;
-		padding: 0.55rem 1.1rem;
-		border-radius: 999px;
-		background: var(--fret-bg, #fff);
-		border: 2px solid var(--fret-border, #ddd3f7);
+		font-size: 0.85rem;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		padding: 0.5rem 0.1rem;
+		background: transparent;
+		color: var(--fg-muted, #89877f);
+		border: none;
+		border-bottom: 2px solid transparent;
 		cursor: pointer;
 	}
 
+	.destinations button:hover {
+		color: var(--fg, #f1e6c5);
+	}
+
 	.destinations button.active {
-		border-color: var(--nut, #7c3aed);
-		background: color-mix(in srgb, var(--nut, #7c3aed) 10%, var(--fret-bg, #fff));
-		color: var(--nut, #7c3aed);
+		border-bottom-color: var(--ff-yellow, #e3ac18);
+		color: var(--ff-yellow, #e3ac18);
 	}
 
 	.destinations button:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
 	}
 
@@ -206,16 +212,21 @@
 	.settings-toggle {
 		font: inherit;
 		font-weight: 600;
-		font-size: 0.85rem;
-		padding: 0.45rem 0.8rem;
-		border-radius: 999px;
-		background: var(--fret-bg, #fff);
-		border: 2px solid var(--fret-border, #ddd3f7);
+		font-size: 0.8rem;
+		padding: 0.4rem 0.75rem;
+		border-radius: var(--ff-radius-control, 4px);
+		background: transparent;
+		color: var(--fg, #f1e6c5);
+		border: 1px solid var(--surface-border, #3a382f);
 		cursor: pointer;
 	}
 
+	.settings-toggle:hover {
+		border-color: var(--ff-yellow, #e3ac18);
+	}
+
 	.settings-toggle:focus-visible {
-		outline: 3px solid var(--focus-ring, #7c3aed);
+		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
 	}
 
@@ -236,10 +247,10 @@
 		flex-direction: column;
 		gap: 0.4rem;
 		padding: 0.75rem;
-		background: var(--fret-bg, #fff);
-		border: 1px solid var(--fret-border, #ddd3f7);
-		border-radius: 12px;
-		box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+		background: var(--surface, #262521);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-panel, 8px);
+		box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
 	}
 
 	/* Sits beside BassConnection's own panel (fixed 20rem width) instead of
@@ -249,10 +260,10 @@
 	}
 
 	.settings-label {
-		font-size: 0.75rem;
-		font-weight: 700;
+		font-size: 0.7rem;
+		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		opacity: 0.65;
+		letter-spacing: 0.06em;
+		color: var(--fg-muted, #89877f);
 	}
 </style>
