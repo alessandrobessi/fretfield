@@ -77,10 +77,11 @@
 			class="bass-toggle"
 			class:enabled={liveInput.enabled}
 			disabled={pending}
+			aria-label={`${liveInput.enabled ? 'Disconnect' : 'Connect'} Bass`}
 			onclick={toggle}
 		>
 			<span class="dot" aria-hidden="true">{liveInput.enabled ? '●' : '○'}</span>
-			{liveInput.enabled ? 'Disconnect' : 'Connect'} Bass
+			<span class="label">{liveInput.enabled ? 'Disconnect' : 'Connect'} Bass</span>
 		</button>
 	{:else}
 		<span class="unsupported">Bass not supported in this browser</span>
@@ -166,6 +167,18 @@
 
 	.dot {
 		margin-right: 0.2rem;
+	}
+
+	/* Icon-only on narrow screens -- the button's aria-label carries the same
+	   text, so this is a visual-only change, not an accessibility regression. */
+	@media (max-width: 640px) {
+		.label {
+			display: none;
+		}
+
+		.dot {
+			margin-right: 0;
+		}
 	}
 
 	.unsupported {

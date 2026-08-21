@@ -38,4 +38,12 @@
 		flex-direction: column;
 		gap: 1.25rem;
 	}
+
+	/* PracticeSessionBar becomes a fixed bottom bar at this width (see its own
+	   styles) -- room at the bottom so it doesn't cover NoteInspector/BandPanel. */
+	@media (max-width: 640px) {
+		.scale-practice-session {
+			padding-bottom: 4.5rem;
+		}
+	}
 </style>

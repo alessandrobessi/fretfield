@@ -118,6 +118,24 @@
 		gap: 0.85rem;
 	}
 
+	/* A persistent bottom transport is most valuable exactly when a narrow
+	   screen means the player physically has a bass in their hands and
+	   doesn't want to scroll back up to reach Play -- `fixed`, not `sticky`:
+	   this bar sits at the top of the page's normal flow, so there's no
+	   scroll-past-a-threshold moment for `sticky` to hook into. */
+	@media (max-width: 640px) {
+		.practice-session-bar {
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			z-index: 5;
+			background: var(--bg, #fff);
+			padding: 0.6rem 0.9rem;
+			box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
+		}
+	}
+
 	.field {
 		display: flex;
 		flex-direction: column;

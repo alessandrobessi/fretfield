@@ -109,10 +109,12 @@
 				class="settings-toggle"
 				aria-expanded={settingsOpen}
 				aria-controls="settings-panel"
+				aria-label="Settings"
 				bind:this={settingsToggleEl}
 				onclick={() => (settingsOpen = !settingsOpen)}
 			>
-				⚙ Settings
+				<span aria-hidden="true">⚙</span>
+				<span class="label">Settings</span>
 			</button>
 			{#if settingsOpen}
 				<div id="settings-panel" class="settings-panel" class:beside-live-input={bassPanelVisible}>
@@ -215,6 +217,14 @@
 	.settings-toggle:focus-visible {
 		outline: 3px solid var(--focus-ring, #7c3aed);
 		outline-offset: 2px;
+	}
+
+	/* Icon-only on narrow screens -- the button's aria-label carries the same
+	   text, so this is a visual-only change, not an accessibility regression. */
+	@media (max-width: 640px) {
+		.settings-toggle .label {
+			display: none;
+		}
 	}
 
 	.settings-panel {

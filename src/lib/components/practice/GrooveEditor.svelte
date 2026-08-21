@@ -479,6 +479,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
+		/* Horizontal scroll rather than wrap once the row is wider than the
+		   viewport (a narrow screen, or a compound meter's 24-step pattern) --
+		   same fallback Fretboard.svelte's own .fretboard-scroll uses. */
+		overflow-x: auto;
+		max-width: 100%;
 	}
 
 	.voice-row {
@@ -488,16 +493,19 @@
 	}
 
 	.voice-label {
+		position: sticky;
+		left: 0;
 		flex: 0 0 5.5rem;
 		font-size: 0.75rem;
 		font-weight: 600;
 		opacity: 0.75;
+		background: var(--fret-bg, #fff);
 	}
 
 	.steps {
 		display: flex;
 		gap: 0.2rem;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 	}
 
 	.step {

@@ -53,6 +53,24 @@
 		flex-wrap: wrap;
 	}
 
+	/* A 12-bar form reads as three even rows of four on a narrow screen,
+	   rather than wrapping wherever the viewport happens to run out of room. */
+	@media (max-width: 640px) {
+		.arrangement-strip {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 0.6rem 0.3rem;
+		}
+
+		.bar.cluster-start {
+			margin-left: 0;
+			padding-left: 0;
+			padding-top: 0.5rem;
+			border-left: none;
+			border-top: 2px solid var(--fret-border, #ddd3f7);
+		}
+	}
+
 	.bar {
 		display: flex;
 		flex-direction: column;
