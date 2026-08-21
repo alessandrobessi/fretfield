@@ -391,6 +391,80 @@ test.describe('Drum Machine: Feel + Intensity', () => {
 	});
 });
 
+test.describe('Drum Machine: time signature', () => {
+	test('changing the time signature resizes the step grid', async ({ page }) => {
+		await openScalePractice(page);
+
+		const kickSteps = page.getByRole('group', { name: 'Kick steps' }).locator('.step');
+		await expect(kickSteps).toHaveCount(16);
+
+		await page.getByLabel('Time Signature').selectOption('12/8');
+		await expect(kickSteps).toHaveCount(24);
+
+		await page.getByLabel('Time Signature').selectOption('3/4');
+		await expect(kickSteps).toHaveCount(12);
+
+		await page.getByLabel('Time Signature').selectOption('5/4');
+		await expect(kickSteps).toHaveCount(20);
+	});
+
+	test('beat-start dividers land every 4 steps for a simple meter, every 6 for a compound one', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+
+		// 4/4 (simple, default): dividers at steps 1, 5, 9, 13.
+		for (const step of [1, 5, 9, 13]) {
+			await expect(page.getByLabel(`Kick step ${step}`, { exact: true })).toHaveClass(/beat-start/);
+		}
+		await expect(page.getByLabel('Kick step 2', { exact: true })).not.toHaveClass(/beat-start/);
+
+		await page.getByLabel('Time Signature').selectOption('12/8');
+		// 12/8 (compound): dividers at steps 1, 7, 13, 19.
+		for (const step of [1, 7, 13, 19]) {
+			await expect(page.getByLabel(`Kick step ${step}`, { exact: true })).toHaveClass(/beat-start/);
+		}
+		await expect(page.getByLabel('Kick step 5', { exact: true })).not.toHaveClass(/beat-start/);
+	});
+
+	test('Amount disables for a compound meter regardless of Feel, and re-enables when the meter goes back to simple', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+
+		await page.getByLabel('Feel').selectOption('shuffle');
+		await expect(page.getByLabel('Amount')).toBeEnabled();
+
+		await page.getByLabel('Time Signature').selectOption('12/8');
+		await expect(page.getByLabel('Amount')).toBeDisabled();
+		await expect(page.getByLabel('Amount')).toHaveAttribute(
+			'title',
+			"12/8 already has its own compound feel -- swing doesn't apply"
+		);
+
+		await page.getByLabel('Time Signature').selectOption('3/4');
+		await expect(page.getByLabel('Amount')).toBeEnabled();
+	});
+
+	test('the chosen time signature and its resized grid survive a reload', async ({ page }) => {
+		await openScalePractice(page);
+
+		await page.getByLabel('Kick step 3', { exact: true }).click();
+		await page.getByLabel('Time Signature').selectOption('5/4');
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Edit Groove' }).click();
+
+		await expect(page.getByLabel('Time Signature')).toHaveValue('5/4');
+		await expect(page.getByRole('group', { name: 'Kick steps' }).locator('.step')).toHaveCount(20);
+		await expect(page.getByLabel('Kick step 3', { exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+	});
+});
+
 test.describe('Drum Machine: compact Practice UI', () => {
 	test('the Groove Editor (progression/genre/arrangement/step grid) is collapsed by default, and toggles open/closed', async ({
 		page
