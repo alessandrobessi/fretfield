@@ -8,6 +8,7 @@
 		type PatternRole
 	} from '$lib/groove/types';
 	import { listGroovePresets } from '$lib/groove/presets';
+	import { setTimeSignature as resizeGrooveToTimeSignature } from '$lib/groove/pattern';
 	import {
 		listTimeSignatures,
 		TIME_SIGNATURES,
@@ -182,7 +183,14 @@
 		const id = (event.currentTarget as HTMLSelectElement).value;
 		const preset = presets.find((p) => p.id === id);
 		if (preset) {
-			scalePractice.setGroove(preset.groove);
+			// Every curated preset is authored in 4/4 -- a preset is a rhythmic
+			// feel/pattern shortcut, not a meter choice, so applying one
+			// shouldn't silently discard whatever meter the player already
+			// picked. Resize the preset's patterns onto the current meter
+			// instead of adopting the preset's own baked-in time signature.
+			scalePractice.setGroove(
+				resizeGrooveToTimeSignature(preset.groove, scalePractice.groove.timeSignature)
+			);
 			return;
 		}
 		const saved = savedGrooves.items.find((item) => item.id === id);

@@ -463,6 +463,22 @@ test.describe('Drum Machine: time signature', () => {
 			'true'
 		);
 	});
+
+	test('choosing a genre preset keeps the current time signature instead of resetting to 4/4', async ({
+		page
+	}) => {
+		await openScalePractice(page);
+
+		await page.getByLabel('Time Signature').selectOption('3/4');
+		const kickSteps = page.getByRole('group', { name: 'Kick steps' }).locator('.step');
+		await expect(kickSteps).toHaveCount(12);
+
+		await page.getByLabel('Groove preset').selectOption({ label: 'Jazz Swing' });
+
+		await expect(page.getByLabel('Time Signature')).toHaveValue('3/4');
+		await expect(kickSteps).toHaveCount(12);
+		await expect(page.getByLabel('Feel')).toHaveValue('swing');
+	});
 });
 
 test.describe('Drum Machine: compact Practice UI', () => {
