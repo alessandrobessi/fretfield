@@ -77,6 +77,22 @@ export class GrooveTransport {
 		this.bpm = bpm;
 	}
 
+	/**
+	 * Live meter change mid-playback (e.g. the player switches Time Signature
+	 * without stopping first) -- without this, `stepsPerBar` would stay frozen
+	 * at whatever it was when `start()` was called, and the very next `tick()`
+	 * would call back with `currentStep` values the (now-resized) pattern
+	 * arrays don't have, throwing inside the caller. Snaps `currentStep` back
+	 * to the start of the current bar if the new meter is shorter than
+	 * wherever playback currently is, rather than waiting for the normal
+	 * end-of-bar wraparound check (which only runs *after* the next `onStep`
+	 * call -- too late to prevent that call's own out-of-range index).
+	 */
+	setStepsPerBar(stepsPerBar: number): void {
+		this.stepsPerBar = stepsPerBar;
+		if (this.currentStep >= stepsPerBar) this.currentStep = 0;
+	}
+
 	/** Schedules every step whose (unswung) grid time falls within the lookahead window. */
 	private tick(): void {
 		const ctx = this.audioContext;

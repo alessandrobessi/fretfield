@@ -503,6 +503,42 @@ test.describe('Drum Machine: time signature', () => {
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('swing');
 	});
+
+	test('changing the time signature while playing does not stall the transport', async ({
+		page
+	}) => {
+		await openGrooveEditor(page);
+		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
+		await page.getByLabel('Metronome BPM').fill('240');
+		await page.keyboard.press('Tab');
+
+		await page.getByRole('button', { name: 'Play' }).click();
+		await expect(page.locator('.step.current').first()).toBeVisible({ timeout: 2000 });
+
+		// Shrinking the meter mid-playback used to throw inside handleStep the
+		// moment the transport's own (still-16-wide) step counter next pointed
+		// past the end of the freshly-resized 12-step pattern -- an uncaught
+		// exception that silently stalled the transport forever.
+		await page.getByLabel('Time Signature').selectOption('3/4');
+		await expect(page.getByRole('group', { name: 'Kick steps' }).locator('.step')).toHaveCount(12);
+
+		// Still advancing afterwards -- proves the transport wasn't left dead.
+		await expect(page.locator('.step.current').first()).toBeVisible({ timeout: 2000 });
+		await expect(page.getByText(/♩ = \d+/)).toBeVisible();
+
+		// Growing the meter mid-bar (still within the same bar the 3/4 pattern
+		// started) is the sharper case: the store's own `currentBarPattern` --
+		// cached once at the last `onBarStart` -- stayed pointed at the old,
+		// shorter pattern array until this fix, so the transport's now-longer
+		// step count indexed straight past the end of it.
+		await page.getByLabel('Time Signature').selectOption('12/8');
+		await expect(page.getByRole('group', { name: 'Kick steps' }).locator('.step')).toHaveCount(24);
+		await expect(page.locator('.step.current').first()).toBeVisible({ timeout: 2000 });
+		await expect(page.getByText(/♩ = \d+/)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Stop' }).click();
+		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+	});
 });
 
 test.describe('Drum Machine: compact Practice UI', () => {

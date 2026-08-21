@@ -241,6 +241,8 @@ export class ScalePracticeStore {
 	private currentBarAcidPattern: AcidBassPattern = this.groove.acidBass.patterns.A;
 	/** The Acid Bass reference root for the current bar -- the active progression chord's own root, or `this.root` with no progression (spec §15). Resolved once per bar in `handleBarStart`, `null` only when there's no progression *and* no root picked yet. */
 	private currentBarChordRoot: PitchClass | null = null;
+	/** The bar index `currentBarPattern`/`currentBarAcidPattern` were resolved for -- kept around so a mid-bar meter change (see `setTimeSignature`) can re-resolve both against the just-resized `groove` for the bar already in progress, instead of leaving them pointed at stale, wrong-length pattern arrays until the next `onBarStart`. */
+	private currentBar = 0;
 	/** The persistent monophonic synth voice -- created in `start()`, disposed in `stop()`, alongside `audioContext`'s own lifecycle (never a second `AudioContext`). */
 	private acidBassVoice: AcidBassVoice | null = null;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
@@ -402,6 +404,21 @@ export class ScalePracticeStore {
 	/** Resizes every pattern to the new meter's step count (see `groove/pattern.ts`'s `setTimeSignature`) -- existing steps within the new length survive, a shorter-to-longer change pads with off-steps. */
 	setTimeSignature(timeSignature: TimeSignature): void {
 		this.groove = setGrooveTimeSignature(this.groove, timeSignature);
+		// Live tempo changes take effect immediately via `transport.setBpm`
+		// (see `setBpm` above) -- a meter change needs the same treatment, or
+		// the transport keeps ticking against the old (now-mismatched) step
+		// count until the next Stop/Play.
+		this.transport.setStepsPerBar(TIME_SIGNATURES[timeSignature].stepsPerBar);
+		// `currentBarPattern`/`currentBarAcidPattern` were resolved once at this
+		// bar's `onBarStart` and won't otherwise refresh until the *next* one --
+		// if this bar is still in progress and the new meter is longer, the next
+		// `onStep` would index past the end of the stale (shorter) cached
+		// pattern arrays and throw. Re-resolving both against the just-resized
+		// `groove`, for the same bar, keeps them in sync immediately.
+		if (this.running) {
+			this.currentBarPattern = this.activePatternForBar(this.currentBar);
+			this.currentBarAcidPattern = this.activeAcidPatternForBar(this.currentBar);
+		}
 		this.persist();
 	}
 
@@ -619,6 +636,7 @@ export class ScalePracticeStore {
 	/** Fires once per bar of real playback (never during count-in) -- resolves which pattern the bar plays and triggers the chord pad. */
 	private handleBarStart(bar: number, gridTime: number): void {
 		this.scheduleBarChord(bar, gridTime);
+		this.currentBar = bar;
 		this.currentBarPattern = this.activePatternForBar(bar);
 		this.currentBarAcidPattern = this.activeAcidPatternForBar(bar);
 		this.currentBarChordRoot = this.resolveBarChordRoot(bar);
