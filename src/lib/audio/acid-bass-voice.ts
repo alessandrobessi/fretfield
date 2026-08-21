@@ -30,6 +30,16 @@
  * Pulse Width is patch-driven only (regenerated on `setPatch()`) -- live
  * "LFO -> Pulse Width" modulation needs the worklet oscillator (a later
  * milestone) to stay sample-accurate.
+ *
+ * Sequencer powers (M5): Gate is now per-trigger (`gatePercent`, replacing
+ * the old fixed 82% constant) and parameter locks (`locks`) can override
+ * cutoff/resonance/envAmount/drive for one trigger only, reverting
+ * automatically afterward. Ratchet and probability are resolved entirely in
+ * `scale-practice.svelte.ts` before this file ever sees a trigger -- each
+ * ratchet hit just arrives as its own ordinary `schedule()` call with a
+ * shorter `stepDurationSeconds`, so this file stays unaware ratchets exist
+ * at all (see the file's own "must not know about `PatternRole` semantics"
+ * doctrine above).
  */
 
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
@@ -53,7 +63,13 @@ import {
 	tuneFineToRatio,
 	volumeToGain
 } from '$lib/acid-bass/resolve';
-import type { AcidBassPatch, AcidFilterModel, AcidGlideCurve } from '$lib/acid-bass/types';
+import { resolveStepLocks, type ResolvedStepLocks } from '$lib/acid-bass/sequencer';
+import type {
+	AcidBassPatch,
+	AcidFilterModel,
+	AcidGlideCurve,
+	AcidStepLocks
+} from '$lib/acid-bass/types';
 
 import { frequencyToMidi } from './note-mapping';
 
@@ -64,6 +80,10 @@ export interface AcidBassTrigger {
 	frequencyHz: number;
 	stepDurationSeconds: number;
 	accent: boolean;
+	/** 0-100 -- how much of this trigger's own duration the note stays open before release (replaces V1's fixed 82% gate). */
+	gatePercent: number;
+	/** Overrides cutoff/resonance/envAmount/drive for this trigger only (spec's five lock targets; `lfoDepth` has nothing to apply to until the LFO milestone lands) -- reverts to the patch's own values once this trigger's duration elapses. */
+	locks?: AcidStepLocks;
 	/** This note should glide into the given frequency instead of releasing -- the oscillator ramps near the end of this step; no release is scheduled here, since the destination step's own (legato) call continues the same envelope motion. */
 	slideToFrequencyHz?: number;
 	/** This note is the destination of an incoming slide from the previous step -- continue the already-open envelope rather than re-triggering a fresh attack/filter-sweep. */
@@ -300,7 +320,8 @@ export function createAcidBassVoice(
 		frequencyHz: number,
 		accent: boolean,
 		decaySeconds: number,
-		patch: AcidBassPatch
+		patch: AcidBassPatch,
+		resolved: ResolvedStepLocks
 	): void {
 		const trackingMultiplier = keyTrackingMultiplier(
 			patch.filter.keyTracking,
@@ -308,15 +329,15 @@ export function createAcidBassVoice(
 			BASS_REFERENCE_OCTAVE_MIDI
 		);
 		const baseCutoff = clampCutoffHz(
-			cutoffToHz(patch.filter.cutoff) * trackingMultiplier,
+			cutoffToHz(resolved.cutoff) * trackingMultiplier,
 			ctx.sampleRate
 		);
 		const envMultiplier = accentAmountToMultipliers(patch.envelope.accentAmount).env;
-		const envRatio = envAmountToRatio(patch.filter.envAmount) * (accent ? envMultiplier : 1);
+		const envRatio = envAmountToRatio(resolved.envAmount) * (accent ? envMultiplier : 1);
 		const peakCutoff = clampCutoffHz(baseCutoff * envRatio, ctx.sampleRate);
 		filter.Q.cancelScheduledValues(time);
 		filter.Q.setValueAtTime(
-			resonanceToModelParameter(biquadResonanceModel(patch.filter.model), patch.filter.resonance),
+			resonanceToModelParameter(biquadResonanceModel(patch.filter.model), resolved.resonance),
 			time
 		);
 		filter.frequency.cancelScheduledValues(time);
@@ -397,25 +418,55 @@ export function createAcidBassVoice(
 
 		schedule(trigger) {
 			if (disposed) return;
-			const { time, frequencyHz, stepDurationSeconds, accent, slideToFrequencyHz, legato } =
-				trigger;
+			const {
+				time,
+				frequencyHz,
+				stepDurationSeconds,
+				accent,
+				gatePercent,
+				locks,
+				slideToFrequencyHz,
+				legato
+			} = trigger;
 			const patch = currentPatch;
 			const decaySeconds = Math.min(decayToSeconds(patch.envelope.decay), stepDurationSeconds);
 			const releaseSeconds = releaseToSeconds(patch.envelope.release);
 			const attackSeconds = attackToSeconds(patch.envelope.attack);
+			const gateRatio = Math.min(1, Math.max(0, gatePercent / 100));
 			const gateSeconds = Math.min(
-				stepDurationSeconds * 0.82,
+				stepDurationSeconds * gateRatio,
 				Math.max(stepDurationSeconds - MIN_RELEASE_SECONDS, MIN_RELEASE_SECONDS)
 			);
 			const vcaMultiplier = accentAmountToMultipliers(patch.envelope.accentAmount).vca;
 			const peakGain = Math.min(1, BASE_VCA_PEAK * (accent ? vcaMultiplier : 1));
+			const resolved = resolveStepLocks(locks, {
+				cutoff: patch.filter.cutoff,
+				resonance: patch.filter.resonance,
+				envAmount: patch.filter.envAmount,
+				drive: patch.output.drive,
+				lfoDepth: patch.lfo.depth
+			});
 
 			if (!legato) {
 				setFrequencyAtTime(frequencyHz, time, patch);
-				retriggerFilterEnvelope(time, frequencyHz, accent, decaySeconds, patch);
+				retriggerFilterEnvelope(time, frequencyHz, accent, decaySeconds, patch, resolved);
 				vca.gain.cancelScheduledValues(time);
 				vca.gain.setValueAtTime(MIN_GAIN, time);
 				vca.gain.exponentialRampToValueAtTime(peakGain, time + attackSeconds);
+			}
+
+			if (locks?.drive !== undefined) {
+				// Applied for this trigger's own duration only, then reverts to the
+				// patch's own Drive -- the next trigger (locked or not) always
+				// re-resolves from scratch, so no separate "clear the lock" bookkeeping
+				// is needed beyond this one scheduled ramp back.
+				driveInput.gain.cancelScheduledValues(time);
+				driveInput.gain.setValueAtTime(driveToPregain(resolved.drive), time);
+				driveInput.gain.setTargetAtTime(
+					driveToPregain(patch.output.drive),
+					time + stepDurationSeconds,
+					PARAM_SMOOTH_TIME_CONSTANT
+				);
 			}
 
 			if (slideToFrequencyHz !== undefined) {

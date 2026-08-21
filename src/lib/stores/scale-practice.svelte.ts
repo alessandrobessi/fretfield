@@ -6,6 +6,7 @@ import {
 	toggleAcidStepSlide as toggleGrooveAcidStepSlide
 } from '$lib/acid-bass/pattern';
 import { resolveAcidStepMidi } from '$lib/acid-bass/resolve';
+import { ratchetOffsetsSeconds, stepShouldTrigger } from '$lib/acid-bass/sequencer';
 import type {
 	AcidBassPattern,
 	AcidBassPatch,
@@ -708,6 +709,15 @@ export class ScalePracticeStore {
 	 * that step is active (no gliding across rests) -- resolved by looking one
 	 * step back/forward in the already-cached `currentBarAcidPattern`, not by
 	 * separate stateful tracking.
+	 *
+	 * Sequencer powers (M5): a step's own `probability` is rolled once here,
+	 * before anything else -- a failed roll skips the step as if it weren't
+	 * active this time through, ratchet hits included. `ratchet > 1` fans this
+	 * one step out into several evenly-spaced retriggers of the voice (each an
+	 * ordinary, ratchet-unaware `schedule()` call, see `acid-bass-voice.ts`),
+	 * sharing the same accent/locks across every hit, and silently ignores the
+	 * step's own outgoing `slide` (spec §42 -- which of several hits would
+	 * glide is undefined, so ratchet wins).
 	 */
 	private scheduleAcidBassStep(stepIndex: number, time: number): void {
 		if (!this.groove.acidBass.enabled || this.acidBassVoice === null) return;
@@ -717,11 +727,28 @@ export class ScalePracticeStore {
 		const step = pattern[stepIndex];
 		if (step === undefined || !step.active) return;
 
+		const role = this.groove.arrangement[this.currentBar % this.groove.arrangement.length];
+		if (!stepShouldTrigger(step, this.currentBar, stepIndex, role)) return;
+
 		const previousStep = stepIndex > 0 ? pattern[stepIndex - 1] : undefined;
 		const legato = previousStep !== undefined && previousStep.active && previousStep.slide;
 
 		const frequencyHz = midiToFrequency(resolveAcidStepMidi(this.currentBarChordRoot, step));
 		const stepDurationSeconds = 60 / this.bpm / 4;
+
+		if (!legato && step.ratchet > 1) {
+			for (const offset of ratchetOffsetsSeconds(step.ratchet, stepDurationSeconds)) {
+				this.acidBassVoice.schedule({
+					time: time + offset,
+					frequencyHz,
+					stepDurationSeconds: stepDurationSeconds / step.ratchet,
+					accent: step.accent,
+					gatePercent: step.gate,
+					locks: step.locks
+				});
+			}
+			return;
+		}
 
 		let slideToFrequencyHz: number | undefined;
 		if (step.slide) {
@@ -738,6 +765,8 @@ export class ScalePracticeStore {
 			frequencyHz,
 			stepDurationSeconds,
 			accent: step.accent,
+			gatePercent: step.gate,
+			locks: step.locks,
 			slideToFrequencyHz,
 			legato
 		});
