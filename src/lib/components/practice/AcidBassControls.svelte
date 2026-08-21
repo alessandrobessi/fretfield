@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { listAcidBassFactoryPatches } from '$lib/acid-bass/factory-patches';
 	import type {
 		AcidFilterModel,
 		AcidGlideCurve,
@@ -14,6 +15,8 @@
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Knob from '$lib/components/hardware/Knob.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
+
+	const FACTORY_PATCHES = listAcidBassFactoryPatches();
 
 	const MAIN_WAVES: { id: AcidWave; label: string }[] = [
 		{ id: 'saw', label: 'Saw' },
@@ -108,6 +111,20 @@
 {/snippet}
 
 <div class="acid-bass-controls">
+	<label class="field patch-picker">
+		<span class="ff-label field-label">Patch</span>
+		<select
+			aria-label="Patch"
+			onchange={(event) =>
+				scalePractice.applyAcidBassFactoryPatch((event.currentTarget as HTMLSelectElement).value)}
+		>
+			<option value="">Choose a patch…</option>
+			{#each FACTORY_PATCHES as preset (preset.id)}
+				<option value={preset.id} title={preset.description}>{preset.label}</option>
+			{/each}
+		</select>
+	</label>
+
 	<HardwarePanel title="VCO" tone="carbon">
 		<div class="row">
 			{@render pickerField('Wave', MAIN_WAVES, patch.oscillator.mainWave, (id) =>

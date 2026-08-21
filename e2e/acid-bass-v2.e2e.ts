@@ -73,6 +73,34 @@ test.describe('Acid Bass V2: panel layout', () => {
 	});
 });
 
+test.describe('Acid Bass V2: factory patches', () => {
+	test('applying "Classic Acid" writes resolved patch values -- Saw, Acid 24, and a moved Cutoff knob', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		await expect(page.getByRole('button', { name: 'Saw', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+
+		await page.getByLabel('Patch', { exact: true }).selectOption('classic-acid');
+
+		await expect(page.getByRole('button', { name: 'Saw', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect(page.getByRole('button', { name: 'Acid 24', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect(page.getByRole('slider', { name: 'Cutoff' })).toHaveAttribute(
+			'aria-valuenow',
+			'28'
+		);
+	});
+});
+
 test.describe('Acid Bass V2: step editor sequencer powers', () => {
 	test('Probability and Gate sliders, and the Ratchet picker, are visible and update the step', async ({
 		page

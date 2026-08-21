@@ -10,6 +10,7 @@ import {
 	toggleAcidStepAccent as toggleGrooveAcidStepAccent,
 	toggleAcidStepSlide as toggleGrooveAcidStepSlide
 } from '$lib/acid-bass/pattern';
+import { getAcidBassFactoryPatch } from '$lib/acid-bass/factory-patches';
 import { lfoRateHzClamp, pulseWidthClamp, resolveAcidStepMidi } from '$lib/acid-bass/resolve';
 import { ratchetOffsetsSeconds, stepShouldTrigger } from '$lib/acid-bass/sequencer';
 import type {
@@ -672,6 +673,13 @@ export class ScalePracticeStore {
 			...patch,
 			output: { ...patch.output, volume: clampPercent(volume) }
 		}));
+	}
+
+	/** Writes a factory preset's resolved patch values -- never a name reference, so a later change to the preset's own definition can't retroactively alter a groove that already applied it (spec: patch-only, no pattern change). A stale/unrecognized id is silently ignored rather than throwing. */
+	applyAcidBassFactoryPatch(id: string): void {
+		const patch = getAcidBassFactoryPatch(id);
+		if (patch === undefined) return;
+		this.updateAcidBassPatch(() => patch);
 	}
 
 	/** Live parameter editing (spec §33): patch changes apply to the running voice immediately (see `AcidBassVoice.setPatch`), without restarting the transport. */
