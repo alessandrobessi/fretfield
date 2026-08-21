@@ -92,6 +92,21 @@ test.describe('Acid Bass: step grid', () => {
 		await expect(page.getByRole('group', { name: 'Bass steps' }).locator('.step')).toHaveCount(12);
 	});
 
+	test('changing time signature resizes the Bass pattern without discarding the steps that still fit', async ({
+		page
+	}) => {
+		await openBassStepsTab(page);
+
+		// Step 1 is active (root, accented) by default -- still within a
+		// shrunk-to-12-step (3/4) pattern, so it must survive the resize.
+		await expect(bassStep(page, 1)).toHaveAttribute('aria-pressed', 'true');
+
+		await page.getByLabel('Time Signature').selectOption('3/4');
+
+		await expect(bassStep(page, 1)).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.getByRole('group', { name: 'Bass steps' }).locator('.step')).toHaveCount(12);
+	});
+
 	test('clicking a step opens the step editor, which stays hidden until a step is selected', async ({
 		page
 	}) => {
@@ -185,5 +200,37 @@ test.describe('Acid Bass: persistence', () => {
 		await page.getByRole('button', { name: 'Edit Groove' }).click();
 		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await expect(bassStep(page, 3)).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	test('saving and reloading a groove via My Grooves carries Acid Bass along with it', async ({
+		page
+	}) => {
+		await openBassStepsTab(page);
+
+		await page.getByRole('button', { name: /^Bass (On|Off)$/ }).click();
+		await bassStep(page, 3).click();
+		await page.getByLabel('Active', { exact: true }).check();
+
+		await page.getByRole('button', { name: 'Save as…', exact: true }).click();
+		await page.getByLabel('Groove name').fill('Acid Bass E2E Groove');
+		await page.locator('.groove-editor').getByRole('button', { name: 'Save', exact: true }).click();
+		await expect(
+			page.getByRole('button', { name: 'Acid Bass E2E Groove', exact: true })
+		).toBeVisible();
+
+		// Switch to a curated preset -- Acid Bass resets to off (presets are
+		// authored without it), proving the later reload actually restores the
+		// saved groove's own state rather than coincidentally matching it.
+		await page.getByLabel('Groove preset').selectOption({ label: 'Funk' });
+		await expect(page.getByRole('button', { name: /^Bass (On|Off)$/ })).toHaveText('Bass Off');
+
+		await page.getByRole('button', { name: 'Acid Bass E2E Groove', exact: true }).click();
+		await expect(page.getByRole('button', { name: /^Bass (On|Off)$/ })).toHaveText('Bass On');
+		await expect(bassStep(page, 3)).toHaveAttribute('aria-pressed', 'true');
+
+		await page.getByRole('button', { name: 'Delete Acid Bass E2E Groove' }).click();
+		await expect(
+			page.getByRole('button', { name: 'Acid Bass E2E Groove', exact: true })
+		).not.toBeVisible();
 	});
 });
