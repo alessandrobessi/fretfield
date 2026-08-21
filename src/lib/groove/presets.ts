@@ -51,7 +51,14 @@ function multiPatternGroove(
 		const hits = patterns[role];
 		if (hits) built[role] = patternFromHits(hits);
 	}
-	return { patterns: built, arrangement, feel, feelAmount, timeSignature: groove.timeSignature };
+	return {
+		patterns: built,
+		arrangement,
+		feel,
+		feelAmount,
+		timeSignature: groove.timeSignature,
+		acidBass: groove.acidBass
+	};
 }
 
 export interface GroovePreset {

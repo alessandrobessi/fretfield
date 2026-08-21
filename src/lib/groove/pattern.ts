@@ -1,3 +1,5 @@
+import { createDefaultAcidBassState, resizeAcidBassState } from '$lib/acid-bass/pattern';
+
 import { TIME_SIGNATURES } from './time-signature';
 import {
 	DRUM_VOICES,
@@ -22,10 +24,17 @@ export function createEmptyPattern(stepsPerBar: number = STEPS_PER_BAR): GrooveP
 }
 
 export function createEmptyGroove(timeSignature: TimeSignature = '4/4'): Groove {
-	const stepsPerBar = TIME_SIGNATURES[timeSignature].stepsPerBar;
+	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES[timeSignature];
 	const patterns = {} as Record<PatternRole, GroovePattern>;
 	for (const role of PATTERN_ROLES) patterns[role] = createEmptyPattern(stepsPerBar);
-	return { patterns, arrangement: ['A'], feel: 'straight', feelAmount: 0, timeSignature };
+	return {
+		patterns,
+		arrangement: ['A'],
+		feel: 'straight',
+		feelAmount: 0,
+		timeSignature,
+		acidBass: createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup)
+	};
 }
 
 export function setStepVelocity(
@@ -106,7 +115,12 @@ export function setTimeSignature(groove: Groove, timeSignature: TimeSignature): 
 		}
 		patterns[role] = { steps };
 	}
-	return { ...groove, patterns, timeSignature };
+	return {
+		...groove,
+		patterns,
+		timeSignature,
+		acidBass: resizeAcidBassState(groove.acidBass, stepsPerBar)
+	};
 }
 
 /**

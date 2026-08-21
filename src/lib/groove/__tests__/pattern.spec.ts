@@ -47,6 +47,14 @@ describe('createEmptyGroove', () => {
 			expect(groove.patterns[role].steps.kick).toHaveLength(12);
 		}
 	});
+
+	it('includes a disabled Acid Bass voice, sized to the given time signature', () => {
+		const groove = createEmptyGroove('5/4');
+		expect(groove.acidBass.enabled).toBe(false);
+		for (const role of ['A', 'B', 'F', 'T'] as const) {
+			expect(groove.acidBass.patterns[role]).toHaveLength(20);
+		}
+	});
 });
 
 describe('setStepVelocity', () => {
@@ -135,6 +143,19 @@ describe('setTimeSignature', () => {
 				expect(groove.patterns[role].steps[voice]).toHaveLength(20);
 				expect(groove.patterns[role].steps[voice].every((s) => s.velocity === 0)).toBe(true);
 			}
+		}
+	});
+
+	it('also resizes the Acid Bass patterns, preserving enabled state and the patch', () => {
+		const enabledGroove = {
+			...createEmptyGroove(),
+			acidBass: { ...createEmptyGroove().acidBass, enabled: true }
+		};
+		const resized = setTimeSignature(enabledGroove, '3/4');
+		expect(resized.acidBass.enabled).toBe(true);
+		expect(resized.acidBass.patch).toEqual(enabledGroove.acidBass.patch);
+		for (const role of ['A', 'B', 'F', 'T'] as const) {
+			expect(resized.acidBass.patterns[role]).toHaveLength(12);
 		}
 	});
 

@@ -9,9 +9,13 @@
  * without needing twelve separate hand-authored patterns.
  */
 
+import type { AcidBassState } from '$lib/acid-bass/types';
+
+import type { PatternRole } from './pattern-role';
 import type { TimeSignature } from './time-signature';
 
 export type { TimeSignature } from './time-signature';
+export { PATTERN_ROLES, type PatternRole } from './pattern-role';
 
 /** The six-voice kit recommended by AGENTS.md -- enough for funk/blues/jazz/soul/rock/bossa without a full General-MIDI-style drum palette. */
 export type DrumVoice = 'kick' | 'snare' | 'closedHat' | 'openHat' | 'ride' | 'rim';
@@ -45,11 +49,6 @@ export interface GroovePattern {
 	steps: Record<DrumVoice, GrooveStep[]>;
 }
 
-/** Main groove, variation, fill, turnaround -- see AGENTS.md for why these four cover the practice use cases this app targets. */
-export type PatternRole = 'A' | 'B' | 'F' | 'T';
-
-export const PATTERN_ROLES: readonly PatternRole[] = ['A', 'B', 'F', 'T'];
-
 /** Straight = no swing, ever. Shuffle/Swing both delay the "and" of each beat by `feelAmount` (see `groove/feel.ts`) -- kept as separate labels since they read as different musical intents even though the underlying timing math is identical. */
 export type GrooveFeel = 'straight' | 'shuffle' | 'swing';
 
@@ -62,4 +61,6 @@ export interface Groove {
 	feelAmount: number;
 	/** One meter for the whole groove -- every pattern's step count derives from this (see `groove/time-signature.ts`). No per-bar/mixed-meter concept. */
 	timeSignature: TimeSignature;
+	/** The Acid Bass voice's own A/B/F/T patterns, sharing this groove's arrangement/pattern-role selection -- there is no independent bass arrangement (see `acid-bass/types.ts`). */
+	acidBass: AcidBassState;
 }

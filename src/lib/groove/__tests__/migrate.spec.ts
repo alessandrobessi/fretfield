@@ -92,4 +92,22 @@ describe('coerceGroove', () => {
 		const coerced = coerceGroove(preTimeSignature);
 		expect(coerced.timeSignature).toBe('4/4');
 	});
+
+	it('migrates a pre-Acid-Bass Groove (no acidBass field) with Bass disabled', () => {
+		const preAcidBass = createEmptyGroove() as unknown as Record<string, unknown>;
+		delete preAcidBass.acidBass;
+
+		const coerced = coerceGroove(preAcidBass);
+		expect(coerced.acidBass.enabled).toBe(false);
+		expect(coerced.acidBass.patterns.A).toHaveLength(16);
+	});
+
+	it('a pre-Acid-Bass Groove in a non-4/4 meter still migrates to Bass disabled, sized to that meter', () => {
+		const preAcidBass = createEmptyGroove('5/4') as unknown as Record<string, unknown>;
+		delete preAcidBass.acidBass;
+
+		const coerced = coerceGroove(preAcidBass);
+		expect(coerced.acidBass.enabled).toBe(false);
+		expect(coerced.acidBass.patterns.A).toHaveLength(20);
+	});
 });

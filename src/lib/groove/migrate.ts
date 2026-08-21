@@ -1,4 +1,7 @@
+import { createDefaultAcidBassState } from '$lib/acid-bass/pattern';
+
 import { createEmptyGroove } from './pattern';
+import { TIME_SIGNATURES } from './time-signature';
 import {
 	DRUM_VOICES,
 	STEPS_PER_BAR,
@@ -37,12 +40,14 @@ function isPreFeelGroove(value: unknown): value is PreFeelGroove {
 
 /** A bare swing number can't recover which of "Shuffle"/"Swing" the groove was originally meant to read as -- "swing" is the generic umbrella term, so migrated grooves default to it. */
 function migratePreFeelGroove(groove: PreFeelGroove): Groove {
+	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES['4/4'];
 	return {
 		patterns: groove.patterns,
 		arrangement: groove.arrangement,
 		feel: groove.swing > 0 ? 'swing' : 'straight',
 		feelAmount: groove.swing,
-		timeSignature: '4/4'
+		timeSignature: '4/4',
+		acidBass: { ...createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup), enabled: false }
 	};
 }
 
@@ -63,7 +68,49 @@ function isPreTimeSignatureGroove(value: unknown): value is PreTimeSignatureGroo
 }
 
 function migratePreTimeSignatureGroove(groove: PreTimeSignatureGroove): Groove {
-	return { ...groove, timeSignature: '4/4' };
+	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES['4/4'];
+	return {
+		...groove,
+		timeSignature: '4/4',
+		acidBass: { ...createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup), enabled: false }
+	};
+}
+
+/** The Groove Engine's own shape before Acid Bass existed: everything else current, but no `acidBass`. */
+interface PreAcidBassGroove {
+	patterns: Groove['patterns'];
+	arrangement: Groove['arrangement'];
+	feel: Groove['feel'];
+	feelAmount: number;
+	timeSignature: Groove['timeSignature'];
+}
+
+function isPreAcidBassGroove(value: unknown): value is PreAcidBassGroove {
+	if (typeof value !== 'object' || value === null) return false;
+	const v = value as Record<string, unknown>;
+	return (
+		'patterns' in v &&
+		'arrangement' in v &&
+		typeof v.feel === 'string' &&
+		'timeSignature' in v &&
+		!('acidBass' in v)
+	);
+}
+
+/**
+ * An existing user's groove must sound exactly as it did before Acid Bass
+ * landed -- `enabled: false` is asserted explicitly here rather than just
+ * trusting `createDefaultAcidBassState`'s own default, since this is the one
+ * invariant that actually matters (the default pattern itself is allowed to
+ * contain active notes; it must simply not be audible until the player turns
+ * Bass on for the first time).
+ */
+function migratePreAcidBassGroove(groove: PreAcidBassGroove): Groove {
+	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES[groove.timeSignature];
+	return {
+		...groove,
+		acidBass: { ...createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup), enabled: false }
+	};
 }
 
 /**
@@ -101,5 +148,6 @@ export function coerceGroove(raw: unknown): Groove {
 	if (isLegacyGroovePattern(raw)) return migrateLegacyPattern(raw);
 	if (isPreFeelGroove(raw)) return migratePreFeelGroove(raw);
 	if (isPreTimeSignatureGroove(raw)) return migratePreTimeSignatureGroove(raw);
+	if (isPreAcidBassGroove(raw)) return migratePreAcidBassGroove(raw);
 	return raw as Groove;
 }
