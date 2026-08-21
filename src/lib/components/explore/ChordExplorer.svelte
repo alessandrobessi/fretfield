@@ -24,20 +24,16 @@
 	.chord-explorer {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: flex-end;
-		justify-content: space-between;
-		gap: 1rem;
-		background: var(--fret-bg, #fff);
-		border: 1px solid var(--fret-border, #ddd3f7);
-		border-radius: 14px;
-		padding: 1rem 1.25rem;
-		box-shadow: 0 4px 16px rgb(124 58 237 / 0.08);
+		align-items: center;
+		gap: 1.25rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px dashed var(--fret-border, #ddd3f7);
 	}
 
 	.status {
 		display: flex;
-		gap: 0.75rem;
-		font-size: 1rem;
+		gap: 0.6rem;
+		font-size: 0.95rem;
 	}
 
 	.chip {
