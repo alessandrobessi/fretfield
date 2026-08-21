@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import DisplayModeToggle from '$lib/components/DisplayModeToggle.svelte';
 	import BassConnection from '$lib/components/shell/BassConnection.svelte';
 	import { liveInput } from '$lib/stores/live-input.svelte';
@@ -72,25 +73,32 @@
 </script>
 
 <div class="app-header">
-	<div
-		class="destinations"
-		role="tablist"
-		aria-label="Destination"
-		tabindex="-1"
-		onkeydown={handleDestinationKeydown}
-	>
-		{#each DESTINATIONS as d, index (d.id)}
-			<button
-				type="button"
-				role="tab"
-				aria-selected={navigation.destination === d.id}
-				class:active={navigation.destination === d.id}
-				tabindex={index === activeDestinationIndex ? 0 : -1}
-				onclick={() => navigation.setDestination(d.id)}
-			>
-				{d.label}
-			</button>
-		{/each}
+	<div class="left">
+		<div class="brand">
+			<img class="logo" src="{base}/brand/logo-mark.svg" alt="" width="28" height="28" />
+			<h1>FretField</h1>
+		</div>
+
+		<div
+			class="destinations"
+			role="tablist"
+			aria-label="Destination"
+			tabindex="-1"
+			onkeydown={handleDestinationKeydown}
+		>
+			{#each DESTINATIONS as d, index (d.id)}
+				<button
+					type="button"
+					role="tab"
+					aria-selected={navigation.destination === d.id}
+					class:active={navigation.destination === d.id}
+					tabindex={index === activeDestinationIndex ? 0 : -1}
+					onclick={() => navigation.setDestination(d.id)}
+				>
+					{d.label}
+				</button>
+			{/each}
+		</div>
 	</div>
 
 	<div class="utilities">
@@ -123,6 +131,36 @@
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 0.75rem;
+		padding-block: 0.5rem;
+	}
+
+	.left {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 1.25rem;
+	}
+
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.logo {
+		flex: 0 0 auto;
+		border-radius: 7px;
+	}
+
+	.brand h1 {
+		margin: 0;
+		font-size: 1.15rem;
+		font-weight: 800;
+		letter-spacing: -0.01em;
+		background: linear-gradient(135deg, var(--hero-from, #7c3aed), var(--hero-to, #ec4899));
+		background-clip: text;
+		-webkit-background-clip: text;
+		color: transparent;
 	}
 
 	.destinations {
