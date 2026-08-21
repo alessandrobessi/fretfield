@@ -21,14 +21,18 @@
 
 	function stepAriaLabel(step: AcidBassStep, index: number): string {
 		if (!step.active) return `Bass step ${index + 1}, inactive`;
-		return [
+		const parts = [
 			`Bass step ${index + 1}`,
 			'active',
 			`interval ${intervalLabel(step.interval)}`,
 			octaveLabel(step.octave),
 			step.accent ? 'accented' : 'not accented',
 			step.slide ? 'slides to next step' : 'no slide'
-		].join(', ');
+		];
+		if (step.probability < 100) parts.push(`${step.probability}% probability`);
+		if (step.ratchet > 1) parts.push(`ratchet x${step.ratchet}`);
+		if (step.locks !== undefined) parts.push('has parameter locks');
+		return parts.join(', ');
 	}
 </script>
 
@@ -56,6 +60,12 @@
 						{#if step.octave === -1}<span class="marker" aria-hidden="true">↓</span>{/if}
 						{#if step.accent}<span class="marker" aria-hidden="true">A</span>{/if}
 						{#if step.slide}<span class="marker" aria-hidden="true">→</span>{/if}
+						{#if step.probability < 100}<span class="marker" aria-hidden="true"
+								>P{step.probability}</span
+							>{/if}
+						{#if step.ratchet > 1}<span class="marker" aria-hidden="true">x{step.ratchet}</span
+							>{/if}
+						{#if step.locks !== undefined}<span class="marker" aria-hidden="true">L</span>{/if}
 					</span>
 				{:else}
 					<span class="rest" aria-hidden="true">·</span>

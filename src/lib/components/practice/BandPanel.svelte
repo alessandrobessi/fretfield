@@ -169,20 +169,22 @@
 					<span class="ff-label playing-label">Playing</span>
 				{/if}
 			{/snippet}
-			<div class="drums-view">
+			<div class="bass-view">
+				<div class="bass-view-header">
+					<span class="pattern-readout"
+						>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
+								>· Bar {barPositionLabel}</span
+							>{/if}</span
+					>
+					<HardwareButton
+						variant="secondary"
+						ariaExpanded={editorExpanded}
+						onclick={() => (editorExpanded = !editorExpanded)}
+					>
+						{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
+					</HardwareButton>
+				</div>
 				<AcidBassControls />
-				<span class="pattern-readout"
-					>Pattern {activePatternRole}{#if barPositionLabel}<span class="bar-suffix"
-							>· Bar {barPositionLabel}</span
-						>{/if}</span
-				>
-				<HardwareButton
-					variant="secondary"
-					ariaExpanded={editorExpanded}
-					onclick={() => (editorExpanded = !editorExpanded)}
-				>
-					{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
-				</HardwareButton>
 			</div>
 		</HardwarePanel>
 	{:else}
@@ -294,6 +296,20 @@
 	.drums-view {
 		display: flex;
 		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.bass-view {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.bass-view-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		gap: 0.75rem;
 		flex-wrap: wrap;
 	}

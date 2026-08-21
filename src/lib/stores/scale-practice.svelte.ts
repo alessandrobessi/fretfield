@@ -1,16 +1,31 @@
 import {
+	clearAcidStepLocks as clearGrooveAcidStepLocks,
 	setAcidStepActive as setGrooveAcidStepActive,
+	setAcidStepGate as setGrooveAcidStepGate,
 	setAcidStepInterval as setGrooveAcidStepInterval,
+	setAcidStepLock as setGrooveAcidStepLock,
 	setAcidStepOctave as setGrooveAcidStepOctave,
+	setAcidStepProbability as setGrooveAcidStepProbability,
+	setAcidStepRatchet as setGrooveAcidStepRatchet,
 	toggleAcidStepAccent as toggleGrooveAcidStepAccent,
 	toggleAcidStepSlide as toggleGrooveAcidStepSlide
 } from '$lib/acid-bass/pattern';
-import { resolveAcidStepMidi } from '$lib/acid-bass/resolve';
+import { lfoRateHzClamp, pulseWidthClamp, resolveAcidStepMidi } from '$lib/acid-bass/resolve';
 import { ratchetOffsetsSeconds, stepShouldTrigger } from '$lib/acid-bass/sequencer';
 import type {
 	AcidBassPattern,
 	AcidBassPatch,
+	AcidBassStep,
+	AcidFilterModel,
+	AcidGlideCurve,
+	AcidLfoDestination,
+	AcidLfoDivision,
+	AcidLfoRateMode,
+	AcidLfoShape,
 	AcidOctaveOffset,
+	AcidStepLocks,
+	AcidSubOctave,
+	AcidSubWave,
 	AcidWave
 } from '$lib/acid-bass/types';
 import { createAcidBassVoice, type AcidBassVoice } from '$lib/audio/acid-bass-voice';
@@ -491,6 +506,174 @@ export class ScalePracticeStore {
 		}));
 	}
 
+	setAcidBassTune(tune: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, tune: Math.min(12, Math.max(-12, Math.round(tune))) }
+		}));
+	}
+
+	setAcidBassFine(fine: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, fine: Math.min(50, Math.max(-50, Math.round(fine))) }
+		}));
+	}
+
+	setAcidBassMainLevel(mainLevel: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, mainLevel: clampPercent(mainLevel) }
+		}));
+	}
+
+	setAcidBassSubEnabled(subEnabled: boolean): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, subEnabled }
+		}));
+	}
+
+	setAcidBassSubOctave(subOctave: AcidSubOctave): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, subOctave }
+		}));
+	}
+
+	setAcidBassSubWave(subWave: AcidSubWave): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, subWave }
+		}));
+	}
+
+	setAcidBassSubLevel(subLevel: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, subLevel: clampPercent(subLevel) }
+		}));
+	}
+
+	setAcidBassPulseWidth(pulseWidth: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, pulseWidth: pulseWidthClamp(pulseWidth) }
+		}));
+	}
+
+	setAcidBassFilterModel(model: AcidFilterModel): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			filter: { ...patch.filter, model }
+		}));
+	}
+
+	setAcidBassKeyTracking(keyTracking: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			filter: { ...patch.filter, keyTracking: clampPercent(keyTracking) }
+		}));
+	}
+
+	setAcidBassSaturation(saturation: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			filter: { ...patch.filter, saturation: clampPercent(saturation) }
+		}));
+	}
+
+	setAcidBassAttack(attack: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			envelope: { ...patch.envelope, attack: clampPercent(attack) }
+		}));
+	}
+
+	setAcidBassRelease(release: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			envelope: { ...patch.envelope, release: clampPercent(release) }
+		}));
+	}
+
+	setAcidBassAccentAmount(accentAmount: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			envelope: { ...patch.envelope, accentAmount: clampPercent(accentAmount) }
+		}));
+	}
+
+	setAcidBassGlideTime(time: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			glide: { ...patch.glide, time: clampPercent(time) }
+		}));
+	}
+
+	setAcidBassGlideCurve(curve: AcidGlideCurve): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			glide: { ...patch.glide, curve }
+		}));
+	}
+
+	setAcidBassLfoEnabled(enabled: boolean): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			lfo: { ...patch.lfo, enabled }
+		}));
+	}
+
+	setAcidBassLfoShape(shape: AcidLfoShape): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			lfo: { ...patch.lfo, shape }
+		}));
+	}
+
+	setAcidBassLfoDestination(destination: AcidLfoDestination): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			lfo: { ...patch.lfo, destination }
+		}));
+	}
+
+	setAcidBassLfoRateMode(rateMode: AcidLfoRateMode): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			lfo: { ...patch.lfo, rateMode }
+		}));
+	}
+
+	setAcidBassLfoRateHz(rateHz: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			lfo: { ...patch.lfo, rateHz: lfoRateHzClamp(rateHz) }
+		}));
+	}
+
+	setAcidBassLfoDivision(division: AcidLfoDivision): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			lfo: { ...patch.lfo, division }
+		}));
+	}
+
+	setAcidBassLfoDepth(depth: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			lfo: { ...patch.lfo, depth: clampPercent(depth) }
+		}));
+	}
+
+	setAcidBassVolume(volume: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			output: { ...patch.output, volume: clampPercent(volume) }
+		}));
+	}
+
 	/** Live parameter editing (spec §33): patch changes apply to the running voice immediately (see `AcidBassVoice.setPatch`), without restarting the transport. */
 	private updateAcidBassPatch(mutate: (patch: AcidBassPatch) => AcidBassPatch): void {
 		const nextPatch = mutate(this.groove.acidBass.patch);
@@ -524,6 +707,34 @@ export class ScalePracticeStore {
 
 	toggleAcidStepSlide(stepIndex: number): void {
 		this.updateAcidBassSelectedPattern((pattern) => toggleGrooveAcidStepSlide(pattern, stepIndex));
+	}
+
+	setAcidStepProbability(stepIndex: number, probability: number): void {
+		this.updateAcidBassSelectedPattern((pattern) =>
+			setGrooveAcidStepProbability(pattern, stepIndex, probability)
+		);
+	}
+
+	setAcidStepRatchet(stepIndex: number, ratchet: AcidBassStep['ratchet']): void {
+		this.updateAcidBassSelectedPattern((pattern) =>
+			setGrooveAcidStepRatchet(pattern, stepIndex, ratchet)
+		);
+	}
+
+	setAcidStepGate(stepIndex: number, gate: number): void {
+		this.updateAcidBassSelectedPattern((pattern) =>
+			setGrooveAcidStepGate(pattern, stepIndex, gate)
+		);
+	}
+
+	setAcidStepLock(stepIndex: number, target: keyof AcidStepLocks, value: number | undefined): void {
+		this.updateAcidBassSelectedPattern((pattern) =>
+			setGrooveAcidStepLock(pattern, stepIndex, target, value)
+		);
+	}
+
+	clearAcidStepLocks(stepIndex: number): void {
+		this.updateAcidBassSelectedPattern((pattern) => clearGrooveAcidStepLocks(pattern, stepIndex));
 	}
 
 	private updateAcidBassSelectedPattern(

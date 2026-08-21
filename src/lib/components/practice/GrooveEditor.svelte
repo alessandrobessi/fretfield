@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { AcidOctaveOffset } from '$lib/acid-bass/types';
+	import type { AcidBassStep, AcidOctaveOffset, AcidStepLocks } from '$lib/acid-bass/types';
 	import {
 		DRUM_VOICES,
 		PATTERN_ROLES,
@@ -150,6 +150,31 @@
 		if (selectedAcidStepIndex === null) return;
 		scalePractice.toggleAcidStepSlide(selectedAcidStepIndex);
 	}
+
+	function handleSetAcidStepProbability(probability: number): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.setAcidStepProbability(selectedAcidStepIndex, probability);
+	}
+
+	function handleSetAcidStepRatchet(ratchet: AcidBassStep['ratchet']): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.setAcidStepRatchet(selectedAcidStepIndex, ratchet);
+	}
+
+	function handleSetAcidStepGate(gate: number): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.setAcidStepGate(selectedAcidStepIndex, gate);
+	}
+
+	function handleSetAcidStepLock(target: keyof AcidStepLocks, value: number | undefined): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.setAcidStepLock(selectedAcidStepIndex, target, value);
+	}
+
+	function handleClearAcidStepLocks(): void {
+		if (selectedAcidStepIndex === null) return;
+		scalePractice.clearAcidStepLocks(selectedAcidStepIndex);
+	}
 </script>
 
 <HardwarePanel class="groove-editor">
@@ -298,6 +323,11 @@
 			onSetOctave={handleSetAcidStepOctave}
 			onToggleAccent={handleToggleAcidStepAccent}
 			onToggleSlide={handleToggleAcidStepSlide}
+			onSetProbability={handleSetAcidStepProbability}
+			onSetRatchet={handleSetAcidStepRatchet}
+			onSetGate={handleSetAcidStepGate}
+			onSetLock={handleSetAcidStepLock}
+			onClearLocks={handleClearAcidStepLocks}
 		/>
 	{/if}
 
