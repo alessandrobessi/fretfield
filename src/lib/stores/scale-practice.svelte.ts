@@ -1,3 +1,18 @@
+import {
+	setAcidStepActive as setGrooveAcidStepActive,
+	setAcidStepInterval as setGrooveAcidStepInterval,
+	setAcidStepOctave as setGrooveAcidStepOctave,
+	toggleAcidStepAccent as toggleGrooveAcidStepAccent,
+	toggleAcidStepSlide as toggleGrooveAcidStepSlide
+} from '$lib/acid-bass/pattern';
+import { resolveAcidStepMidi } from '$lib/acid-bass/resolve';
+import type {
+	AcidBassPattern,
+	AcidBassPatch,
+	AcidOctaveOffset,
+	AcidWave
+} from '$lib/acid-bass/types';
+import { createAcidBassVoice, type AcidBassVoice } from '$lib/audio/acid-bass-voice';
 import { triggerChordPad } from '$lib/audio/chord-voices';
 import {
 	resolveAudioContextConstructor,
@@ -37,7 +52,7 @@ import {
 import { midiToFrequency } from '$lib/audio/note-mapping';
 import { getChordDefinition } from '$lib/music/chords';
 import type { FretPosition } from '$lib/music/fretboard';
-import { intervalSemitones } from '$lib/music/intervals';
+import { intervalSemitones, type IntervalId } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
 import {
 	buildProgression,
@@ -153,8 +168,12 @@ function clampBarsPerChord(bars: number): number {
 	return Math.min(MAX_BARS_PER_CHORD, Math.max(MIN_BARS_PER_CHORD, Math.round(bars)));
 }
 
+function clampPercent(value: number): number {
+	return Math.min(100, Math.max(0, Math.round(value)));
+}
+
 function clampIntensity(intensity: number): number {
-	return Math.min(100, Math.max(0, Math.round(intensity)));
+	return clampPercent(intensity);
 }
 
 /**
@@ -218,6 +237,12 @@ export class ScalePracticeStore {
 	private audioContext: AudioContext | null = null;
 	/** Whichever pattern the current bar's arrangement slot points at -- resolved once per bar (not per step) in `handleBarStart`. */
 	private currentBarPattern: GroovePattern = this.groove.patterns.A;
+	/** Same idea as `currentBarPattern`, for Acid Bass -- the same arrangement role, since there is no independent bass arrangement. */
+	private currentBarAcidPattern: AcidBassPattern = this.groove.acidBass.patterns.A;
+	/** The Acid Bass reference root for the current bar -- the active progression chord's own root, or `this.root` with no progression (spec §15). Resolved once per bar in `handleBarStart`, `null` only when there's no progression *and* no root picked yet. */
+	private currentBarChordRoot: PitchClass | null = null;
+	/** The persistent monophonic synth voice -- created in `start()`, disposed in `stop()`, alongside `audioContext`'s own lifecycle (never a second `AudioContext`). */
+	private acidBassVoice: AcidBassVoice | null = null;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
 	// (the transport's own clock), but the *highlight* has to flip at the same
 	// wall-clock moment the chord/step actually starts sounding, which a
@@ -385,6 +410,86 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
+	/** Turning Bass on/off affects only this voice -- never drums, chord backing, transport state, active bar, or fretboard highlighting (spec §4.1). Turning off mid-playback silences immediately rather than waiting for the current step's own release. */
+	setAcidBassEnabled(enabled: boolean): void {
+		this.groove = { ...this.groove, acidBass: { ...this.groove.acidBass, enabled } };
+		if (!enabled) this.acidBassVoice?.silence();
+		this.persist();
+	}
+
+	setAcidBassWave(wave: AcidWave): void {
+		this.updateAcidBassPatch({ wave });
+	}
+
+	setAcidBassTone(tone: number): void {
+		this.updateAcidBassPatch({ tone: clampPercent(tone) });
+	}
+
+	setAcidBassResonance(resonance: number): void {
+		this.updateAcidBassPatch({ resonance: clampPercent(resonance) });
+	}
+
+	setAcidBassMotion(motion: number): void {
+		this.updateAcidBassPatch({ motion: clampPercent(motion) });
+	}
+
+	setAcidBassDecay(decay: number): void {
+		this.updateAcidBassPatch({ decay: clampPercent(decay) });
+	}
+
+	setAcidBassDrive(drive: number): void {
+		this.updateAcidBassPatch({ drive: clampPercent(drive) });
+	}
+
+	/** Live parameter editing (spec §33): patch changes apply to the running voice immediately (see `AcidBassVoice.setPatch`), without restarting the transport. */
+	private updateAcidBassPatch(patch: Partial<AcidBassPatch>): void {
+		const nextPatch = { ...this.groove.acidBass.patch, ...patch };
+		this.groove = { ...this.groove, acidBass: { ...this.groove.acidBass, patch: nextPatch } };
+		this.acidBassVoice?.setPatch(nextPatch);
+		this.persist();
+	}
+
+	/** Editing an Acid Bass step always targets `selectedPatternRole`'s own pattern -- the same role selection the drum step grid uses (spec §12: no independent bass pattern-role selection). */
+	setAcidStepActive(stepIndex: number, active: boolean): void {
+		this.updateAcidBassSelectedPattern((pattern) =>
+			setGrooveAcidStepActive(pattern, stepIndex, active)
+		);
+	}
+
+	setAcidStepInterval(stepIndex: number, interval: IntervalId): void {
+		this.updateAcidBassSelectedPattern((pattern) =>
+			setGrooveAcidStepInterval(pattern, stepIndex, interval)
+		);
+	}
+
+	setAcidStepOctave(stepIndex: number, octave: AcidOctaveOffset): void {
+		this.updateAcidBassSelectedPattern((pattern) =>
+			setGrooveAcidStepOctave(pattern, stepIndex, octave)
+		);
+	}
+
+	toggleAcidStepAccent(stepIndex: number): void {
+		this.updateAcidBassSelectedPattern((pattern) => toggleGrooveAcidStepAccent(pattern, stepIndex));
+	}
+
+	toggleAcidStepSlide(stepIndex: number): void {
+		this.updateAcidBassSelectedPattern((pattern) => toggleGrooveAcidStepSlide(pattern, stepIndex));
+	}
+
+	private updateAcidBassSelectedPattern(
+		mutate: (pattern: AcidBassPattern) => AcidBassPattern
+	): void {
+		const pattern = mutate(this.groove.acidBass.patterns[this.selectedPatternRole]);
+		this.groove = {
+			...this.groove,
+			acidBass: {
+				...this.groove.acidBass,
+				patterns: { ...this.groove.acidBass.patterns, [this.selectedPatternRole]: pattern }
+			}
+		};
+		this.persist();
+	}
+
 	/** Which pattern's steps the grid shows/edits -- purely a UI focus, doesn't touch the arrangement. */
 	setSelectedPatternRole(role: PatternRole): void {
 		this.selectedPatternRole = role;
@@ -467,6 +572,20 @@ export class ScalePracticeStore {
 		return this.groove.patterns[role];
 	}
 
+	/** Same lookup as `activePatternForBar`, for Acid Bass -- the identical arrangement role, since there is no independent bass arrangement (spec §12). */
+	private activeAcidPatternForBar(bar: number): AcidBassPattern {
+		const role = this.groove.arrangement[bar % this.groove.arrangement.length];
+		return this.groove.acidBass.patterns[role];
+	}
+
+	/** The Acid Bass reference root for `bar` -- the active progression chord's own root (continuously across that chord's whole `barsPerChord`-bar span, not just the bar it starts on), or `this.root` with no progression selected at all (spec §15). */
+	private resolveBarChordRoot(bar: number): PitchClass | null {
+		const progression = this.resolvedProgression;
+		if (progression.length === 0) return this.root;
+		const chordIndex = Math.floor(bar / this.barsPerChord) % progression.length;
+		return progression[chordIndex].root;
+	}
+
 	/** Starts (or stops) only the drum machine — has no effect on which notes are highlighted. */
 	start(): void {
 		if (this.running) return;
@@ -474,6 +593,8 @@ export class ScalePracticeStore {
 		if (AudioContextCtor === null) return;
 
 		this.audioContext = new AudioContextCtor();
+		this.acidBassVoice = createAcidBassVoice(this.audioContext);
+		this.acidBassVoice.setPatch(this.groove.acidBass.patch);
 		this.running = true;
 		this.isCountingIn = this.countIn !== 'off';
 		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
@@ -484,6 +605,8 @@ export class ScalePracticeStore {
 		this.running = false;
 		this.isCountingIn = false;
 		this.transport.stop();
+		this.acidBassVoice?.dispose();
+		this.acidBassVoice = null;
 		void this.audioContext?.close();
 		this.audioContext = null;
 		this.cancelPendingChordHighlights();
@@ -497,6 +620,8 @@ export class ScalePracticeStore {
 	private handleBarStart(bar: number, gridTime: number): void {
 		this.scheduleBarChord(bar, gridTime);
 		this.currentBarPattern = this.activePatternForBar(bar);
+		this.currentBarAcidPattern = this.activeAcidPatternForBar(bar);
+		this.currentBarChordRoot = this.resolveBarChordRoot(bar);
 
 		const ctx = this.audioContext;
 		if (ctx === null) return;
@@ -521,12 +646,58 @@ export class ScalePracticeStore {
 			}
 		}
 
+		this.scheduleAcidBassStep(stepIndex, swungTime);
+
 		const delayMs = Math.max(0, (gridTime - ctx.currentTime) * 1000);
 		const timeoutId = setTimeout(() => {
 			this.activeStepIndex = stepIndex;
 			this.stepHighlightTimeouts = this.stepHighlightTimeouts.filter((id) => id !== timeoutId);
 		}, delayMs);
 		this.stepHighlightTimeouts = [...this.stepHighlightTimeouts, timeoutId];
+	}
+
+	/**
+	 * Schedules the Acid Bass voice for one step, if enabled and there's
+	 * something to sound -- reuses the exact same swung `time` drums were just
+	 * scheduled at (one definition of "when does step N actually sound?", spec
+	 * §7.2), never a second timing calculation. A step's `slide` glides the
+	 * oscillator toward the *immediately following* step's own pitch only when
+	 * that step is active (no gliding across rests) -- resolved by looking one
+	 * step back/forward in the already-cached `currentBarAcidPattern`, not by
+	 * separate stateful tracking.
+	 */
+	private scheduleAcidBassStep(stepIndex: number, time: number): void {
+		if (!this.groove.acidBass.enabled || this.acidBassVoice === null) return;
+		if (this.currentBarChordRoot === null) return;
+
+		const pattern = this.currentBarAcidPattern;
+		const step = pattern[stepIndex];
+		if (step === undefined || !step.active) return;
+
+		const previousStep = stepIndex > 0 ? pattern[stepIndex - 1] : undefined;
+		const legato = previousStep !== undefined && previousStep.active && previousStep.slide;
+
+		const frequencyHz = midiToFrequency(resolveAcidStepMidi(this.currentBarChordRoot, step));
+		const stepDurationSeconds = 60 / this.bpm / 4;
+
+		let slideToFrequencyHz: number | undefined;
+		if (step.slide) {
+			const nextStep = pattern[stepIndex + 1];
+			if (nextStep?.active) {
+				slideToFrequencyHz = midiToFrequency(
+					resolveAcidStepMidi(this.currentBarChordRoot, nextStep)
+				);
+			}
+		}
+
+		this.acidBassVoice.schedule({
+			time,
+			frequencyHz,
+			stepDurationSeconds,
+			accent: step.accent,
+			slideToFrequencyHz,
+			legato
+		});
 	}
 
 	/** A simple percussive click on every beat (not every 16th-note step) of a count-in bar -- "a simple percussive cue," per AGENTS.md. */
