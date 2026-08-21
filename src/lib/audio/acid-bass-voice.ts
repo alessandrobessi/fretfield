@@ -2,7 +2,7 @@
  * Scale Practice's Acid Bass voice — a monophonic synth bass living
  * alongside `drum-voices.ts`/`chord-voices.ts` in the Groove Engine's
  * output. Unlike those two (a fresh node graph built per hit/chord, fire and
- * forget), this voice is deliberately persistent: one oscillator pair, one
+ * forget), this voice is deliberately persistent: one oscillator section, one
  * filter, one amplitude envelope, built once and reused for every note, so
  * slides can glide the oscillator's own frequency instead of crossfading
  * between two discrete notes. Must not know about chords, progressions,
@@ -11,18 +11,19 @@
  * booleans; harmonic resolution happens in `scale-practice.svelte.ts` before
  * calling in, the same boundary `chord-voices.ts`'s `triggerChordPad` keeps.
  *
- * V2 (~/Downloads/ACID-BASS-ENGINE-V2.md): this file currently wires the
- * *existing* saw+square oscillator pair and single `BiquadFilterNode` up to
- * the new nested patch shape (Cutoff/EnvMod/Attack/Release/Accent/Glide/
- * Volume all patch-driven now, where V1 hardcoded several of them) --
- * genuinely new signal-path capability (sub oscillator, tune/fine, pre-
- * filter saturation, key tracking, the `acid24` AudioWorklet filter, LFO)
- * lands in later milestones as additive changes to this same file, not a
- * rewrite. `filter.model` is read but not yet fully honored: until the
- * `acid24` AudioWorklet exists, both `svf12` and `acid24` route through the
- * same Biquad path as an `svf12`-flavored approximation (see
- * `resonanceToModelParameter` in `resolve.ts`) -- only `legacy` gets its own
- * distinct (V1-compatible) resonance curve for now.
+ * V2 (~/Downloads/ACID-BASS-ENGINE-V2.md): main oscillator now supports all
+ * four `AcidWave`s (saw/square/triangle native, Pulse via a regenerated
+ * `PeriodicWave`), plus a sub oscillator (square/triangle, -1/-2 octaves)
+ * mixed in via `mixCompensation` so driving both hard never doubles the
+ * output unpredictably. Tune/fine apply as one frequency ratio
+ * (`tuneFineToRatio`) to every oscillator, main and sub alike. `filter.model`
+ * is read but not yet fully honored: until the `acid24` AudioWorklet exists,
+ * both `svf12` and `acid24` route through the same Biquad path as an
+ * `svf12`-flavored approximation (see `resonanceToModelParameter` in
+ * `resolve.ts`) -- only `legacy` gets its own distinct (V1-compatible)
+ * resonance curve for now. Pulse Width is patch-driven only (regenerated on
+ * `setPatch()`) -- live "LFO -> Pulse Width" modulation needs the worklet
+ * oscillator (a later milestone) to stay sample-accurate.
  */
 
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
@@ -35,11 +36,15 @@ import {
 	driveToPregain,
 	envAmountToRatio,
 	glideTimeToSeconds,
+	mixCompensation,
+	pulseWidthClamp,
 	releaseToSeconds,
 	resonanceToModelParameter,
+	subOctaveToRatio,
+	tuneFineToRatio,
 	volumeToGain
 } from '$lib/acid-bass/resolve';
-import type { AcidBassPatch, AcidFilterModel } from '$lib/acid-bass/types';
+import type { AcidBassPatch, AcidFilterModel, AcidGlideCurve } from '$lib/acid-bass/types';
 
 export type { AcidBassPatch } from '$lib/acid-bass/types';
 
@@ -100,12 +105,29 @@ function createDriveCurve(): Float32Array<ArrayBuffer> {
 
 const DRIVE_CURVE = createDriveCurve();
 
+// Enough harmonics for a reasonably bandlimited bass-register pulse without
+// being wasteful -- this voice never runs above the bass register, so
+// aliasing from a 30-harmonic series is inaudible in practice.
+const PULSE_HARMONICS = 30;
+
+/** A bandlimited pulse wave at the given duty cycle (5-95, see `pulseWidthClamp`), built as a Fourier sine series -- the standard construction for an odd rectangular wave, the same family the built-in `'square'` type belongs to (its 50%-duty special case). Regenerated on `setPatch()` rather than modulated live (see file header). */
+function createPulseWave(ctx: AudioContext, dutyPercent: number): PeriodicWave {
+	const duty = pulseWidthClamp(dutyPercent) / 100;
+	const real = new Float32Array(PULSE_HARMONICS + 1);
+	const imag = new Float32Array(PULSE_HARMONICS + 1);
+	for (let n = 1; n <= PULSE_HARMONICS; n++) {
+		imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * duty);
+	}
+	return ctx.createPeriodicWave(real, imag);
+}
+
 /**
- * Builds one persistent monophonic voice on `ctx`. The oscillator pair
- * starts running immediately (silent, via the VCA sitting at 0) and keeps
- * running until `dispose()` -- cheap to leave both waveforms live with the
- * inactive one gained to zero, and it's what makes slide/legato behavior
- * possible: there's only ever one oscillator pair to glide.
+ * Builds one persistent monophonic voice on `ctx`. Every oscillator (the
+ * four main waveforms plus the sub) starts running immediately (silent, via
+ * per-wave gains sitting at 0) and keeps running until `dispose()` -- cheap
+ * to leave the inactive ones gained to zero, and it's what makes slide/
+ * legato behavior possible: there's only ever one set of oscillators to
+ * glide, never a fresh one per note.
  */
 export function createAcidBassVoice(
 	ctx: AudioContext,
@@ -117,12 +139,45 @@ export function createAcidBassVoice(
 	sawOsc.type = 'sawtooth';
 	const squareOsc = ctx.createOscillator();
 	squareOsc.type = 'square';
+	const triangleOsc = ctx.createOscillator();
+	triangleOsc.type = 'triangle';
+	const pulseOsc = ctx.createOscillator();
+	pulseOsc.setPeriodicWave(createPulseWave(ctx, currentPatch.oscillator.pulseWidth));
+	const subOsc = ctx.createOscillator();
+	subOsc.type = currentPatch.oscillator.subWave;
 
+	const mainLevelRatio = currentPatch.oscillator.mainLevel / 100;
 	const sawGain = ctx.createGain();
-	sawGain.gain.setValueAtTime(currentPatch.oscillator.mainWave === 'saw' ? 1 : 0, ctx.currentTime);
+	sawGain.gain.setValueAtTime(
+		currentPatch.oscillator.mainWave === 'saw' ? mainLevelRatio : 0,
+		ctx.currentTime
+	);
 	const squareGain = ctx.createGain();
 	squareGain.gain.setValueAtTime(
-		currentPatch.oscillator.mainWave === 'square' ? 1 : 0,
+		currentPatch.oscillator.mainWave === 'square' ? mainLevelRatio : 0,
+		ctx.currentTime
+	);
+	const triangleGain = ctx.createGain();
+	triangleGain.gain.setValueAtTime(
+		currentPatch.oscillator.mainWave === 'triangle' ? mainLevelRatio : 0,
+		ctx.currentTime
+	);
+	const pulseGain = ctx.createGain();
+	pulseGain.gain.setValueAtTime(
+		currentPatch.oscillator.mainWave === 'pulse' ? mainLevelRatio : 0,
+		ctx.currentTime
+	);
+	const subGain = ctx.createGain();
+	subGain.gain.setValueAtTime(
+		currentPatch.oscillator.subEnabled ? currentPatch.oscillator.subLevel / 100 : 0,
+		ctx.currentTime
+	);
+	// Applied once, after the main+sub gains are summed -- unity when only
+	// the main oscillator is driven, pulled down only once combined energy
+	// would exceed unity (see `mixCompensation`).
+	const mixCompensationGain = ctx.createGain();
+	mixCompensationGain.gain.setValueAtTime(
+		mixCompensation(currentPatch.oscillator.mainLevel, currentPatch.oscillator.subLevel),
 		ctx.currentTime
 	);
 
@@ -155,8 +210,15 @@ export function createAcidBassVoice(
 
 	sawOsc.connect(sawGain);
 	squareOsc.connect(squareGain);
-	sawGain.connect(filter);
-	squareGain.connect(filter);
+	triangleOsc.connect(triangleGain);
+	pulseOsc.connect(pulseGain);
+	subOsc.connect(subGain);
+	sawGain.connect(mixCompensationGain);
+	squareGain.connect(mixCompensationGain);
+	triangleGain.connect(mixCompensationGain);
+	pulseGain.connect(mixCompensationGain);
+	subGain.connect(mixCompensationGain);
+	mixCompensationGain.connect(filter);
 	filter.connect(vca);
 	vca.connect(driveInput);
 	driveInput.connect(shaper);
@@ -166,14 +228,46 @@ export function createAcidBassVoice(
 
 	sawOsc.start(ctx.currentTime);
 	squareOsc.start(ctx.currentTime);
+	triangleOsc.start(ctx.currentTime);
+	pulseOsc.start(ctx.currentTime);
+	subOsc.start(ctx.currentTime);
 	let disposed = false;
 
-	function setFrequencyAtTime(frequencyHz: number, time: number): void {
-		const hz = Math.max(frequencyHz, MIN_SAFE_OSC_HZ);
-		sawOsc.frequency.cancelScheduledValues(time);
-		sawOsc.frequency.setValueAtTime(hz, time);
-		squareOsc.frequency.cancelScheduledValues(time);
-		squareOsc.frequency.setValueAtTime(hz, time);
+	const mainOscillators = [sawOsc, squareOsc, triangleOsc, pulseOsc];
+
+	function setOscFrequencyAtTime(osc: OscillatorNode, hz: number, time: number): void {
+		osc.frequency.cancelScheduledValues(time);
+		osc.frequency.setValueAtTime(Math.max(hz, MIN_SAFE_OSC_HZ), time);
+	}
+
+	function setFrequencyAtTime(frequencyHz: number, time: number, patch: AcidBassPatch): void {
+		const ratio = tuneFineToRatio(patch.oscillator.tune, patch.oscillator.fine);
+		const mainHz = frequencyHz * ratio;
+		for (const osc of mainOscillators) {
+			setOscFrequencyAtTime(osc, mainHz, time);
+		}
+		const subHz = mainHz * subOctaveToRatio(patch.oscillator.subOctave);
+		setOscFrequencyAtTime(subOsc, subHz, time);
+	}
+
+	function rampOscFrequency(
+		osc: OscillatorNode,
+		fromHz: number,
+		toHz: number,
+		atTime: number,
+		glideSeconds: number,
+		curve: AcidGlideCurve
+	): void {
+		osc.frequency.cancelScheduledValues(atTime);
+		osc.frequency.setValueAtTime(Math.max(fromHz, MIN_SAFE_OSC_HZ), atTime);
+		if (curve === 'exponential') {
+			osc.frequency.exponentialRampToValueAtTime(
+				Math.max(toHz, MIN_SAFE_OSC_HZ),
+				atTime + glideSeconds
+			);
+		} else {
+			osc.frequency.linearRampToValueAtTime(Math.max(toHz, MIN_SAFE_OSC_HZ), atTime + glideSeconds);
+		}
 	}
 
 	function retriggerFilterEnvelope(
@@ -203,12 +297,38 @@ export function createAcidBassVoice(
 		setPatch(patch, atTime = ctx.currentTime) {
 			currentPatch = patch;
 
-			const sawTarget = patch.oscillator.mainWave === 'saw' ? 1 : 0;
-			const squareTarget = patch.oscillator.mainWave === 'square' ? 1 : 0;
+			const mainLevel = patch.oscillator.mainLevel / 100;
+			const sawTarget = patch.oscillator.mainWave === 'saw' ? mainLevel : 0;
+			const squareTarget = patch.oscillator.mainWave === 'square' ? mainLevel : 0;
+			const triangleTarget = patch.oscillator.mainWave === 'triangle' ? mainLevel : 0;
+			const pulseTarget = patch.oscillator.mainWave === 'pulse' ? mainLevel : 0;
+			const subTarget = patch.oscillator.subEnabled ? patch.oscillator.subLevel / 100 : 0;
+
 			sawGain.gain.cancelScheduledValues(atTime);
 			sawGain.gain.setTargetAtTime(sawTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
 			squareGain.gain.cancelScheduledValues(atTime);
 			squareGain.gain.setTargetAtTime(squareTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+			triangleGain.gain.cancelScheduledValues(atTime);
+			triangleGain.gain.setTargetAtTime(triangleTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+			pulseGain.gain.cancelScheduledValues(atTime);
+			pulseGain.gain.setTargetAtTime(pulseTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+			subGain.gain.cancelScheduledValues(atTime);
+			subGain.gain.setTargetAtTime(subTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+
+			mixCompensationGain.gain.cancelScheduledValues(atTime);
+			mixCompensationGain.gain.setTargetAtTime(
+				mixCompensation(patch.oscillator.mainLevel, patch.oscillator.subLevel),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+
+			// Pulse Width isn't live-modulatable yet (see file header) -- just
+			// regenerate the waveform to match whatever the patch currently says.
+			pulseOsc.setPeriodicWave(createPulseWave(ctx, patch.oscillator.pulseWidth));
+			// Sub wave has no crossfade partner (only one sub oscillator) -- a
+			// direct type switch is an infrequent patch edit, not a per-note
+			// automation target, so a small discontinuity on change is acceptable.
+			subOsc.type = patch.oscillator.subWave;
 
 			// Resonance/Drive/Volume aren't enveloped per-note, so they can apply
 			// to the currently-sounding note immediately -- Cutoff/EnvMod/Decay
@@ -251,7 +371,7 @@ export function createAcidBassVoice(
 			const peakGain = Math.min(1, BASE_VCA_PEAK * (accent ? vcaMultiplier : 1));
 
 			if (!legato) {
-				setFrequencyAtTime(frequencyHz, time);
+				setFrequencyAtTime(frequencyHz, time, patch);
 				retriggerFilterEnvelope(time, accent, decaySeconds, patch);
 				vca.gain.cancelScheduledValues(time);
 				vca.gain.setValueAtTime(MIN_GAIN, time);
@@ -263,22 +383,21 @@ export function createAcidBassVoice(
 				// destination step's own (legato) call continues from here.
 				const glideSeconds = glideTimeToSeconds(patch.glide.time);
 				const slideStart = Math.max(time + stepDurationSeconds - glideSeconds, time);
-				const targetHz = Math.max(slideToFrequencyHz, MIN_SAFE_OSC_HZ);
-				const rampToTarget =
-					patch.glide.curve === 'exponential'
-						? (param: AudioParam) =>
-								param.exponentialRampToValueAtTime(
-									Math.max(targetHz, MIN_SAFE_OSC_HZ),
-									slideStart + glideSeconds
-								)
-						: (param: AudioParam) =>
-								param.linearRampToValueAtTime(targetHz, slideStart + glideSeconds);
-				sawOsc.frequency.cancelScheduledValues(slideStart);
-				sawOsc.frequency.setValueAtTime(Math.max(frequencyHz, MIN_SAFE_OSC_HZ), slideStart);
-				rampToTarget(sawOsc.frequency);
-				squareOsc.frequency.cancelScheduledValues(slideStart);
-				squareOsc.frequency.setValueAtTime(Math.max(frequencyHz, MIN_SAFE_OSC_HZ), slideStart);
-				rampToTarget(squareOsc.frequency);
+				const ratio = tuneFineToRatio(patch.oscillator.tune, patch.oscillator.fine);
+				const fromMainHz = frequencyHz * ratio;
+				const toMainHz = slideToFrequencyHz * ratio;
+				for (const osc of mainOscillators) {
+					rampOscFrequency(osc, fromMainHz, toMainHz, slideStart, glideSeconds, patch.glide.curve);
+				}
+				const subRatio = ratio * subOctaveToRatio(patch.oscillator.subOctave);
+				rampOscFrequency(
+					subOsc,
+					frequencyHz * subRatio,
+					slideToFrequencyHz * subRatio,
+					slideStart,
+					glideSeconds,
+					patch.glide.curve
+				);
 			} else {
 				vca.gain.setValueAtTime(peakGain, time + gateSeconds);
 				vca.gain.exponentialRampToValueAtTime(MIN_GAIN, time + gateSeconds + releaseSeconds);
@@ -300,6 +419,9 @@ export function createAcidBassVoice(
 			vca.gain.linearRampToValueAtTime(MIN_GAIN, stopTime);
 			sawOsc.stop(stopTime);
 			squareOsc.stop(stopTime);
+			triangleOsc.stop(stopTime);
+			pulseOsc.stop(stopTime);
+			subOsc.stop(stopTime);
 		}
 	};
 }
