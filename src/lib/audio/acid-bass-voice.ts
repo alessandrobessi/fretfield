@@ -22,14 +22,18 @@
  * uses -- the voice converts its own Hz back to a floating MIDI note via
  * `frequencyToMidi` rather than duplicating that math) and pre-filter
  * saturation (a second, independent drive stage feeding the filter, distinct
- * from the post-filter output Drive). `filter.model` is read but not yet
- * fully honored: until the `acid24` AudioWorklet exists, both `svf12` and
- * `acid24` route through the same Biquad path as an `svf12`-flavored
- * approximation (see `resonanceToModelParameter` in `resolve.ts`) -- only
- * `legacy` gets its own distinct (V1-compatible) resonance curve for now.
- * Pulse Width is patch-driven only (regenerated on `setPatch()`) -- live
- * "LFO -> Pulse Width" modulation needs the worklet oscillator (a later
- * milestone) to stay sample-accurate.
+ * from the post-filter output Drive). `legacy`/`svf12` both stay on the
+ * Biquad path (see `resonanceToModelParameter` in `resolve.ts`); `acid24`
+ * routes to a dedicated `AudioWorkletNode` (M10, `acid-worklet-node.ts`) once
+ * it finishes loading -- both paths run in parallel the whole time (the same
+ * "always connected, crossfade the inactive one to zero" idiom this file
+ * uses everywhere else), so switching models or the worklet finishing its
+ * async load never audibly glitches. If the worklet never loads (unsupported
+ * browser, asset fetch failure -- logged to the console only, never a
+ * user-facing error), `acid24` silently keeps sounding like the `svf12`
+ * approximation instead. Pulse Width is patch-driven only (regenerated on
+ * `setPatch()`) -- live "LFO -> Pulse Width" modulation needs the worklet
+ * oscillator (a later milestone) to stay sample-accurate.
  *
  * Sequencer powers (M5): Gate is now per-trigger (`gatePercent`, replacing
  * the old fixed 82% constant) and parameter locks (`locks`) can override
@@ -86,6 +90,7 @@ import type {
 } from '$lib/acid-bass/types';
 
 import { createAcidBassLfo } from './acid-bass-lfo';
+import { createAcid24WorkletNode } from './acid-worklet-node';
 import { frequencyToMidi } from './note-mapping';
 
 export type { AcidBassPatch } from '$lib/acid-bass/types';
@@ -282,6 +287,15 @@ export function createAcidBassVoice(
 		ctx.currentTime
 	);
 
+	// Biquad output is unity by default (the fallback path); the acid24
+	// worklet's own output starts silent and only ever crossfades in once the
+	// worklet has actually finished loading and the patch wants it (see
+	// applyFilterModelRouting below) -- both stay connected the whole time.
+	const biquadOutputGain = ctx.createGain();
+	biquadOutputGain.gain.setValueAtTime(1, ctx.currentTime);
+	const acid24OutputGain = ctx.createGain();
+	acid24OutputGain.gain.setValueAtTime(0, ctx.currentTime);
+
 	const vca = ctx.createGain();
 	vca.gain.setValueAtTime(MIN_GAIN, ctx.currentTime);
 
@@ -319,7 +333,9 @@ export function createAcidBassVoice(
 	mixCompensationGain.connect(saturationInput);
 	saturationInput.connect(saturationShaper);
 	saturationShaper.connect(filter);
-	filter.connect(vca);
+	filter.connect(biquadOutputGain);
+	biquadOutputGain.connect(vca);
+	acid24OutputGain.connect(vca);
 	vca.connect(driveInput);
 	driveInput.connect(shaper);
 	shaper.connect(outputTrim);
@@ -350,6 +366,31 @@ export function createAcidBassVoice(
 	subOsc.start(ctx.currentTime);
 	let disposed = false;
 	let currentBpm = 80;
+	let acid24Node: AudioWorkletNode | null = null;
+
+	/** Crossfades between the Biquad and acid24 outputs -- `acid24` only actually routes to the worklet once it exists; otherwise (still loading, or it failed) this keeps the Biquad path active regardless of what the patch asks for, which is exactly the fallback behavior the file header describes. */
+	function applyFilterModelRouting(patch: AcidBassPatch, atTime: number): void {
+		const useAcid24 = patch.filter.model === 'acid24' && acid24Node !== null;
+		biquadOutputGain.gain.cancelScheduledValues(atTime);
+		biquadOutputGain.gain.setTargetAtTime(useAcid24 ? 0 : 1, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+		acid24OutputGain.gain.cancelScheduledValues(atTime);
+		acid24OutputGain.gain.setTargetAtTime(useAcid24 ? 1 : 0, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+	}
+
+	// Fire-and-forget: the voice must stay usable (via the Biquad fallback)
+	// for however long this takes, or forever if it never resolves to a node
+	// at all -- see createAcid24WorkletNode's own no-throw contract.
+	void createAcid24WorkletNode(ctx).then((node) => {
+		if (disposed) {
+			node?.disconnect();
+			return;
+		}
+		if (node === null) return;
+		acid24Node = node;
+		mixCompensationGain.connect(node);
+		node.connect(acid24OutputGain);
+		applyFilterModelRouting(currentPatch, ctx.currentTime);
+	});
 
 	const mainOscillators = [sawOsc, squareOsc, triangleOsc, pulseOsc];
 
@@ -441,6 +482,22 @@ export function createAcidBassVoice(
 			Math.max(baseCutoff, MIN_SAFE_FILTER_HZ),
 			time + decaySeconds
 		);
+
+		// Driven in parallel regardless of which model is currently audible
+		// (see applyFilterModelRouting) -- harmless when gained to 0, and keeps
+		// the worklet already caught up the moment a patch edit switches to it.
+		if (acid24Node !== null) {
+			const resonanceParam = acid24Node.parameters.get('resonance');
+			resonanceParam?.cancelScheduledValues(time);
+			resonanceParam?.setValueAtTime(resonanceToModelParameter('acid24', resolved.resonance), time);
+			const cutoffParam = acid24Node.parameters.get('cutoff');
+			cutoffParam?.cancelScheduledValues(time);
+			cutoffParam?.setValueAtTime(peakCutoff, time);
+			cutoffParam?.exponentialRampToValueAtTime(
+				Math.max(baseCutoff, MIN_SAFE_FILTER_HZ),
+				time + decaySeconds
+			);
+		}
 	}
 
 	return {
@@ -497,6 +554,30 @@ export function createAcidBassVoice(
 				atTime,
 				PARAM_SMOOTH_TIME_CONSTANT
 			);
+			applyFilterModelRouting(patch, atTime);
+			if (acid24Node !== null) {
+				const cutoffParam = acid24Node.parameters.get('cutoff');
+				cutoffParam?.cancelScheduledValues(atTime);
+				cutoffParam?.setTargetAtTime(
+					clampCutoffHz(cutoffToHz(patch.filter.cutoff), ctx.sampleRate),
+					atTime,
+					PARAM_SMOOTH_TIME_CONSTANT
+				);
+				const resonanceParam = acid24Node.parameters.get('resonance');
+				resonanceParam?.cancelScheduledValues(atTime);
+				resonanceParam?.setTargetAtTime(
+					resonanceToModelParameter('acid24', patch.filter.resonance),
+					atTime,
+					PARAM_SMOOTH_TIME_CONSTANT
+				);
+				const driveParam = acid24Node.parameters.get('drive');
+				driveParam?.cancelScheduledValues(atTime);
+				driveParam?.setTargetAtTime(
+					saturationToPregain(patch.filter.saturation),
+					atTime,
+					PARAM_SMOOTH_TIME_CONSTANT
+				);
+			}
 			driveInput.gain.cancelScheduledValues(atTime);
 			driveInput.gain.setTargetAtTime(
 				driveToPregain(patch.output.drive),
@@ -654,6 +735,7 @@ export function createAcidBassVoice(
 			pulseOsc.stop(stopTime);
 			subOsc.stop(stopTime);
 			lfo.dispose();
+			acid24Node?.disconnect();
 		}
 	};
 }
