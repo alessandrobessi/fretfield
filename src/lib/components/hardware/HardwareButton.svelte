@@ -62,9 +62,13 @@
 
 	/* Pressed/active surface -- deep yellow, per spec §15. Applies to both
 	   variants: a pressed secondary button still reads as "on" via the same
-	   deep-yellow fill, just with its own border color kept. */
+	   deep-yellow fill, just with its own border color kept. Text goes black
+	   here regardless of variant -- a pressed secondary button would
+	   otherwise keep its yellow text from .secondary on top of this same
+	   yellow-dark fill, which is nearly unreadable (yellow-on-yellow). */
 	.hardware-button.pressed {
 		background: var(--ff-yellow-dark, #c9910d);
+		color: var(--ff-black, #151411);
 	}
 
 	.hardware-button:disabled {
