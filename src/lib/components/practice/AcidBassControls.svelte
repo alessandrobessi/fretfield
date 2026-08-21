@@ -69,8 +69,6 @@
 		'1/32'
 	];
 
-	let showAdvanced = $state(false);
-
 	const patch = $derived(scalePractice.groove.acidBass.patch);
 
 	/** The LFO's actual oscillation rate right now, in Sync mode as much as Free -- what the indicator dot's blink rate and the Hz readout both key off. */
@@ -148,48 +146,43 @@
 					Sub {patch.oscillator.subEnabled ? 'On' : 'Off'}
 				</HardwareButton>
 			</div>
-			{#if showAdvanced}
-				<div class="row">
-					{@render knobField(
-						'Tune',
-						patch.oscillator.tune,
-						(v) => scalePractice.setAcidBassTune(v),
-						-12,
-						12
-					)}
-					{@render knobField(
-						'Fine',
-						patch.oscillator.fine,
-						(v) => scalePractice.setAcidBassFine(v),
-						-50,
-						50
-					)}
-					{@render knobField('Main Level', patch.oscillator.mainLevel, (v) =>
-						scalePractice.setAcidBassMainLevel(v)
-					)}
-					{@render knobField(
-						'Pulse Width',
-						patch.oscillator.pulseWidth,
-						(v) => scalePractice.setAcidBassPulseWidth(v),
-						5,
-						95
-					)}
-				</div>
-				<div class="row">
-					{@render pickerField(
-						'Sub Octave',
-						SUB_OCTAVES,
-						String(patch.oscillator.subOctave),
-						(id) => scalePractice.setAcidBassSubOctave(Number(id) as AcidSubOctave)
-					)}
-					{@render pickerField('Sub Wave', SUB_WAVES, patch.oscillator.subWave, (id) =>
-						scalePractice.setAcidBassSubWave(id as AcidSubWave)
-					)}
-					{@render knobField('Sub Level', patch.oscillator.subLevel, (v) =>
-						scalePractice.setAcidBassSubLevel(v)
-					)}
-				</div>
-			{/if}
+			<div class="row">
+				{@render knobField(
+					'Tune',
+					patch.oscillator.tune,
+					(v) => scalePractice.setAcidBassTune(v),
+					-12,
+					12
+				)}
+				{@render knobField(
+					'Fine',
+					patch.oscillator.fine,
+					(v) => scalePractice.setAcidBassFine(v),
+					-50,
+					50
+				)}
+				{@render knobField('Main Level', patch.oscillator.mainLevel, (v) =>
+					scalePractice.setAcidBassMainLevel(v)
+				)}
+				{@render knobField(
+					'Pulse Width',
+					patch.oscillator.pulseWidth,
+					(v) => scalePractice.setAcidBassPulseWidth(v),
+					5,
+					95
+				)}
+			</div>
+			<div class="row">
+				{@render pickerField('Sub Octave', SUB_OCTAVES, String(patch.oscillator.subOctave), (id) =>
+					scalePractice.setAcidBassSubOctave(Number(id) as AcidSubOctave)
+				)}
+				{@render pickerField('Sub Wave', SUB_WAVES, patch.oscillator.subWave, (id) =>
+					scalePractice.setAcidBassSubWave(id as AcidSubWave)
+				)}
+				{@render knobField('Sub Level', patch.oscillator.subLevel, (v) =>
+					scalePractice.setAcidBassSubLevel(v)
+				)}
+			</div>
 		</HardwarePanel>
 
 		<HardwarePanel title="VCF" tone="carbon">
@@ -211,16 +204,14 @@
 					100
 				)}
 			</div>
-			{#if showAdvanced}
-				<div class="row">
-					{@render knobField('Key Tracking', patch.filter.keyTracking, (v) =>
-						scalePractice.setAcidBassKeyTracking(v)
-					)}
-					{@render knobField('Saturation', patch.filter.saturation, (v) =>
-						scalePractice.setAcidBassSaturation(v)
-					)}
-				</div>
-			{/if}
+			<div class="row">
+				{@render knobField('Key Tracking', patch.filter.keyTracking, (v) =>
+					scalePractice.setAcidBassKeyTracking(v)
+				)}
+				{@render knobField('Saturation', patch.filter.saturation, (v) =>
+					scalePractice.setAcidBassSaturation(v)
+				)}
+			</div>
 		</HardwarePanel>
 
 		<HardwarePanel title="ENV" tone="carbon">
@@ -230,22 +221,20 @@
 					scalePractice.setAcidBassAccentAmount(v)
 				)}
 			</div>
-			{#if showAdvanced}
-				<div class="row">
-					{@render knobField('Attack', patch.envelope.attack, (v) =>
-						scalePractice.setAcidBassAttack(v)
-					)}
-					{@render knobField('Release', patch.envelope.release, (v) =>
-						scalePractice.setAcidBassRelease(v)
-					)}
-					{@render knobField('Glide Time', patch.glide.time, (v) =>
-						scalePractice.setAcidBassGlideTime(v)
-					)}
-					{@render pickerField('Glide Curve', GLIDE_CURVES, patch.glide.curve, (id) =>
-						scalePractice.setAcidBassGlideCurve(id as AcidGlideCurve)
-					)}
-				</div>
-			{/if}
+			<div class="row">
+				{@render knobField('Attack', patch.envelope.attack, (v) =>
+					scalePractice.setAcidBassAttack(v)
+				)}
+				{@render knobField('Release', patch.envelope.release, (v) =>
+					scalePractice.setAcidBassRelease(v)
+				)}
+				{@render knobField('Glide Time', patch.glide.time, (v) =>
+					scalePractice.setAcidBassGlideTime(v)
+				)}
+				{@render pickerField('Glide Curve', GLIDE_CURVES, patch.glide.curve, (id) =>
+					scalePractice.setAcidBassGlideCurve(id as AcidGlideCurve)
+				)}
+			</div>
 		</HardwarePanel>
 
 		<HardwarePanel title="MOD" tone="carbon">
@@ -270,41 +259,39 @@
 				)}
 				{@render knobField('Depth', patch.lfo.depth, (v) => scalePractice.setAcidBassLfoDepth(v))}
 			</div>
-			{#if showAdvanced}
-				<div class="row">
-					{@render pickerField('Shape', LFO_SHAPES, patch.lfo.shape, (id) =>
-						scalePractice.setAcidBassLfoShape(id as AcidLfoShape)
+			<div class="row">
+				{@render pickerField('Shape', LFO_SHAPES, patch.lfo.shape, (id) =>
+					scalePractice.setAcidBassLfoShape(id as AcidLfoShape)
+				)}
+				{@render pickerField('Rate Mode', LFO_RATE_MODES, patch.lfo.rateMode, (id) =>
+					scalePractice.setAcidBassLfoRateMode(id as AcidLfoRateMode)
+				)}
+				{#if patch.lfo.rateMode === 'free'}
+					{@render knobField(
+						'Rate',
+						patch.lfo.rateHz,
+						(v) => scalePractice.setAcidBassLfoRateHz(v),
+						0.05,
+						20
 					)}
-					{@render pickerField('Rate Mode', LFO_RATE_MODES, patch.lfo.rateMode, (id) =>
-						scalePractice.setAcidBassLfoRateMode(id as AcidLfoRateMode)
-					)}
-					{#if patch.lfo.rateMode === 'free'}
-						{@render knobField(
-							'Rate',
-							patch.lfo.rateHz,
-							(v) => scalePractice.setAcidBassLfoRateHz(v),
-							0.05,
-							20
-						)}
-					{:else}
-						<label class="field">
-							<span class="ff-label field-label">Division</span>
-							<select
-								aria-label="Division"
-								value={patch.lfo.division}
-								onchange={(event) =>
-									scalePractice.setAcidBassLfoDivision(
-										(event.currentTarget as HTMLSelectElement).value as AcidLfoDivision
-									)}
-							>
-								{#each LFO_DIVISIONS as division (division)}
-									<option value={division}>{division}</option>
-								{/each}
-							</select>
-						</label>
-					{/if}
-				</div>
-			{/if}
+				{:else}
+					<label class="field">
+						<span class="ff-label field-label">Division</span>
+						<select
+							aria-label="Division"
+							value={patch.lfo.division}
+							onchange={(event) =>
+								scalePractice.setAcidBassLfoDivision(
+									(event.currentTarget as HTMLSelectElement).value as AcidLfoDivision
+								)}
+						>
+							{#each LFO_DIVISIONS as division (division)}
+								<option value={division}>{division}</option>
+							{/each}
+						</select>
+					</label>
+				{/if}
+			</div>
 		</HardwarePanel>
 
 		<HardwarePanel title="OUTPUT" tone="carbon">
@@ -316,14 +303,6 @@
 			</div>
 		</HardwarePanel>
 	</div>
-
-	<HardwareButton
-		variant="secondary"
-		ariaExpanded={showAdvanced}
-		onclick={() => (showAdvanced = !showAdvanced)}
-	>
-		{showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
-	</HardwareButton>
 </div>
 
 <style>
@@ -350,11 +329,21 @@
 		--ff-control-gap: 0.5rem;
 	}
 
+	/* Grid/flex items default to a content-based min-width, which lets a
+	   wide picker (see .picker below) force its ancestors open instead of
+	   shrinking to the column's own width -- explicit min-width: 0 at every
+	   nested flex/grid level is what actually lets things wrap/shrink to
+	   fit instead of visually spilling past the panel's edge. */
+	.panel-grid > :global(.hardware-panel) {
+		min-width: 0;
+	}
+
 	.row {
 		display: flex;
 		align-items: flex-end;
 		gap: 0.7rem;
 		flex-wrap: wrap;
+		min-width: 0;
 	}
 
 	.field {
@@ -363,6 +352,7 @@
 		align-items: center;
 		gap: 0.25rem;
 		font-size: 0.75rem;
+		min-width: 0;
 	}
 
 	.field-label {
@@ -420,6 +410,8 @@
 
 	.picker {
 		display: flex;
+		flex-wrap: wrap;
+		max-width: 100%;
 		border: 1px solid var(--ff-black, #151411);
 		border-radius: var(--ff-radius-control, 4px);
 		overflow: hidden;

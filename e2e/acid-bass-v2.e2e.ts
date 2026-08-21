@@ -2,10 +2,10 @@ import { expect, test } from '@playwright/test';
 
 /**
  * Acid Bass V2's UI additions (~/Downloads/ACID-BASS-ENGINE-V2.md M8): the
- * VCO/VCF/ENV/MOD/OUTPUT panel layout, its Advanced disclosure, and the step
- * editor's sequencer powers (Probability/Ratchet/Gate/Locks). No real-audio
- * assertions, matching this app's existing testing boundary (see
- * acid-bass.e2e.ts) -- only UI/state.
+ * VCO/VCF/ENV/MOD/OUTPUT panel layout (all controls always visible -- no
+ * Advanced disclosure) and the step editor's sequencer powers (Probability/
+ * Ratchet/Gate/Locks). No real-audio assertions, matching this app's
+ * existing testing boundary (see acid-bass.e2e.ts) -- only UI/state.
  */
 
 async function openBassTab(page: import('@playwright/test').Page): Promise<void> {
@@ -22,7 +22,7 @@ async function openBassStepsTab(page: import('@playwright/test').Page): Promise<
 }
 
 test.describe('Acid Bass V2: panel layout', () => {
-	test('VCO/VCF/ENV/MOD/OUTPUT sections are all visible, and Advanced is collapsed by default', async ({
+	test('VCO/VCF/ENV/MOD/OUTPUT sections, and every control including the advanced ones, are all visible at once', async ({
 		page
 	}) => {
 		await openBassTab(page);
@@ -33,14 +33,10 @@ test.describe('Acid Bass V2: panel layout', () => {
 		await expect(page.getByRole('heading', { name: 'MOD' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'OUTPUT' })).toBeVisible();
 
-		await expect(page.getByRole('slider', { name: 'Tune' })).not.toBeVisible();
-
-		await page.getByRole('button', { name: 'Show Advanced' }).click();
 		await expect(page.getByRole('slider', { name: 'Tune' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Fine' })).toBeVisible();
-
-		await page.getByRole('button', { name: 'Hide Advanced' }).click();
-		await expect(page.getByRole('slider', { name: 'Tune' })).not.toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Key Tracking' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Attack' })).toBeVisible();
 	});
 
 	test('Sub On/Off toggles, and the Filter Model picker selects', async ({ page }) => {

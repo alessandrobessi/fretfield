@@ -43,8 +43,9 @@ test.describe('Acid Bass: synth controls', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 
-		await expect(page.getByRole('button', { name: 'Saw', exact: true })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Square', exact: true })).toBeVisible();
+		const wavePicker = page.getByRole('group', { name: 'Wave', exact: true });
+		await expect(wavePicker.getByRole('button', { name: 'Saw', exact: true })).toBeVisible();
+		await expect(wavePicker.getByRole('button', { name: 'Square', exact: true })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Cutoff' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Resonance' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Env Mod' })).toBeVisible();
@@ -57,11 +58,12 @@ test.describe('Acid Bass: synth controls', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 
-		await page.getByRole('button', { name: 'Square', exact: true }).click();
-		await expect(page.getByRole('button', { name: 'Square', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		const waveSquare = page.getByRole('group', { name: 'Wave', exact: true }).getByRole('button', {
+			name: 'Square',
+			exact: true
+		});
+		await waveSquare.click();
+		await expect(waveSquare).toHaveAttribute('aria-pressed', 'true');
 
 		// Knob.svelte is a role="slider" div, not a native <input> -- keyboard
 		// Home resets to the knob's min (0) regardless of the patch's own
@@ -184,7 +186,10 @@ test.describe('Acid Bass: persistence', () => {
 
 		await page.getByRole('button', { name: /^Bass (On|Off)$/ }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
-		await page.getByRole('button', { name: 'Square', exact: true }).click();
+		await page
+			.getByRole('group', { name: 'Wave', exact: true })
+			.getByRole('button', { name: 'Square', exact: true })
+			.click();
 		const drive = page.getByRole('slider', { name: 'Drive' });
 		await drive.focus();
 		await drive.press('Home');
@@ -203,10 +208,11 @@ test.describe('Acid Bass: persistence', () => {
 		await expect(page.getByRole('button', { name: /^Bass (On|Off)$/ })).toHaveText('Bass On');
 
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
-		await expect(page.getByRole('button', { name: 'Square', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			page
+				.getByRole('group', { name: 'Wave', exact: true })
+				.getByRole('button', { name: 'Square', exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByRole('slider', { name: 'Drive' })).toHaveAttribute(
 			'aria-valuenow',
 			'70'
