@@ -2,6 +2,7 @@
 	import { listAcidBassFactoryPatches } from '$lib/acid-bass/factory-patches';
 	import { lfoRateHzClamp, lfoSyncFrequencyHz } from '$lib/acid-bass/resolve';
 	import type {
+		AcidBassMode,
 		AcidFilterModel,
 		AcidGlideCurve,
 		AcidLfoDestination,
@@ -21,6 +22,14 @@
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	const FACTORY_PATCHES = listAcidBassFactoryPatches();
+
+	// Acid Bass Intelligence V4 M10: a minimal mode switch is all this
+	// milestone asks for ("no new UI beyond minimal mode control if
+	// necessary") -- style/harmony/density/etc. controls are M11's job.
+	const MODES: { id: AcidBassMode; label: string }[] = [
+		{ id: 'manual', label: 'Manual' },
+		{ id: 'generated', label: 'Generated' }
+	];
 
 	const MAIN_WAVES: { id: AcidWave; label: string }[] = [
 		{ id: 'saw', label: 'Saw' },
@@ -182,6 +191,10 @@
 {/snippet}
 
 <div class="acid-bass-controls">
+	{@render pickerField('Mode', MODES, scalePractice.groove.acidBass.mode, (id) =>
+		scalePractice.setAcidBassMode(id as AcidBassMode)
+	)}
+
 	<label class="field patch-picker">
 		<span class="ff-label field-label">Patch</span>
 		<select

@@ -11,6 +11,8 @@ import {
 	toggleAcidStepSlide as toggleGrooveAcidStepSlide
 } from '$lib/acid-bass/pattern';
 import { getAcidBassFactoryPatch } from '$lib/acid-bass/factory-patches';
+import { generatedStepToPlaybackStep } from '$lib/acid-bass/generated-playback';
+import { buildAcidBassGenerationContext } from '$lib/acid-bass/generation-context';
 import { lfoRateHzClamp, pulseWidthClamp, resolveAcidStepMidi } from '$lib/acid-bass/resolve';
 import { ratchetOffsetsSeconds, stepShouldTrigger } from '$lib/acid-bass/sequencer';
 import {
@@ -22,6 +24,7 @@ import {
 	simplifyPattern as simplifyAcidPattern
 } from '$lib/acid-bass/transforms';
 import type {
+	AcidBassMode,
 	AcidBassPattern,
 	AcidBassPatch,
 	AcidBassStep,
@@ -75,6 +78,9 @@ import {
 	type StepVelocity
 } from '$lib/groove/types';
 import { midiToFrequency } from '$lib/audio/note-mapping';
+import { STANDARD_4_STRING_ABSOLUTE_TUNING } from '$lib/music/absolute-pitch';
+import { generateBassline } from '$lib/music/bassline/generate';
+import type { GeneratedBassBar, GeneratedBasslinePlan } from '$lib/music/bassline/types';
 import { getChordDefinition } from '$lib/music/chords';
 import type { FretPosition } from '$lib/music/fretboard';
 import { intervalSemitones, type IntervalId } from '$lib/music/intervals';
@@ -271,6 +277,8 @@ export class ScalePracticeStore {
 	private currentBarAcidPattern: AcidBassPattern = this.groove.acidBass.patterns.A;
 	/** The Acid Bass reference root for the current bar -- the active progression chord's own root, or `this.root` with no progression (spec §15). Resolved once per bar in `handleBarStart`, `null` only when there's no progression *and* no root picked yet. */
 	private currentBarChordRoot: PitchClass | null = null;
+	/** Acid Bass Intelligence V4 §25.2's generated equivalent of `currentBarAcidPattern` -- resolved once per bar in `handleBarStart`, never recomputed inside `handleStep`. `null` in manual mode, or whenever `generatedBasslinePlan` itself is null (no root/progression selected yet). */
+	private currentBarGeneratedBassBar: GeneratedBassBar | null = null;
 	/** The bar index `currentBarPattern`/`currentBarAcidPattern` were resolved for -- kept around so a mid-bar meter change (see `setTimeSignature`) can re-resolve both against the just-resized `groove` for the bar already in progress, instead of leaving them pointed at stale, wrong-length pattern arrays until the next `onBarStart`. */
 	private currentBar = 0;
 	/** Set by `scheduleAcidBassStep` when a bar's *last* step slides into the next bar's first (cross-bar slide, spec §76) -- read and cleared the moment that next bar's own step 0 is scheduled, so legato only ever applies to the one step it was set for. */
@@ -320,6 +328,42 @@ export class ScalePracticeStore {
 			const override = this.progressionChordScaleOverrides[index];
 			return override !== undefined ? override : (suggestedScalesFor(chord.chordId)[0]?.id ?? null);
 		});
+	});
+
+	/**
+	 * Acid Bass Intelligence V4 §25.1 -- derived, never manually persisted
+	 * (only `groove.acidBass.generation`'s settings, including `seed`, are
+	 * saved; the plan itself is always rebuilt from them). `null` whenever
+	 * generation isn't meaningful yet: manual mode, no root, or no
+	 * progression selected (`buildAcidBassGenerationContext` already encodes
+	 * these same rules, so this derived just forwards them).
+	 *
+	 * Reads exactly the inputs spec §26 lists as regeneration triggers (root,
+	 * progression, bars-per-chord, per-chord scale overrides, meter, Groove
+	 * arrangement, fret zone, `generation` settings) and nothing from
+	 * `groove.acidBass.patch` -- so a sound-patch-only change never appears as
+	 * a dependency of this derived and can never trigger regeneration.
+	 */
+	readonly generatedBasslinePlan = $derived.by<GeneratedBasslinePlan | null>(() => {
+		if (this.groove.acidBass.mode !== 'generated') return null;
+		if (this.root === null) return null;
+		if (this.resolvedProgression.length === 0) return null;
+
+		const context = buildAcidBassGenerationContext({
+			root: this.root,
+			resolvedProgression: this.resolvedProgression,
+			progressionChordScales: this.progressionChordScales,
+			barsPerChord: this.barsPerChord,
+			arrangement: this.groove.arrangement,
+			timeSignature: this.groove.timeSignature,
+			zone: this.zone,
+			tuning: STANDARD_4_STRING_ABSOLUTE_TUNING,
+			fretCount: this.fretCount,
+			generation: this.groove.acidBass.generation
+		});
+		if (context === null) return null;
+
+		return generateBassline(context);
 	});
 
 	/** Index-aligned with `groove.arrangement` -- the chord symbol sounding on each bar, `null` for "no chord backing on this bar," `undefined` entirely when there's no progression selected at all. Shared by the always-visible arrangement strip and the Groove Editor's own editable one, so they can never disagree. */
@@ -455,6 +499,11 @@ export class ScalePracticeStore {
 		if (this.running) {
 			this.currentBarPattern = this.activePatternForBar(this.currentBar);
 			this.currentBarAcidPattern = this.activeAcidPatternForBar(this.currentBar);
+			// Same staleness risk as the two caches above -- `generatedBasslinePlan`
+			// itself is already rebuilt (meter is one of its own dependencies), but
+			// `currentBarGeneratedBassBar` won't re-read it until the next bar
+			// starts unless refreshed here too (spec §26).
+			this.currentBarGeneratedBassBar = this.resolveGeneratedBassBar(this.currentBar);
 		}
 		this.persist();
 	}
@@ -468,6 +517,18 @@ export class ScalePracticeStore {
 	setAcidBassEnabled(enabled: boolean): void {
 		this.groove = { ...this.groove, acidBass: { ...this.groove.acidBass, enabled } };
 		if (!enabled) this.acidBassVoice?.silence();
+		this.persist();
+	}
+
+	/**
+	 * Manual/Generated (Acid Bass Intelligence V4 §3.5/§25) -- switches which
+	 * source `scheduleAcidBassStep`/`scheduleGeneratedBassStep` reads from at
+	 * the *next* step boundary, not mid-note; silences immediately so a
+	 * switch mid-playback never leaves a stuck voice from the old mode.
+	 */
+	setAcidBassMode(mode: AcidBassMode): void {
+		this.groove = { ...this.groove, acidBass: { ...this.groove.acidBass, mode } };
+		this.acidBassVoice?.silence();
 		this.persist();
 	}
 
@@ -948,6 +1009,13 @@ export class ScalePracticeStore {
 		return progression[chordIndex].root;
 	}
 
+	/** `bar`'s own slot within `generatedBasslinePlan`'s composite cycle -- wraps once the plan's own bar count is exceeded (spec §9/§25: the plan describes one repeating cycle, not the whole song). `null` in manual mode or whenever there's no plan yet. */
+	private resolveGeneratedBassBar(bar: number): GeneratedBassBar | null {
+		const plan = this.generatedBasslinePlan;
+		if (plan === null || plan.bars.length === 0) return null;
+		return plan.bars[bar % plan.bars.length];
+	}
+
 	/** Starts (or stops) only the drum machine — has no effect on which notes are highlighted. */
 	start(): void {
 		if (this.running) return;
@@ -987,6 +1055,7 @@ export class ScalePracticeStore {
 		this.currentBarPattern = this.activePatternForBar(bar);
 		this.currentBarAcidPattern = this.activeAcidPatternForBar(bar);
 		this.currentBarChordRoot = this.resolveBarChordRoot(bar);
+		this.currentBarGeneratedBassBar = this.resolveGeneratedBassBar(bar);
 
 		const ctx = this.audioContext;
 		if (ctx === null) return;
@@ -1011,7 +1080,11 @@ export class ScalePracticeStore {
 			}
 		}
 
-		this.scheduleAcidBassStep(stepIndex, swungTime);
+		if (this.groove.acidBass.mode === 'generated') {
+			this.scheduleGeneratedBassStep(stepIndex, swungTime);
+		} else {
+			this.scheduleAcidBassStep(stepIndex, swungTime);
+		}
 
 		const delayMs = Math.max(0, (gridTime - ctx.currentTime) * 1000);
 		const timeoutId = setTimeout(() => {
@@ -1120,6 +1193,67 @@ export class ScalePracticeStore {
 			accent: step.accent,
 			gatePercent: step.gate,
 			locks: step.locks,
+			slideToFrequencyHz,
+			legato
+		});
+	}
+
+	/**
+	 * Generated-mode equivalent of `scheduleAcidBassStep` (Acid Bass
+	 * Intelligence V4 §25.3/§25.4) -- same swung `time`, same
+	 * `AcidBassVoice`, same cross-bar slide concept, reading from the
+	 * already-cached `currentBarGeneratedBassBar` instead of a persisted
+	 * pattern. Generated steps are always `probability: 100, ratchet: 1`
+	 * (guaranteed by `GeneratedBassNoteStep`'s own type), so there is no
+	 * probability roll and no ratchet fan-out branch to share with the
+	 * manual path.
+	 */
+	private scheduleGeneratedBassStep(stepIndex: number, time: number): void {
+		if (!this.groove.acidBass.enabled || this.acidBassVoice === null) return;
+		const bar = this.currentBarGeneratedBassBar;
+		if (bar === null) return;
+
+		const crossedFromPreviousBar = stepIndex === 0 && this.pendingCrossBarLegato;
+		if (stepIndex === 0) this.pendingCrossBarLegato = false;
+
+		const step = bar.steps[stepIndex];
+		if (step === undefined || !step.active) return;
+
+		const previousStep = stepIndex > 0 ? bar.steps[stepIndex - 1] : undefined;
+		const legato =
+			crossedFromPreviousBar ||
+			(previousStep !== undefined && previousStep.active && previousStep.slide);
+
+		const playbackStep = generatedStepToPlaybackStep(step);
+		const stepDurationSeconds = 60 / this.bpm / 4;
+
+		let slideToFrequencyHz: number | undefined;
+		if (playbackStep.slide) {
+			const isLastStepOfBar = stepIndex === bar.steps.length - 1;
+			if (isLastStepOfBar) {
+				if (this.groove.acidBass.crossBarSlide) {
+					const nextBar = this.resolveGeneratedBassBar(this.currentBar + 1);
+					const nextStep = nextBar?.steps[0];
+					if (nextStep !== undefined && nextStep.active) {
+						slideToFrequencyHz = generatedStepToPlaybackStep(nextStep).frequencyHz;
+						this.pendingCrossBarLegato = true;
+					}
+				}
+			} else {
+				const nextStep = bar.steps[stepIndex + 1];
+				if (nextStep !== undefined && nextStep.active) {
+					slideToFrequencyHz = generatedStepToPlaybackStep(nextStep).frequencyHz;
+				}
+			}
+		}
+
+		this.acidBassVoice.schedule({
+			time,
+			frequencyHz: playbackStep.frequencyHz,
+			stepDurationSeconds,
+			accent: playbackStep.accent,
+			gatePercent: playbackStep.gatePercent,
+			locks: playbackStep.locks,
 			slideToFrequencyHz,
 			legato
 		});
