@@ -43,7 +43,9 @@ test.describe('Acid Bass: synth controls', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 
-		const wavePicker = page.getByRole('group', { name: 'Wave', exact: true });
+		const wavePicker = page
+			.getByRole('region', { name: 'VCO', exact: true })
+			.getByRole('group', { name: 'Wave', exact: true });
 		await expect(wavePicker.getByRole('button', { name: 'Saw', exact: true })).toBeVisible();
 		await expect(wavePicker.getByRole('button', { name: 'Square', exact: true })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Cutoff' })).toBeVisible();
@@ -58,10 +60,13 @@ test.describe('Acid Bass: synth controls', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 
-		const waveSquare = page.getByRole('group', { name: 'Wave', exact: true }).getByRole('button', {
-			name: 'Square',
-			exact: true
-		});
+		const waveSquare = page
+			.getByRole('region', { name: 'VCO', exact: true })
+			.getByRole('group', { name: 'Wave', exact: true })
+			.getByRole('button', {
+				name: 'Square',
+				exact: true
+			});
 		await waveSquare.click();
 		await expect(waveSquare).toHaveAttribute('aria-pressed', 'true');
 
@@ -187,6 +192,7 @@ test.describe('Acid Bass: persistence', () => {
 		await page.getByRole('button', { name: /^Bass (On|Off)$/ }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 		await page
+			.getByRole('region', { name: 'VCO', exact: true })
 			.getByRole('group', { name: 'Wave', exact: true })
 			.getByRole('button', { name: 'Square', exact: true })
 			.click();
@@ -210,6 +216,7 @@ test.describe('Acid Bass: persistence', () => {
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 		await expect(
 			page
+				.getByRole('region', { name: 'VCO', exact: true })
 				.getByRole('group', { name: 'Wave', exact: true })
 				.getByRole('button', { name: 'Square', exact: true })
 		).toHaveAttribute('aria-pressed', 'true');

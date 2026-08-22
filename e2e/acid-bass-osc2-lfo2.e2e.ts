@@ -24,12 +24,14 @@ test.describe('Acid Bass: Osc 2 and dual LFOs survive a reload', () => {
 	}) => {
 		await openBassTab(page);
 
-		await page.getByRole('button', { name: 'Osc 2', exact: true }).click();
-		await page
-			.getByRole('group', { name: 'Osc 2 Wave', exact: true })
+		const osc2Panel = page.getByRole('region', { name: 'OSC 2', exact: true });
+
+		await osc2Panel.getByRole('button', { name: 'Osc 2', exact: true }).click();
+		await osc2Panel
+			.getByRole('group', { name: 'Wave', exact: true })
 			.getByRole('button', { name: 'Triangle', exact: true })
 			.click();
-		const osc2Level = page.getByRole('slider', { name: 'Osc 2 Level' });
+		const osc2Level = osc2Panel.getByRole('slider', { name: 'Level', exact: true });
 		await osc2Level.focus();
 		await osc2Level.press('Home');
 		for (let i = 0; i < 4; i++) {
@@ -47,16 +49,16 @@ test.describe('Acid Bass: Osc 2 and dual LFOs survive a reload', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 
-		await expect(page.getByRole('button', { name: 'Osc 2', exact: true })).toHaveAttribute(
+		await expect(osc2Panel.getByRole('button', { name: 'Osc 2', exact: true })).toHaveAttribute(
 			'aria-pressed',
 			'true'
 		);
 		await expect(
-			page
-				.getByRole('group', { name: 'Osc 2 Wave', exact: true })
+			osc2Panel
+				.getByRole('group', { name: 'Wave', exact: true })
 				.getByRole('button', { name: 'Triangle', exact: true })
 		).toHaveAttribute('aria-pressed', 'true');
-		await expect(page.getByRole('slider', { name: 'Osc 2 Level' })).toHaveAttribute(
+		await expect(osc2Panel.getByRole('slider', { name: 'Level', exact: true })).toHaveAttribute(
 			'aria-valuenow',
 			'40'
 		);

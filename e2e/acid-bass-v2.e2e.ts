@@ -22,20 +22,26 @@ async function openBassStepsTab(page: import('@playwright/test').Page): Promise<
 }
 
 test.describe('Acid Bass V2: panel layout', () => {
-	test('VCO/VCF/ENV/MOD/OUTPUT sections, and every control including the advanced ones, are all visible at once', async ({
+	test('VCO/SUB/OSC 2/VCF/ENV/LFO 1/LFO 2/OUTPUT sections, and every control including the advanced ones, are all visible at once', async ({
 		page
 	}) => {
 		await openBassTab(page);
 
-		await expect(page.getByRole('heading', { name: 'VCO' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'VCO', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'SUB', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'OSC 2', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'VCF' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'ENV' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'LFO 1', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'LFO 2', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'OUTPUT' })).toBeVisible();
 
-		await expect(page.getByRole('slider', { name: 'Tune', exact: true })).toBeVisible();
-		await expect(page.getByRole('slider', { name: 'Fine', exact: true })).toBeVisible();
+		const vcoPanel = page.getByRole('region', { name: 'VCO', exact: true });
+		await expect(vcoPanel.getByRole('slider', { name: 'Tune', exact: true })).toBeVisible();
+		await expect(vcoPanel.getByRole('slider', { name: 'Fine', exact: true })).toBeVisible();
+		const osc2Panel = page.getByRole('region', { name: 'OSC 2', exact: true });
+		await expect(osc2Panel.getByRole('slider', { name: 'Tune', exact: true })).toBeVisible();
+		await expect(osc2Panel.getByRole('slider', { name: 'Fine', exact: true })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Key Tracking' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Attack' })).toBeVisible();
 	});
@@ -89,18 +95,20 @@ test.describe('Acid Bass V2: Osc 2', () => {
 	}) => {
 		await openBassTab(page);
 
-		const osc2Toggle = page.getByRole('button', { name: 'Osc 2', exact: true });
+		const osc2Panel = page.getByRole('region', { name: 'OSC 2', exact: true });
+
+		const osc2Toggle = osc2Panel.getByRole('button', { name: 'Osc 2', exact: true });
 		await expect(osc2Toggle).toHaveAttribute('aria-pressed', 'false');
 		await osc2Toggle.click();
 		await expect(osc2Toggle).toHaveAttribute('aria-pressed', 'true');
 
-		const osc2Square = page
-			.getByRole('group', { name: 'Osc 2 Wave', exact: true })
+		const osc2Square = osc2Panel
+			.getByRole('group', { name: 'Wave', exact: true })
 			.getByRole('button', { name: 'Square', exact: true });
 		await osc2Square.click();
 		await expect(osc2Square).toHaveAttribute('aria-pressed', 'true');
 
-		const osc2Level = page.getByRole('slider', { name: 'Osc 2 Level' });
+		const osc2Level = osc2Panel.getByRole('slider', { name: 'Level', exact: true });
 		await osc2Level.focus();
 		await osc2Level.press('Home');
 		for (let i = 0; i < 6; i++) {
@@ -134,6 +142,7 @@ test.describe('Acid Bass V2: factory patches', () => {
 
 		await expect(
 			page
+				.getByRole('region', { name: 'VCO', exact: true })
 				.getByRole('group', { name: 'Wave', exact: true })
 				.getByRole('button', { name: 'Saw', exact: true })
 		).toHaveAttribute('aria-pressed', 'true');
@@ -142,6 +151,7 @@ test.describe('Acid Bass V2: factory patches', () => {
 
 		await expect(
 			page
+				.getByRole('region', { name: 'VCO', exact: true })
 				.getByRole('group', { name: 'Wave', exact: true })
 				.getByRole('button', { name: 'Saw', exact: true })
 		).toHaveAttribute('aria-pressed', 'true');

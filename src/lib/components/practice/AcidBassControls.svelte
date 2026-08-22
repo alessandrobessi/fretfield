@@ -199,14 +199,6 @@
 				{@render pickerField('Wave', MAIN_WAVES, patch.oscillator.mainWave, (id) =>
 					scalePractice.setAcidBassWave(id as AcidWave)
 				)}
-				<HardwareButton
-					variant="secondary"
-					pressed={patch.oscillator.subEnabled}
-					ariaLabel="Sub oscillator"
-					onclick={() => scalePractice.setAcidBassSubEnabled(!patch.oscillator.subEnabled)}
-				>
-					Sub {patch.oscillator.subEnabled ? 'On' : 'Off'}
-				</HardwareButton>
 			</div>
 			<div class="row">
 				{@render knobField(
@@ -234,21 +226,34 @@
 					95
 				)}
 			</div>
+		</HardwarePanel>
+
+		<HardwarePanel title="SUB" tone="carbon">
 			<div class="row">
-				{@render pickerField('Sub Octave', SUB_OCTAVES, String(patch.oscillator.subOctave), (id) =>
+				<HardwareButton
+					variant="secondary"
+					pressed={patch.oscillator.subEnabled}
+					ariaLabel="Sub oscillator"
+					onclick={() => scalePractice.setAcidBassSubEnabled(!patch.oscillator.subEnabled)}
+				>
+					Sub {patch.oscillator.subEnabled ? 'On' : 'Off'}
+				</HardwareButton>
+				{@render pickerField('Octave', SUB_OCTAVES, String(patch.oscillator.subOctave), (id) =>
 					scalePractice.setAcidBassSubOctave(Number(id) as AcidSubOctave)
 				)}
-				{@render pickerField('Sub Wave', SUB_WAVES, patch.oscillator.subWave, (id) =>
+				{@render pickerField('Wave', SUB_WAVES, patch.oscillator.subWave, (id) =>
 					scalePractice.setAcidBassSubWave(id as AcidSubWave)
-				)}
-				{@render knobField('Sub Level', patch.oscillator.subLevel, (v) =>
-					scalePractice.setAcidBassSubLevel(v)
 				)}
 			</div>
 			<div class="row">
-				{@render pickerField('Osc 2 Wave', MAIN_WAVES, patch.oscillator.osc2Wave, (id) =>
-					scalePractice.setAcidBassOsc2Wave(id as AcidWave)
+				{@render knobField('Level', patch.oscillator.subLevel, (v) =>
+					scalePractice.setAcidBassSubLevel(v)
 				)}
+			</div>
+		</HardwarePanel>
+
+		<HardwarePanel title="OSC 2" tone="carbon">
+			<div class="row">
 				<HardwareButton
 					variant="secondary"
 					pressed={patch.oscillator.osc2Enabled}
@@ -257,27 +262,30 @@
 				>
 					Osc 2 {patch.oscillator.osc2Enabled ? 'On' : 'Off'}
 				</HardwareButton>
+				{@render pickerField('Wave', MAIN_WAVES, patch.oscillator.osc2Wave, (id) =>
+					scalePractice.setAcidBassOsc2Wave(id as AcidWave)
+				)}
 			</div>
 			<div class="row">
 				{@render knobField(
-					'Osc 2 Tune',
+					'Tune',
 					patch.oscillator.osc2Tune,
 					(v) => scalePractice.setAcidBassOsc2Tune(v),
 					-12,
 					12
 				)}
 				{@render knobField(
-					'Osc 2 Fine',
+					'Fine',
 					patch.oscillator.osc2Fine,
 					(v) => scalePractice.setAcidBassOsc2Fine(v),
 					-50,
 					50
 				)}
-				{@render knobField('Osc 2 Level', patch.oscillator.osc2Level, (v) =>
+				{@render knobField('Level', patch.oscillator.osc2Level, (v) =>
 					scalePractice.setAcidBassOsc2Level(v)
 				)}
 				{@render knobField(
-					'Osc 2 Pulse Width',
+					'Pulse Width',
 					patch.oscillator.osc2PulseWidth,
 					(v) => scalePractice.setAcidBassOsc2PulseWidth(v),
 					5,
