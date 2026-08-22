@@ -87,6 +87,24 @@ test.describe('Acid Bass V2: panel layout', () => {
 		const lfo2Pitch = lfo2Panel.getByRole('button', { name: 'Pitch', exact: true });
 		await expect(lfo2Pitch).toHaveAttribute('aria-pressed', 'false');
 	});
+
+	test('each LFO panel renders its own modulation-preview scope, sized to a real rendered area', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const lfo1Scope = page.getByRole('region', { name: 'LFO 1', exact: true }).locator('canvas');
+		const lfo2Scope = page.getByRole('region', { name: 'LFO 2', exact: true }).locator('canvas');
+		await expect(lfo1Scope).toBeVisible();
+		await expect(lfo2Scope).toBeVisible();
+
+		const box1 = await lfo1Scope.boundingBox();
+		const box2 = await lfo2Scope.boundingBox();
+		expect(box1?.width).toBeGreaterThan(0);
+		expect(box1?.height).toBeGreaterThan(0);
+		expect(box2?.width).toBeGreaterThan(0);
+		expect(box2?.height).toBeGreaterThan(0);
+	});
 });
 
 test.describe('Acid Bass V2: Osc 2', () => {

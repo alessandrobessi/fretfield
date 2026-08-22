@@ -16,6 +16,7 @@
 	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Knob from '$lib/components/hardware/Knob.svelte';
+	import AcidBassLfoScope from './AcidBassLfoScope.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	const FACTORY_PATCHES = listAcidBassFactoryPatches();
@@ -152,6 +153,7 @@
 			</label>
 		{/if}
 	</div>
+	<AcidBassLfoScope shape={lfoPatch.shape} {hz} depth={lfoPatch.depth} enabled={lfoPatch.enabled} />
 {/snippet}
 
 {#snippet pickerField(
