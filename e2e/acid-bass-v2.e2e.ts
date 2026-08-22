@@ -46,13 +46,19 @@ test.describe('Acid Bass V2: panel layout', () => {
 		await expect(page.getByRole('slider', { name: 'Attack' })).toBeVisible();
 	});
 
-	test('Sub On/Off toggles, and the Filter Model picker selects', async ({ page }) => {
+	test('Sub On/Off toggles (lighting its panel LED), and the Filter Model picker selects', async ({
+		page
+	}) => {
 		await openBassTab(page);
 
-		const subToggle = page.getByRole('button', { name: 'Sub oscillator' });
+		const subPanel = page.getByRole('region', { name: 'SUB', exact: true });
+		const subToggle = subPanel.getByRole('button', { name: 'Sub oscillator' });
+		const subLed = subPanel.locator('.led');
 		await expect(subToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(subLed).not.toHaveClass(/active/);
 		await subToggle.click();
 		await expect(subToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(subLed).toHaveClass(/active/);
 
 		const acid24 = page.getByRole('button', { name: 'Acid 24', exact: true });
 		await expect(acid24).toHaveAttribute('aria-pressed', 'true');
@@ -108,17 +114,20 @@ test.describe('Acid Bass V2: panel layout', () => {
 });
 
 test.describe('Acid Bass V2: Osc 2', () => {
-	test('Osc 2 On/Off toggles, its Wave picker selects, and its knobs update state', async ({
+	test('Osc 2 On/Off toggles (lighting its panel LED), its Wave picker selects, and its knobs update state', async ({
 		page
 	}) => {
 		await openBassTab(page);
 
 		const osc2Panel = page.getByRole('region', { name: 'OSC 2', exact: true });
+		const osc2Led = osc2Panel.locator('.led');
 
 		const osc2Toggle = osc2Panel.getByRole('button', { name: 'Osc 2', exact: true });
 		await expect(osc2Toggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(osc2Led).not.toHaveClass(/active/);
 		await osc2Toggle.click();
 		await expect(osc2Toggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(osc2Led).toHaveClass(/active/);
 
 		const osc2Square = osc2Panel
 			.getByRole('group', { name: 'Wave', exact: true })

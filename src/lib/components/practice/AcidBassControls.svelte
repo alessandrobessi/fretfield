@@ -16,6 +16,7 @@
 	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Knob from '$lib/components/hardware/Knob.svelte';
+	import Led from '$lib/components/hardware/Led.svelte';
 	import AcidBassLfoScope from './AcidBassLfoScope.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
@@ -231,6 +232,9 @@
 		</HardwarePanel>
 
 		<HardwarePanel title="SUB" tone="carbon">
+			{#snippet header()}
+				<Led state={patch.oscillator.subEnabled ? 'active' : 'off'} />
+			{/snippet}
 			<div class="row">
 				<HardwareButton
 					variant="secondary"
@@ -255,6 +259,9 @@
 		</HardwarePanel>
 
 		<HardwarePanel title="OSC 2" tone="carbon">
+			{#snippet header()}
+				<Led state={patch.oscillator.osc2Enabled ? 'active' : 'off'} />
+			{/snippet}
 			<div class="row">
 				<HardwareButton
 					variant="secondary"
