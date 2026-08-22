@@ -26,6 +26,7 @@
 	import AcidBassStepEditor from '$lib/components/practice/AcidBassStepEditor.svelte';
 	import AcidBassStepGrid from '$lib/components/practice/AcidBassStepGrid.svelte';
 	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
+	import { recommendBasslineStyles } from '$lib/music/bassline/recommendations';
 	import { listBasslineStyleProfiles } from '$lib/music/bassline/styles';
 	import { intervalLabel, type IntervalId } from '$lib/music/intervals';
 	import { defaultNoteName } from '$lib/music/pitch';
@@ -66,13 +67,44 @@
 	const generation = $derived(scalePractice.groove.acidBass.generation);
 	const generatedPlan = $derived(scalePractice.generatedBasslinePlan);
 
+	/**
+	 * Acid Bass Intelligence V4 §23 -- ranked purely from the current
+	 * progression's own chord-family sequence, never from `generation.style`
+	 * itself (a recommendation must never look like it's reacting to the
+	 * user's own current pick). `scaleId: null` throughout: `recommendBasslineStyles`
+	 * only reads each chord's family, so the per-chord scale assignment is
+	 * irrelevant here.
+	 */
+	const styleRecommendations = $derived(
+		recommendBasslineStyles(
+			scalePractice.resolvedProgression.map((chord) => ({
+				root: chord.root,
+				chordId: chord.chordId,
+				scaleId: null
+			}))
+		).slice(0, 3)
+	);
+
 	let selectedGeneratedBarIndex = $state(0);
 	let selectedGeneratedStepIndex = $state<number | null>(null);
+
+	/** Same "follow while playing, remember the manual pick once stopped" convention `BandPanel.svelte`'s own `activePatternRole` already uses for the drum/manual Acid Bass grids -- otherwise Generated mode has no way to show which step is actually sounding right now, unlike Manual mode's `activeStepIndex` highlight. */
+	const displayedGeneratedBarIndex = $derived(
+		scalePractice.running && scalePractice.activeGeneratedBarIndex !== null
+			? scalePractice.activeGeneratedBarIndex
+			: selectedGeneratedBarIndex
+	);
+	/** Whether the bar currently shown is genuinely the one playing right now -- guards the step grid's `current` playhead highlight so it never lights up a manually-browsed bar that isn't actually sounding. */
+	const isViewingPlayingGeneratedBar = $derived(
+		scalePractice.running &&
+			scalePractice.activeGeneratedBarIndex !== null &&
+			scalePractice.activeGeneratedBarIndex === displayedGeneratedBarIndex
+	);
 
 	/** Clamped to the plan's own current bar count -- an arrangement/progression edit can shrink the cycle out from under whatever bar was previously selected. */
 	const selectedGeneratedBar = $derived.by(() => {
 		if (generatedPlan === null || generatedPlan.bars.length === 0) return null;
-		const index = Math.min(selectedGeneratedBarIndex, generatedPlan.bars.length - 1);
+		const index = Math.min(displayedGeneratedBarIndex, generatedPlan.bars.length - 1);
 		return generatedPlan.bars[index];
 	});
 	const selectedGeneratedStep = $derived(
@@ -490,6 +522,21 @@
 				onClearLocks={handleClearAcidStepLocks}
 			/>
 		{:else}
+			{#if styleRecommendations.length > 0}
+				<p class="style-recommendation">
+					Recommended:
+					{#each styleRecommendations as recommendation, index (recommendation.style)}
+						{#if index > 0}<span aria-hidden="true"> · </span>{/if}<button
+							type="button"
+							class="style-recommendation-pick"
+							title={recommendation.reason}
+							onclick={() => scalePractice.setAcidBassGenerationStyle(recommendation.style)}
+							>{STYLES.find((style) => style.id === recommendation.style)?.label ??
+								recommendation.style}</button
+						>
+					{/each}
+				</p>
+			{/if}
 			{@render pickerField('Style', STYLES, generation.style, (id) =>
 				scalePractice.setAcidBassGenerationStyle(id as BasslineStyleId)
 			)}
@@ -532,8 +579,8 @@
 							<button
 								type="button"
 								class="bar-strip-button"
-								class:active={index === selectedGeneratedBarIndex}
-								aria-pressed={index === selectedGeneratedBarIndex}
+								class:active={index === displayedGeneratedBarIndex}
+								aria-pressed={index === displayedGeneratedBarIndex}
 								onclick={() => selectGeneratedBar(index)}
 							>
 								{index + 1}
@@ -544,7 +591,7 @@
 					<div
 						class="generated-step-grid"
 						role="group"
-						aria-label={`Bar ${selectedGeneratedBarIndex + 1} steps`}
+						aria-label={`Bar ${displayedGeneratedBarIndex + 1} steps`}
 					>
 						{#each selectedGeneratedBar.steps as step, index (index)}
 							<button
@@ -554,6 +601,8 @@
 								class:accent={step.active && step.accent}
 								class:slide={step.active && step.slide}
 								class:selected={index === selectedGeneratedStepIndex}
+								class:current={isViewingPlayingGeneratedBar &&
+									index === scalePractice.activeStepIndex}
 								aria-pressed={index === selectedGeneratedStepIndex}
 								aria-label={step.active
 									? `Step ${index + 1}, ${defaultNoteName(step.pitchClass)}${step.accent ? ', accent' : ''}${step.slide ? ', slide' : ''}`
@@ -674,6 +723,29 @@
 		gap: 0.7rem;
 		flex-wrap: wrap;
 		min-width: 0;
+	}
+
+	.style-recommendation {
+		margin: 0;
+		font-size: 0.78rem;
+		color: var(--ff-black, #151411);
+	}
+
+	.style-recommendation-pick {
+		font: inherit;
+		font-weight: 700;
+		padding: 0;
+		background: transparent;
+		color: var(--ff-black, #151411);
+		border: none;
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		cursor: pointer;
+	}
+
+	.style-recommendation-pick:focus-visible {
+		outline: 3px solid var(--ff-black, #151411);
+		outline-offset: 1px;
 	}
 
 	.picker {
@@ -964,6 +1036,15 @@
 	.generated-step:focus-visible {
 		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
+	}
+
+	/* The playhead -- same red-glow-pulse convention as the manual grid's own `.step.current` (`step-pulse`, defined once below, is shared by both). */
+	.generated-step.current {
+		border-color: var(--ff-red, #e34832);
+		box-shadow:
+			0 0 0 2px var(--ff-red, #e34832),
+			0 0 0.5rem 0.05rem var(--ff-red, #e34832);
+		animation: step-pulse 500ms ease-in-out;
 	}
 
 	.step-inspector {

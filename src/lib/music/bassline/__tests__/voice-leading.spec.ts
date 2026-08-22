@@ -20,6 +20,7 @@ const B = normalizePitchClass(11);
 const F_SHARP = normalizePitchClass(6);
 
 const ROOTED_STYLE = getBasslineStyleProfile('rooted');
+const MELODIC_STYLE = getBasslineStyleProfile('melodic');
 
 /** Deterministic stand-in for `BasslineRandom` -- `next()` always returns the
  * midpoint, so `selectVoiceLeadingSequence`'s score jitter is exactly zero
@@ -102,6 +103,7 @@ describe('selectVoiceLeadingSequence: shape', () => {
 
 		const slot: VoiceLeadingSlotInput = {
 			candidates: [candidate(C, 100)],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 		const result = selectVoiceLeadingSequence(
@@ -116,10 +118,12 @@ describe('selectVoiceLeadingSequence: shape', () => {
 		const slots: VoiceLeadingSlotInput[] = [
 			{
 				candidates: [candidate(C, 100, { source: 'root' }), candidate(E, 60, { source: 'chord' })],
+				weakSubdivision: false,
 				isChordBoundary: true
 			},
 			{
 				candidates: [candidate(G, 82, { source: 'chord' }), candidate(D, 58, { source: 'scale' })],
+				weakSubdivision: false,
 				isChordBoundary: false
 			}
 		];
@@ -141,6 +145,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 	it('Chord mode still favors the higher raw harmonic candidate even when it is the rougher transition', () => {
 		const fixedPrevious: VoiceLeadingSlotInput = {
 			candidates: [candidate(F, 90, { source: 'root', harmonicRole: 'root' })],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 		const choice: VoiceLeadingSlotInput = {
@@ -148,6 +153,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 				candidate(C, 100, { source: 'root', harmonicRole: 'root' }), // 5 semitones from F -- a rougher move
 				candidate(E, 90, { source: 'chord', harmonicRole: 'structural' }) // 1 semitone from F -- classic b7->3rd resolution
 			],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 		const [, chosen] = selectVoiceLeadingSequence(
@@ -161,6 +167,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 	it('Voice Leading mode instead favors the smoother resolution over the higher raw harmonic candidate', () => {
 		const fixedPrevious: VoiceLeadingSlotInput = {
 			candidates: [candidate(F, 90, { source: 'root', harmonicRole: 'root' })],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 		const choice: VoiceLeadingSlotInput = {
@@ -168,6 +175,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 				candidate(C, 100, { source: 'root', harmonicRole: 'root' }),
 				candidate(E, 90, { source: 'chord', harmonicRole: 'structural' })
 			],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 		const [, chosen] = selectVoiceLeadingSequence(
@@ -181,6 +189,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 	it("Key mode rewards repeating the previous slot's key-relative motif over a higher raw local score", () => {
 		const fixedPrevious: VoiceLeadingSlotInput = {
 			candidates: [candidate(C, 90, { intervalFromKey: '3' })],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 		const choice: VoiceLeadingSlotInput = {
@@ -188,6 +197,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 				candidate(D, 50, { intervalFromKey: '3' }), // repeats the motif, lower raw score
 				candidate(A_SHARP, 55, { intervalFromKey: '5' }) // breaks the motif, higher raw score
 			],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 
@@ -209,6 +219,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 	it('chord-boundary slots favor root/structural/stable candidates over a similarly-scored color/extension candidate', () => {
 		const fixedPrevious: VoiceLeadingSlotInput = {
 			candidates: [candidate(G, 90, { source: 'root', harmonicRole: 'root' })],
+			weakSubdivision: false,
 			isChordBoundary: false
 		};
 		const boundary: VoiceLeadingSlotInput = {
@@ -216,6 +227,7 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 				candidate(C, 80, { source: 'root', harmonicRole: 'root' }),
 				candidate(D, 82, { source: 'scale', harmonicRole: 'extension' })
 			],
+			weakSubdivision: false,
 			isChordBoundary: true
 		};
 		const [, chosen] = selectVoiceLeadingSequence(
@@ -224,5 +236,92 @@ describe('selectVoiceLeadingSequence: harmony modes', () => {
 			zeroJitterRandom()
 		);
 		expect(chosen.pitchClass).toBe(C);
+	});
+});
+
+describe('selectVoiceLeadingSequence: movement and chromaticism knobs', () => {
+	it('a high movement setting favors leaving the previous pitch class over repeating it', () => {
+		// Equal source/role/localScore on both choice candidates so only the
+		// repetition-vs-movement term (and the transition reward it competes
+		// against) can decide the outcome.
+		const fixedPrevious: VoiceLeadingSlotInput = {
+			weakSubdivision: false,
+			candidates: [candidate(C, 80, { source: 'chord', harmonicRole: 'stable' })],
+			isChordBoundary: false
+		};
+		const choice: VoiceLeadingSlotInput = {
+			weakSubdivision: false,
+			candidates: [
+				candidate(C, 80, { source: 'chord', harmonicRole: 'stable' }), // repeats
+				candidate(G, 80, { source: 'chord', harmonicRole: 'stable' }) // moves
+			],
+			isChordBoundary: false
+		};
+
+		const lowMovement = selectVoiceLeadingSequence(
+			[fixedPrevious, choice],
+			{ harmonyMode: 'chord', style: MELODIC_STYLE, movement: 0 },
+			zeroJitterRandom()
+		)[1];
+		expect(lowMovement.pitchClass).toBe(C);
+
+		const highMovement = selectVoiceLeadingSequence(
+			[fixedPrevious, choice],
+			{ harmonyMode: 'chord', style: MELODIC_STYLE, movement: 100 },
+			zeroJitterRandom()
+		)[1];
+		expect(highMovement.pitchClass).toBe(G);
+	});
+
+	it('a high chromaticism setting can surface a non-target-role candidate on a weak subdivision', () => {
+		const fixedPrevious: VoiceLeadingSlotInput = {
+			weakSubdivision: false,
+			candidates: [candidate(C, 90, { source: 'root', harmonicRole: 'root' })],
+			isChordBoundary: false
+		};
+		const choice: VoiceLeadingSlotInput = {
+			weakSubdivision: true,
+			candidates: [
+				candidate(D, 90, { source: 'root', harmonicRole: 'root' }),
+				candidate(F_SHARP, 42, { source: 'scale', harmonicRole: 'color' })
+			],
+			isChordBoundary: false
+		};
+
+		const noChromaticism = selectVoiceLeadingSequence(
+			[fixedPrevious, choice],
+			{ harmonyMode: 'chord', style: ROOTED_STYLE, chromaticism: 0 },
+			zeroJitterRandom()
+		)[1];
+		expect(noChromaticism.harmonicRole).toBe('root');
+
+		const highChromaticism = selectVoiceLeadingSequence(
+			[fixedPrevious, choice],
+			{ harmonyMode: 'chord', style: ROOTED_STYLE, chromaticism: 100 },
+			zeroJitterRandom()
+		)[1];
+		expect(highChromaticism.harmonicRole).toBe('color');
+	});
+
+	it('the chromaticism boost never applies on a chord-boundary slot, even if also marked weak', () => {
+		const fixedPrevious: VoiceLeadingSlotInput = {
+			weakSubdivision: false,
+			candidates: [candidate(C, 90, { source: 'root', harmonicRole: 'root' })],
+			isChordBoundary: false
+		};
+		const boundary: VoiceLeadingSlotInput = {
+			weakSubdivision: true,
+			candidates: [
+				candidate(D, 90, { source: 'root', harmonicRole: 'root' }),
+				candidate(F_SHARP, 42, { source: 'scale', harmonicRole: 'color' })
+			],
+			isChordBoundary: true
+		};
+		const [, chosen] = selectVoiceLeadingSequence(
+			[fixedPrevious, boundary],
+			{ harmonyMode: 'chord', style: ROOTED_STYLE, chromaticism: 100 },
+			zeroJitterRandom()
+		);
+		expect(chosen.harmonicRole).toBe('root');
 	});
 });

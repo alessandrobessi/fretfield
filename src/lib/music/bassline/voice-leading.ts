@@ -21,6 +21,7 @@
  * per beam-search visit.
  */
 
+import type { HarmonicRole } from '$lib/music/harmony';
 import type { IntervalId } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
 
@@ -38,15 +39,41 @@ export interface BasslineBeamState {
 	consecutiveRepeats: number;
 }
 
-/** One active slot's candidate pool, plus whether it is the first active slot of a newly-arrived chord (§17: "at a chord boundary, increase the importance of..."). */
+/** One active slot's candidate pool, plus whether it is the first active slot of a newly-arrived chord (§17: "at a chord boundary, increase the importance of...") and whether it is a weak subdivision (mirrors `chromaticism.ts`'s own `weakSubdivision` -- needed here so this stage can occasionally surface the non-target-role candidates that stage's approach-slot eligibility depends on). */
 export interface VoiceLeadingSlotInput {
 	candidates: readonly BassPitchCandidate[];
 	isChordBoundary: boolean;
+	weakSubdivision: boolean;
 }
 
 export interface VoiceLeadingOptions {
 	harmonyMode: BassHarmonyMode;
 	style: BasslineStyleProfile;
+	/**
+	 * 0-100, the user's own setting (§12/§15: "user-level density,
+	 * chromaticism, and movement settings scale/modify the style profile --
+	 * they do not replace it"). Interpolates between favoring repetition (0)
+	 * and favoring movement (100) on top of the style's own
+	 * `repetitionPreference`/`movementPreference` balance. Defaults to 50
+	 * (neutral -- style preference alone decides) so existing callers that
+	 * don't pass it keep their prior behavior.
+	 */
+	movement?: number;
+	/**
+	 * 0-100, the user's own setting. `candidates.ts`'s own weight table (a
+	 * literal transcription of §15's own numbers) keeps root/structural/stable
+	 * dominant on every slot, weak subdivisions included -- only strong slots
+	 * get an explicit tension/alteration boost there. Left alone, that means
+	 * `chromaticism.ts` (stage 4) almost never finds an eligible non-target-role
+	 * approach-slot note to transform, regardless of this setting, since
+	 * voice-leading (stage 3) essentially never selects one. This option adds a
+	 * weak-subdivision-only, chromaticism-scaled boost for exactly those
+	 * candidates so the setting has a real, visible effect -- never applied on
+	 * strong/chord-boundary slots, so it can't compete with §15's own explicit
+	 * strong-slot suppression. Defaults to 0 (no boost, matching prior
+	 * behavior) so existing callers that don't pass it are unaffected.
+	 */
+	chromaticism?: number;
 	/** §17 suggests 8 "or another small constant proven adequate by tests." */
 	beamWidth?: number;
 }
@@ -99,10 +126,28 @@ const TRANSITION_WEIGHT_BY_HARMONY_MODE: Record<BassHarmonyMode, number> = {
 
 // Scales style 0-100 weights down into the same rough magnitude as
 // `candidates.ts`'s harmonic base weights (tens, not hundreds) so no single
-// component silently dominates the sum.
+// component silently dominates the sum. Repetition/movement are scaled
+// larger than the flat style-source weight: at the user's own movement
+// setting fully favoring movement, a style with a high movementPreference
+// needs enough weight here to occasionally outscore a same-or-higher
+// harmonicRole candidate that offers a rougher transition -- otherwise the
+// Movement knob (and, downstream, Chromatic -- see `applyChromaticism`,
+// which can only transform whatever voice-leading actually selected) has no
+// real effect, regardless of its own setting.
 const STYLE_SOURCE_WEIGHT_SCALE = 0.3;
-const REPETITION_SCALE = 0.3;
-const MOVEMENT_SCALE = 0.3;
+const REPETITION_SCALE = 0.9;
+const MOVEMENT_SCALE = 0.9;
+const DEFAULT_MOVEMENT = 50;
+/** Non-target-role harmonic roles -- mirrors `chromaticism.ts`'s own `TARGET_ROLES` complement, i.e. exactly the roles that stage can transform into a chromatic/diatonic/enclosure approach. */
+const CHROMATICISM_ELIGIBLE_ROLES: ReadonlySet<HarmonicRole> = new Set([
+	'extension',
+	'color',
+	'tension',
+	'alteration',
+	'chromatic-approach'
+]);
+/** Max weak-subdivision boost at `chromaticism: 100` for a `CHROMATICISM_ELIGIBLE_ROLES` candidate -- large enough to occasionally close the gap against a same-slot root/structural/stable candidate (root(100) vs. e.g. color(42) is a 58-point gap; this can't and shouldn't close every such gap, only make it a real contest instead of a foregone conclusion). */
+const CHROMATICISM_WEAK_SLOT_SCALE = 90;
 /** §16.2: "repeated key-relative motifs are rewarded" -- a flat bonus for continuing the previous slot's `intervalFromKey`, independent of style. */
 const KEY_MODE_MOTIF_BONUS = 20;
 /**
@@ -169,17 +214,30 @@ function additionalLocalScore(
 		}
 	}
 
+	if (
+		slot.weakSubdivision &&
+		!slot.isChordBoundary &&
+		options.chromaticism &&
+		CHROMATICISM_ELIGIBLE_ROLES.has(candidate.harmonicRole)
+	) {
+		score += (options.chromaticism / 100) * CHROMATICISM_WEAK_SLOT_SCALE;
+	}
+
 	if (beam.previousPitchClass !== null) {
+		// The user's own movement dial (0-100) interpolates between favoring
+		// repetition (0) and favoring movement (100) on top of the style's own
+		// balance -- never replacing it, per §12/§15.
+		const movementFactor = (options.movement ?? DEFAULT_MOVEMENT) / 100;
 		if (candidate.pitchClass === beam.previousPitchClass) {
 			const tolerance =
 				REPETITION_TOLERANCE_BASE +
 				options.style.repetitionPreference / REPETITION_TOLERANCE_PREFERENCE_WEIGHT;
 			const excessRepeats = Math.max(0, beam.consecutiveRepeats + 1 - tolerance);
 			score +=
-				options.style.repetitionPreference * REPETITION_SCALE -
+				options.style.repetitionPreference * REPETITION_SCALE * (1 - movementFactor) -
 				excessRepeats * REPETITION_ESCALATION_PENALTY;
 		} else {
-			score += options.style.movementPreference * MOVEMENT_SCALE;
+			score += options.style.movementPreference * MOVEMENT_SCALE * movementFactor;
 		}
 	}
 

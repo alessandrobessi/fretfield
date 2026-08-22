@@ -138,7 +138,8 @@ function runPipeline(context: BasslineGenerationContext): PipelineResult {
 				weakSubdivision: slot.weakSubdivision,
 				input: {
 					candidates: generateHarmonicCandidates(bar.chord, context.tonic, slot),
-					isChordBoundary: isFirstActiveSlotOfBar && chordChangedAtThisBar
+					isChordBoundary: isFirstActiveSlotOfBar && chordChangedAtThisBar,
+					weakSubdivision: slot.weakSubdivision
 				}
 			});
 			isFirstActiveSlotOfBar = false;
@@ -147,7 +148,12 @@ function runPipeline(context: BasslineGenerationContext): PipelineResult {
 
 	const selections: BassPitchCandidate[] = selectVoiceLeadingSequence(
 		pending.map((slot) => slot.input),
-		{ harmonyMode: context.harmonyMode, style },
+		{
+			harmonyMode: context.harmonyMode,
+			style,
+			movement: context.movement,
+			chromaticism: context.chromaticism
+		},
 		random
 	);
 
