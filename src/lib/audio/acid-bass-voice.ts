@@ -141,6 +141,7 @@ import {
 	resonanceToModelParameter,
 	saturationToPregain,
 	subOctaveToRatio,
+	sustainToRatio,
 	tuneFineToRatio,
 	volumeToGain
 } from '$lib/acid-bass/resolve';
@@ -1091,9 +1092,13 @@ export function createAcidBassVoice(
 			if (!legato) {
 				setFrequencyAtTime(frequencyHz, time, patch);
 				retriggerFilterEnvelope(time, frequencyHz, accent, decaySeconds, patch, resolved);
+				const sustainLevel = Math.max(MIN_GAIN, peakGain * sustainToRatio(patch.envelope.sustain));
 				vca.gain.cancelScheduledValues(time);
 				vca.gain.setValueAtTime(MIN_GAIN, time);
 				vca.gain.exponentialRampToValueAtTime(peakGain, time + attackSeconds);
+				// Sustain (100 -> sustainLevel === peakGain, a no-op ramp that
+				// reproduces the pre-Sustain "hold at full peak" behavior exactly).
+				vca.gain.exponentialRampToValueAtTime(sustainLevel, time + attackSeconds + decaySeconds);
 
 				// Auxiliary modulation (M15) -- skipped on legato the same way the
 				// filter envelope itself is, since there's no fresh attack to shape.
@@ -1231,7 +1236,14 @@ export function createAcidBassVoice(
 					patch.glide.curve
 				);
 			} else {
-				vca.gain.setValueAtTime(peakGain, time + gateSeconds);
+				// Releases from whatever the envelope actually is at gate-close --
+				// not always peakGain now that Decay can settle to a lower Sustain
+				// level first, and not always a value this same call scheduled
+				// either (a legato-destination trigger releases from wherever the
+				// continued envelope it inherited currently sits). cancelAndHoldAtTime
+				// is exactly the Web Audio API built for this: it holds whatever
+				// value the already-scheduled curve would have at that instant.
+				vca.gain.cancelAndHoldAtTime(time + gateSeconds);
 				vca.gain.exponentialRampToValueAtTime(MIN_GAIN, time + gateSeconds + releaseSeconds);
 			}
 		},

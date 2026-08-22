@@ -115,12 +115,14 @@ export interface AcidFilterPatch {
 export interface AcidEnvelopePatch {
 	/** 0-100. */
 	attack: number;
-	/** 0-100, filter-envelope decay (was V1's "Decay"). */
+	/** 0-100, filter-envelope decay (was V1's "Decay"). Also the amplitude envelope's own decay time (peak -> Sustain level) -- one shared Decay time for both, not a second Amp Decay knob. */
 	decay: number;
 	/** 0-100, amplitude release. */
 	release: number;
 	/** 0-100. Scales both the VCA peak and the filter-envelope peak together for an accented step -- deliberately one control, not separate accent-volume/accent-filter/accent-drive knobs (spec §28). */
 	accentAmount: number;
+	/** 0-100, the amplitude level (as a percentage of peak) the note settles to after Decay, held for as long as the step's gate stays open. 100 reproduces the pre-Sustain behavior exactly (holds at full peak, no audible decay stage) -- every existing/migrated patch defaults here. */
+	sustain: number;
 }
 
 export interface AcidGlidePatch {

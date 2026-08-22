@@ -216,7 +216,8 @@ export function createDefaultAcidPatch(): AcidBassPatch {
 			attack: 10,
 			decay: 38,
 			release: 30,
-			accentAmount: 45
+			accentAmount: 45,
+			sustain: 100
 		},
 		glide: {
 			time: 55,

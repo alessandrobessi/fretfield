@@ -727,6 +727,13 @@ export class ScalePracticeStore {
 		}));
 	}
 
+	setAcidBassSustain(sustain: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			envelope: { ...patch.envelope, sustain: clampPercent(sustain) }
+		}));
+	}
+
 	setAcidBassDrive(drive: number): void {
 		this.updateAcidBassPatch((patch) => ({
 			...patch,

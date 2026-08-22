@@ -193,10 +193,15 @@ export function v1ReleaseSecondsToV2Value(seconds: number): number {
 const MIN_DECAY_SECONDS = 0.07;
 const MAX_DECAY_SECONDS = 0.9;
 
-/** 0-100, logarithmic -- short/percussive at 0 to long/connected at 100. Filter-envelope decay only (V1's "Decay" also doubled as amplitude release; V2 splits that into its own `release` control). */
+/** 0-100, logarithmic -- short/percussive at 0 to long/connected at 100. Shared by the filter envelope's own decay and the amplitude envelope's peak -> Sustain decay (one Decay time for both, not a second Amp Decay knob) -- V1's "Decay" also doubled as amplitude release; V2 split that into its own `release` control. */
 export function decayToSeconds(value: number): number {
 	const t = clamp(value, 0, 100) / 100;
 	return MIN_DECAY_SECONDS * Math.pow(MAX_DECAY_SECONDS / MIN_DECAY_SECONDS, t);
+}
+
+/** 0-100 -> 0-1, the fraction of peak amplitude the note settles to after Decay. Deliberately linear, the same "not a mastering control" reasoning `volumeToGain` already uses -- this is a performance shape, not a loudness curve. 100 -> 1 (full peak, reproducing the pre-Sustain "hold at peak" behavior exactly). */
+export function sustainToRatio(value: number): number {
+	return clamp(value, 0, 100) / 100;
 }
 
 /**

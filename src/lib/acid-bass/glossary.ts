@@ -112,7 +112,13 @@ export const ACID_BASS_GLOSSARY: GlossarySection[] = [
 		entries: [
 			{
 				term: 'Decay',
-				description: 'How quickly the filter envelope’s opening settles back down after each note.'
+				description:
+					'How quickly the filter envelope’s opening settles back down, and the volume settles to Sustain, after each note.'
+			},
+			{
+				term: 'Sustain',
+				description:
+					'The volume level a held note settles to after Decay -- 100 stays at full volume for the whole note, lower values let it fall away while the note is still sounding.'
 			},
 			{
 				term: 'Accent',

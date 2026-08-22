@@ -27,6 +27,7 @@ import {
 	resonanceToModelParameter,
 	saturationToPregain,
 	subOctaveToRatio,
+	sustainToRatio,
 	tuneFineToRatio,
 	volumeToGain
 } from '../resolve';
@@ -174,6 +175,17 @@ describe('envelope mapping', () => {
 		expect(accentAmountToMultipliers(0).env).toBeCloseTo(1, 5);
 		expect(accentAmountToMultipliers(100).vca).toBeGreaterThan(accentAmountToMultipliers(50).vca);
 		expect(accentAmountToMultipliers(100).env).toBeGreaterThan(accentAmountToMultipliers(50).env);
+	});
+
+	it('sustainToRatio is linear 0-1, and 100 reproduces the pre-Sustain "hold at full peak" behavior exactly', () => {
+		expect(sustainToRatio(0)).toBe(0);
+		expect(sustainToRatio(50)).toBeCloseTo(0.5, 5);
+		expect(sustainToRatio(100)).toBe(1);
+	});
+
+	it('sustainToRatio clamps out-of-range input to the same 0-100 domain', () => {
+		expect(sustainToRatio(-10)).toBe(0);
+		expect(sustainToRatio(150)).toBe(1);
 	});
 });
 

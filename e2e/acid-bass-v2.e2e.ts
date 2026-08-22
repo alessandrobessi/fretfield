@@ -344,6 +344,46 @@ test.describe('Acid Bass: knob glossary', () => {
 	});
 });
 
+test.describe('Acid Bass: ENV Sustain', () => {
+	test('defaults to 100 (full peak), updates via keyboard, and survives a reload', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const envPanel = page.getByRole('region', { name: 'ENV', exact: true });
+		const sustain = envPanel.getByRole('slider', { name: 'Sustain' });
+		await expect(sustain).toHaveAttribute('aria-valuenow', '100');
+
+		await sustain.focus();
+		await sustain.press('Home');
+		for (let i = 0; i < 6; i++) {
+			await sustain.press('PageUp');
+		}
+		await expect(sustain).toHaveAttribute('aria-valuenow', '60');
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
+		await expect(
+			page
+				.getByRole('region', { name: 'ENV', exact: true })
+				.getByRole('slider', { name: 'Sustain' })
+		).toHaveAttribute('aria-valuenow', '60');
+	});
+
+	test('the ENV panel renders its own envelope-shape preview scope, sized to a real rendered area', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const scope = page.getByRole('region', { name: 'ENV', exact: true }).locator('canvas');
+		await expect(scope).toBeVisible();
+		const box = await scope.boundingBox();
+		expect(box?.width).toBeGreaterThan(0);
+		expect(box?.height).toBeGreaterThan(0);
+	});
+});
+
 test.describe('Acid Bass V2: Osc 2', () => {
 	test('Osc 2 On/Off toggles (lighting its panel LED), its Wave picker selects, and its knobs update state', async ({
 		page

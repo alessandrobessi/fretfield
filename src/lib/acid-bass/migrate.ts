@@ -187,7 +187,9 @@ function migrateV1Patch(raw: unknown): AcidBassPatch {
 			attack: v1AttackSecondsToV2Value(V1_ATTACK_SECONDS),
 			decay,
 			release: v1ReleaseSecondsToV2Value(V1_RELEASE_SECONDS),
-			accentAmount: v1AccentToV2Value(V1_ACCENT_VCA_BOOST)
+			accentAmount: v1AccentToV2Value(V1_ACCENT_VCA_BOOST),
+			// V1 held at full peak for the whole gate -- 100 reproduces that exactly.
+			sustain: 100
 		},
 		glide: {
 			time: v1SlideSecondsToV2Value(V1_SLIDE_SECONDS),
@@ -448,7 +450,11 @@ function coercePatch(raw: unknown): AcidBassPatch {
 			attack: coerceNumber(env.attack, defaults.envelope.attack, 0, 100),
 			decay: coerceNumber(env.decay, defaults.envelope.decay, 0, 100),
 			release: coerceNumber(env.release, defaults.envelope.release, 0, 100),
-			accentAmount: coerceNumber(env.accentAmount, defaults.envelope.accentAmount, 0, 100)
+			accentAmount: coerceNumber(env.accentAmount, defaults.envelope.accentAmount, 0, 100),
+			// Missing on every groove persisted before Sustain existed -- coerces
+			// to the default (100, full peak, no audible decay stage), so a
+			// migrated groove sounds exactly like it did before this field existed.
+			sustain: coerceNumber(env.sustain, defaults.envelope.sustain, 0, 100)
 		},
 		glide: {
 			time: coerceNumber(glide.time, defaults.glide.time, 0, 100),

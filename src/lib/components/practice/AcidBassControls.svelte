@@ -23,6 +23,7 @@
 	import Knob from '$lib/components/hardware/Knob.svelte';
 	import Led from '$lib/components/hardware/Led.svelte';
 	import AcidBassAuxModScope from './AcidBassAuxModScope.svelte';
+	import AcidBassEnvelopeScope from './AcidBassEnvelopeScope.svelte';
 	import AcidBassLfoScope from './AcidBassLfoScope.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
@@ -435,6 +436,9 @@
 		<HardwarePanel title="ENV" tone="carbon">
 			<div class="row">
 				{@render knobField('Decay', patch.envelope.decay, (v) => scalePractice.setAcidBassDecay(v))}
+				{@render knobField('Sustain', patch.envelope.sustain, (v) =>
+					scalePractice.setAcidBassSustain(v)
+				)}
 				{@render knobField('Accent', patch.envelope.accentAmount, (v) =>
 					scalePractice.setAcidBassAccentAmount(v)
 				)}
@@ -453,6 +457,12 @@
 					scalePractice.setAcidBassGlideCurve(id as AcidGlideCurve)
 				)}
 			</div>
+			<AcidBassEnvelopeScope
+				attack={patch.envelope.attack}
+				decay={patch.envelope.decay}
+				sustain={patch.envelope.sustain}
+				release={patch.envelope.release}
+			/>
 		</HardwarePanel>
 
 		<HardwarePanel title="LFO 1" tone="carbon">

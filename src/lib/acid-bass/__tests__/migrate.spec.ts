@@ -86,6 +86,8 @@ describe('coerceAcidBassState: V1 -> V4 migration', () => {
 		expect(state.patch.distortion.character).toBe('soft');
 		expect(state.patch.delay.enabled).toBe(false);
 		expect(state.patch.delay.mix).toBe(0);
+		// V1 held at full peak for the whole gate -- 100 reproduces that exactly.
+		expect(state.patch.envelope.sustain).toBe(100);
 		expect(state.generation).toEqual(
 			expect.objectContaining({ style: 'acid', harmonyMode: 'chord' })
 		);
@@ -262,6 +264,31 @@ describe('coerceAcidBassState: current V4 data (untrusted persisted state)', () 
 		expect(state.patch.filter.cutoff).toBe(100);
 		expect(state.patch.filter.envAmount).toBe(-100);
 		expect(state.patch.oscillator.tune).toBe(12);
+	});
+
+	it('a persisted groove saved before Sustain existed coerces envelope.sustain to 100 (full peak, sounds unchanged)', () => {
+		const original = createDefaultAcidBassState(16, 4);
+		const { attack, decay, release, accentAmount } = original.patch.envelope;
+		const state = coerceAcidBassState(
+			{
+				...original,
+				patch: { ...original.patch, envelope: { attack, decay, release, accentAmount } }
+			},
+			METER
+		);
+		expect(state.patch.envelope.sustain).toBe(100);
+	});
+
+	it('clamps an out-of-range envelope.sustain instead of accepting it verbatim', () => {
+		const original = createDefaultAcidBassState(16, 4);
+		const state = coerceAcidBassState(
+			{
+				...original,
+				patch: { ...original.patch, envelope: { ...original.patch.envelope, sustain: 250 } }
+			},
+			METER
+		);
+		expect(state.patch.envelope.sustain).toBe(100);
 	});
 
 	it('round-trips Osc 2 and both LFOs independently, clamping out-of-range values', () => {
