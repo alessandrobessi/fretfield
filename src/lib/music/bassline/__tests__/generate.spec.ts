@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { STANDARD_4_STRING_ABSOLUTE_TUNING } from '$lib/music/absolute-pitch';
-import { noteNameToPitchClass } from '$lib/music/pitch';
+import {
+	findFretPositionsForMidi,
+	STANDARD_4_STRING_ABSOLUTE_TUNING
+} from '$lib/music/absolute-pitch';
+import { noteNameToPitchClass, normalizePitchClass } from '$lib/music/pitch';
 
 import { buildBarContexts } from '../context';
 import { generateBasslineSkeleton } from '../generate';
@@ -47,7 +50,7 @@ describe('generateBasslineSkeleton: shape', () => {
 			expect([0, 1]).toContain(note.barIndex);
 			expect(note.stepIndex).toBeGreaterThanOrEqual(0);
 			expect(note.stepIndex).toBeLessThan(16);
-			expect(note.candidate.pitchClass).toBeGreaterThanOrEqual(0);
+			expect(note.pitchClass).toBeGreaterThanOrEqual(0);
 		}
 		// step 0 of every bar is always active (rhythm.ts's own anchor rule).
 		expect(skeleton.notes.some((n) => n.barIndex === 0 && n.stepIndex === 0)).toBe(true);
@@ -57,9 +60,7 @@ describe('generateBasslineSkeleton: shape', () => {
 	it('is deterministic -- the same seed and context produce an identical skeleton', () => {
 		const a = generateBasslineSkeleton(context({ seed: 123 }));
 		const b = generateBasslineSkeleton(context({ seed: 123 }));
-		expect(a.notes.map((n) => n.candidate.pitchClass)).toEqual(
-			b.notes.map((n) => n.candidate.pitchClass)
-		);
+		expect(a.notes.map((n) => n.pitchClass)).toEqual(b.notes.map((n) => n.pitchClass));
 	});
 
 	it('runs cleanly under all three harmony modes', () => {
@@ -74,10 +75,10 @@ describe('generateBasslineSkeleton: Chord mode responds to chord roots', () => {
 		const skeleton = generateBasslineSkeleton(context({ style: 'rooted', harmonyMode: 'chord' }));
 		const bar0Downbeat = skeleton.notes.find((n) => n.barIndex === 0 && n.stepIndex === 0);
 		const bar1Downbeat = skeleton.notes.find((n) => n.barIndex === 1 && n.stepIndex === 0);
-		expect(bar0Downbeat?.candidate.pitchClass).toBe(C);
-		expect(bar1Downbeat?.candidate.pitchClass).toBe(F);
-		expect(bar0Downbeat?.candidate.source).toBe('root');
-		expect(bar1Downbeat?.candidate.source).toBe('root');
+		expect(bar0Downbeat?.pitchClass).toBe(C);
+		expect(bar1Downbeat?.pitchClass).toBe(F);
+		expect(bar0Downbeat?.function).toBe('root');
+		expect(bar1Downbeat?.function).toBe('root');
 	});
 });
 
@@ -102,7 +103,7 @@ function averageBarBoundaryDistance(harmonyMode: BassHarmonyMode, trials: number
 			.sort((a, b) => a.stepIndex - b.stepIndex);
 		const lastOfBar0 = bar0Notes[0];
 		const firstOfBar1 = bar1Notes[0];
-		total += pitchClassDistance(lastOfBar0.candidate.pitchClass, firstOfBar1.candidate.pitchClass);
+		total += pitchClassDistance(lastOfBar0.pitchClass, firstOfBar1.pitchClass);
 	}
 	return total / trials;
 }
@@ -112,5 +113,35 @@ describe('generateBasslineSkeleton: Voice Leading mode produces smoother bar-bou
 		const chordModeAverage = averageBarBoundaryDistance('chord', 60);
 		const voiceLeadingAverage = averageBarBoundaryDistance('voice-leading', 60);
 		expect(voiceLeadingAverage).toBeLessThan(chordModeAverage);
+	});
+});
+
+describe('generateBasslineSkeleton: register and physical realization (M8)', () => {
+	it('every note carries a real, physically playable MIDI + position matching its final pitch class', () => {
+		const skeleton = generateBasslineSkeleton(context());
+		for (const note of skeleton.notes) {
+			expect(normalizePitchClass(note.midi)).toBe(note.pitchClass);
+			const realPositions = findFretPositionsForMidi(
+				STANDARD_4_STRING_ABSOLUTE_TUNING,
+				20,
+				note.midi
+			);
+			expect(realPositions).toContainEqual(note.preferredPosition);
+			for (const alt of note.alternativePositions) {
+				expect(realPositions).toContainEqual(alt);
+			}
+		}
+	});
+
+	it('zone register mode keeps preferred positions inside the zone whenever possible', () => {
+		const skeleton = generateBasslineSkeleton(
+			context({ register: 'zone', zone: { minFret: 0, maxFret: 5 } })
+		);
+		for (const note of skeleton.notes) {
+			if (!note.registerFallback) {
+				expect(note.preferredPosition.fret).toBeGreaterThanOrEqual(0);
+				expect(note.preferredPosition.fret).toBeLessThanOrEqual(5);
+			}
+		}
 	});
 });
