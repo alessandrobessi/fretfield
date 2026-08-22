@@ -172,6 +172,31 @@ test.describe('Acid Bass Intelligence V4: auxiliary modulation (Envelope/Accent/
 		).toBeVisible();
 	});
 
+	test('each source has an LED that lights when on and turns off when toggled off, and a preview scope canvas', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const envPanel = page.getByRole('region', { name: 'ENV MOD' });
+		const envToggle = envPanel.getByRole('button', { name: 'Env Mod' });
+		const envLed = envPanel.locator('.led');
+		const envScope = envPanel.locator('canvas');
+
+		await expect(envToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(envLed).not.toHaveClass(/active/);
+		await expect(envScope).toBeVisible();
+
+		await envToggle.click();
+		await expect(envToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(envLed).toHaveClass(/active/);
+
+		// Toggling back off actually clears the pressed/LED state -- this is
+		// the exact behavior a user reported as "stuck on."
+		await envToggle.click();
+		await expect(envToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(envLed).not.toHaveClass(/active/);
+	});
+
 	test('aux modulation settings survive a reload', async ({ page }) => {
 		await openBassTab(page);
 

@@ -22,6 +22,7 @@
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Knob from '$lib/components/hardware/Knob.svelte';
 	import Led from '$lib/components/hardware/Led.svelte';
+	import AcidBassAuxModScope from './AcidBassAuxModScope.svelte';
 	import AcidBassLfoScope from './AcidBassLfoScope.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
@@ -218,6 +219,7 @@
 			100
 		)}
 	</div>
+	<AcidBassAuxModScope kind={source} depth={modPatch.depth} enabled={modPatch.enabled} />
 {/snippet}
 
 {#snippet pickerField(
@@ -459,14 +461,23 @@
 		</HardwarePanel>
 
 		<HardwarePanel title="ENV MOD" tone="carbon">
+			{#snippet header()}
+				<Led state={patch.modulation.envelope.enabled ? 'active' : 'off'} />
+			{/snippet}
 			{@render auxModPanelBody('envelope', 'Env Mod', patch.modulation.envelope)}
 		</HardwarePanel>
 
 		<HardwarePanel title="ACCENT MOD" tone="carbon">
+			{#snippet header()}
+				<Led state={patch.modulation.accent.enabled ? 'active' : 'off'} />
+			{/snippet}
 			{@render auxModPanelBody('accent', 'Accent Mod', patch.modulation.accent)}
 		</HardwarePanel>
 
 		<HardwarePanel title="RANDOM MOD" tone="carbon">
+			{#snippet header()}
+				<Led state={patch.modulation.random.enabled ? 'active' : 'off'} />
+			{/snippet}
 			{@render auxModPanelBody('random', 'Random Mod', patch.modulation.random)}
 		</HardwarePanel>
 
