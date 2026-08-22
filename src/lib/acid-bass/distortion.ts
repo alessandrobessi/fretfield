@@ -47,7 +47,9 @@ const DIODE_NEGATIVE_DRIVE = 1.2;
 const DIODE_NEGATIVE_TRIM = 0.85;
 
 function diodeShape(x: number): number {
-	return x >= 0 ? Math.tanh(x * DIODE_POSITIVE_DRIVE) : Math.tanh(x * DIODE_NEGATIVE_DRIVE) * DIODE_NEGATIVE_TRIM;
+	return x >= 0
+		? Math.tanh(x * DIODE_POSITIVE_DRIVE)
+		: Math.tanh(x * DIODE_NEGATIVE_DRIVE) * DIODE_NEGATIVE_TRIM;
 }
 
 // A genuinely harder-edged clip than Soft or Diode -- approaches a squared-

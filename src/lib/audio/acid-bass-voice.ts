@@ -113,7 +113,11 @@
  * `applyLfoRate` already established) -- no second clock.
  */
 
-import { delayDivisionToSeconds, delayFeedbackToGain, delayMixToSendGain } from '$lib/acid-bass/delay';
+import {
+	delayDivisionToSeconds,
+	delayFeedbackToGain,
+	delayMixToSendGain
+} from '$lib/acid-bass/delay';
 import { getDistortionCurve } from '$lib/acid-bass/distortion';
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
 import {
@@ -424,7 +428,10 @@ export function createAcidBassVoice(
 	const delayNode = ctx.createDelay(MAX_DELAY_SECONDS);
 	delayNode.delayTime.setValueAtTime(0.3, ctx.currentTime);
 	const delayFeedback = ctx.createGain();
-	delayFeedback.gain.setValueAtTime(delayFeedbackToGain(currentPatch.delay.feedback), ctx.currentTime);
+	delayFeedback.gain.setValueAtTime(
+		delayFeedbackToGain(currentPatch.delay.feedback),
+		ctx.currentTime
+	);
 
 	// Two independent LFOs, each routed to whichever single destination the
 	// patch names via its own parallel bank of depth-scaling gains -- the
@@ -724,7 +731,9 @@ export function createAcidBassVoice(
 
 	type AuxModulationSourceKind = 'envelope' | 'accent' | 'random';
 
-	function auxModGainBank(sourceKind: AuxModulationSourceKind): Record<AcidModulationDestination, GainNode> {
+	function auxModGainBank(
+		sourceKind: AuxModulationSourceKind
+	): Record<AcidModulationDestination, GainNode> {
 		if (sourceKind === 'envelope') return envModGains;
 		if (sourceKind === 'accent') return accentModGains;
 		return randomModGains;
@@ -751,7 +760,10 @@ export function createAcidBassVoice(
 		holdSeconds: number
 	): void {
 		const gains = auxModGainBank(sourceKind);
-		for (const [dest, gainNode] of Object.entries(gains) as [AcidModulationDestination, GainNode][]) {
+		for (const [dest, gainNode] of Object.entries(gains) as [
+			AcidModulationDestination,
+			GainNode
+		][]) {
 			gainNode.gain.cancelScheduledValues(time);
 			if (dest !== destination || amount === 0) {
 				gainNode.gain.setTargetAtTime(0, time, PARAM_SMOOTH_TIME_CONSTANT);
@@ -759,7 +771,11 @@ export function createAcidBassVoice(
 			}
 			gainNode.gain.setValueAtTime(0, time);
 			gainNode.gain.linearRampToValueAtTime(amount, time + riseSeconds);
-			gainNode.gain.setTargetAtTime(0, time + riseSeconds + holdSeconds, PARAM_SMOOTH_TIME_CONSTANT);
+			gainNode.gain.setTargetAtTime(
+				0,
+				time + riseSeconds + holdSeconds,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
 		}
 	}
 
@@ -774,7 +790,10 @@ export function createAcidBassVoice(
 
 	/** Re-derives the delay's own time from the transport's current BPM and the patch's division -- called from both `setPatch()` and `setTempo()`, the same "no new clock" pattern `applyLfoRate` already established for the LFOs' sync mode. */
 	function applyDelayTime(patch: AcidBassPatch): void {
-		const seconds = Math.min(MAX_DELAY_SECONDS, delayDivisionToSeconds(currentBpm, patch.delay.division));
+		const seconds = Math.min(
+			MAX_DELAY_SECONDS,
+			delayDivisionToSeconds(currentBpm, patch.delay.division)
+		);
 		delayNode.delayTime.cancelScheduledValues(ctx.currentTime);
 		delayNode.delayTime.setTargetAtTime(seconds, ctx.currentTime, PARAM_SMOOTH_TIME_CONSTANT);
 	}
@@ -1083,7 +1102,11 @@ export function createAcidBassVoice(
 
 				// ENV: reuses the filter envelope's own rise/decay timing (spec:
 				// "the existing note-envelope timing as a modulation contour").
-				const envAmount = resolveAuxModulationAmount(patch.modulation.envelope, subEnabled, osc2Enabled);
+				const envAmount = resolveAuxModulationAmount(
+					patch.modulation.envelope,
+					subEnabled,
+					osc2Enabled
+				);
 				scheduleAuxModulationContour(
 					'envelope',
 					patch.modulation.envelope.destination,

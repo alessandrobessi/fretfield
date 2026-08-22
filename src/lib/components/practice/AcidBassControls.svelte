@@ -204,7 +204,8 @@
 			ariaLabel={label}
 			onclick={() => scalePractice.setAcidBassModulationEnabled(source, !modPatch.enabled)}
 		>
-			{label} {modPatch.enabled ? 'On' : 'Off'}
+			{label}
+			{modPatch.enabled ? 'On' : 'Off'}
 		</HardwareButton>
 		{@render pickerField('Destination', MOD_DESTINATIONS, modPatch.destination, (id) =>
 			scalePractice.setAcidBassModulationDestination(source, id as AcidModulationDestination)
@@ -508,11 +509,8 @@
 
 		<HardwarePanel title="OUTPUT" tone="carbon">
 			<div class="row">
-				{@render pickerField(
-					'Character',
-					DISTORTION_CHARACTERS,
-					patch.distortion.character,
-					(id) => scalePractice.setAcidBassDistortionCharacter(id as AcidDistortionCharacter)
+				{@render pickerField('Character', DISTORTION_CHARACTERS, patch.distortion.character, (id) =>
+					scalePractice.setAcidBassDistortionCharacter(id as AcidDistortionCharacter)
 				)}
 			</div>
 			<div class="row">

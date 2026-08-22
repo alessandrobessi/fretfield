@@ -280,7 +280,11 @@ describe('auxiliary modulation mapping (Envelope/Accent/Random)', () => {
 	describe('resolveAuxModulationAmount (Envelope source)', () => {
 		it('source enable/disable: disabled always resolves to 0 regardless of depth', () => {
 			expect(
-				resolveAuxModulationAmount({ enabled: false, destination: 'cutoff', depth: 100 }, true, true)
+				resolveAuxModulationAmount(
+					{ enabled: false, destination: 'cutoff', depth: 100 },
+					true,
+					true
+				)
 			).toBe(0);
 			expect(
 				resolveAuxModulationAmount(
@@ -365,9 +369,7 @@ describe('auxiliary modulation mapping (Envelope/Accent/Random)', () => {
 		});
 
 		it('a disabled source stays 0 regardless of the random value', () => {
-			expect(
-				resolveRandomModulationAmount({ ...source, enabled: false }, 1, true, true)
-			).toBe(0);
+			expect(resolveRandomModulationAmount({ ...source, enabled: false }, 1, true, true)).toBe(0);
 		});
 	});
 });

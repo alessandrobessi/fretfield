@@ -223,7 +223,9 @@ test.describe('Acid Bass Intelligence V4: distortion characters (M16)', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 		await expect(
-			page.getByRole('region', { name: 'OUTPUT' }).getByRole('button', { name: 'Hard', exact: true })
+			page
+				.getByRole('region', { name: 'OUTPUT' })
+				.getByRole('button', { name: 'Hard', exact: true })
 		).toHaveAttribute('aria-pressed', 'true');
 	});
 });
@@ -275,9 +277,9 @@ test.describe('Acid Bass Intelligence V4: tempo-synced delay (M17)', () => {
 			'aria-pressed',
 			'true'
 		);
-		await expect(
-			reloadedDelayPanel.getByRole('combobox', { name: 'Delay Division' })
-		).toHaveValue('1/16D');
+		await expect(reloadedDelayPanel.getByRole('combobox', { name: 'Delay Division' })).toHaveValue(
+			'1/16D'
+		);
 	});
 });
 

@@ -3,15 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { delayDivisionToSeconds, delayFeedbackToGain, delayMixToSendGain } from '../delay';
 import type { AcidDelayDivision } from '../types';
 
-const ALL_DIVISIONS: AcidDelayDivision[] = [
-	'1/4',
-	'1/8',
-	'1/8D',
-	'1/8T',
-	'1/16',
-	'1/16D',
-	'1/16T'
-];
+const ALL_DIVISIONS: AcidDelayDivision[] = ['1/4', '1/8', '1/8D', '1/8T', '1/16', '1/16D', '1/16T'];
 
 describe('delayDivisionToSeconds: division math', () => {
 	it('a quarter-note division is exactly one beat (60/bpm)', () => {
@@ -20,12 +12,21 @@ describe('delayDivisionToSeconds: division math', () => {
 	});
 
 	it('halving the division halves the delay time', () => {
-		expect(delayDivisionToSeconds(120, '1/8')).toBeCloseTo(delayDivisionToSeconds(120, '1/4') / 2, 5);
-		expect(delayDivisionToSeconds(120, '1/16')).toBeCloseTo(delayDivisionToSeconds(120, '1/8') / 2, 5);
+		expect(delayDivisionToSeconds(120, '1/8')).toBeCloseTo(
+			delayDivisionToSeconds(120, '1/4') / 2,
+			5
+		);
+		expect(delayDivisionToSeconds(120, '1/16')).toBeCloseTo(
+			delayDivisionToSeconds(120, '1/8') / 2,
+			5
+		);
 	});
 
 	it('a dotted division is 1.5x its straight counterpart', () => {
-		expect(delayDivisionToSeconds(120, '1/8D')).toBeCloseTo(delayDivisionToSeconds(120, '1/8') * 1.5, 5);
+		expect(delayDivisionToSeconds(120, '1/8D')).toBeCloseTo(
+			delayDivisionToSeconds(120, '1/8') * 1.5,
+			5
+		);
 		expect(delayDivisionToSeconds(120, '1/16D')).toBeCloseTo(
 			delayDivisionToSeconds(120, '1/16') * 1.5,
 			5
@@ -41,7 +42,10 @@ describe('delayDivisionToSeconds: division math', () => {
 	});
 
 	it('scales inversely with BPM at a fixed division -- doubling BPM halves the delay time', () => {
-		expect(delayDivisionToSeconds(240, '1/4')).toBeCloseTo(delayDivisionToSeconds(120, '1/4') / 2, 5);
+		expect(delayDivisionToSeconds(240, '1/4')).toBeCloseTo(
+			delayDivisionToSeconds(120, '1/4') / 2,
+			5
+		);
 	});
 
 	it('every division stays finite and positive across a wide BPM range', () => {

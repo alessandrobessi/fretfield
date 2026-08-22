@@ -81,7 +81,11 @@ export const ACID_BASS_GLOSSARY: GlossarySection[] = [
 				description:
 					'Which filter circuit shapes the tone -- Legacy and SVF-12 are cleaner, Acid 24 is a squelchy 4-pole ladder filter.'
 			},
-			{ term: 'Cutoff', description: 'The filter’s base brightness -- low is dark and round, high is open and bright.' },
+			{
+				term: 'Cutoff',
+				description:
+					'The filter’s base brightness -- low is dark and round, high is open and bright.'
+			},
 			{
 				term: 'Resonance',
 				description:
@@ -119,7 +123,10 @@ export const ACID_BASS_GLOSSARY: GlossarySection[] = [
 				term: 'Release',
 				description: 'How quickly each note’s volume fades out after its gate closes.'
 			},
-			{ term: 'Glide Time', description: 'How long a slide takes to glide from one note to the next.' },
+			{
+				term: 'Glide Time',
+				description: 'How long a slide takes to glide from one note to the next.'
+			},
 			{
 				term: 'Glide Curve',
 				description: 'The shape of a slide’s pitch glide -- Linear is even, Exponential eases in.'
@@ -162,7 +169,10 @@ export const ACID_BASS_GLOSSARY: GlossarySection[] = [
 				term: 'Env',
 				description: 'Follows the same rise-and-decay shape as each note’s own filter envelope.'
 			},
-			{ term: 'Accent', description: 'Only ever fires on accented steps -- silent on every normal hit.' },
+			{
+				term: 'Accent',
+				description: 'Only ever fires on accented steps -- silent on every normal hit.'
+			},
 			{
 				term: 'Random',
 				description:
@@ -176,7 +186,8 @@ export const ACID_BASS_GLOSSARY: GlossarySection[] = [
 			{ term: 'On/Off', description: 'Turns the delay on or off.' },
 			{
 				term: 'Division',
-				description: 'How far behind the beat each repeat lands, as a musical division of the current tempo.'
+				description:
+					'How far behind the beat each repeat lands, as a musical division of the current tempo.'
 			},
 			{ term: 'Feedback', description: 'How many times the signal repeats before dying out.' },
 			{ term: 'Mix', description: 'How loud the delayed repeats are relative to the dry signal.' }

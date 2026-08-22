@@ -155,7 +155,11 @@ describe('resolveAcidIntelligence: high-tension filter/env lock, clamped', () =>
 
 describe('resolveAcidIntelligence: deterministic expression', () => {
 	it('the same step/patch/intelligence/style always produces the exact same expression', () => {
-		const step = noteStep({ harmonicRole: 'tension', function: 'chromatic-approach', accent: false });
+		const step = noteStep({
+			harmonicRole: 'tension',
+			function: 'chromatic-approach',
+			accent: false
+		});
 		const a = resolveAcidIntelligence(step, patch, 65, 'melodic');
 		const b = resolveAcidIntelligence(step, patch, 65, 'melodic');
 		expect(a).toEqual(b);
