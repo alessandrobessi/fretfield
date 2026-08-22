@@ -6,6 +6,7 @@
 		AcidGlideCurve,
 		AcidLfoDestination,
 		AcidLfoDivision,
+		AcidLfoPatch,
 		AcidLfoRateMode,
 		AcidLfoShape,
 		AcidSubOctave,
@@ -52,7 +53,8 @@
 		{ id: 'cutoff', label: 'Cutoff' },
 		{ id: 'pitch', label: 'Pitch' },
 		{ id: 'pulseWidth', label: 'Pulse Width' },
-		{ id: 'subLevel', label: 'Sub Level' }
+		{ id: 'subLevel', label: 'Sub Level' },
+		{ id: 'osc2Level', label: 'Osc 2 Level' }
 	];
 	const LFO_RATE_MODES: { id: AcidLfoRateMode; label: string }[] = [
 		{ id: 'free', label: 'Free' },
@@ -71,12 +73,12 @@
 
 	const patch = $derived(scalePractice.groove.acidBass.patch);
 
-	/** The LFO's actual oscillation rate right now, in Sync mode as much as Free -- what the indicator dot's blink rate and the Hz readout both key off. */
-	const lfoHz = $derived(
-		patch.lfo.rateMode === 'sync'
-			? lfoSyncFrequencyHz(scalePractice.bpm, patch.lfo.division)
-			: lfoRateHzClamp(patch.lfo.rateHz)
-	);
+	/** An LFO's actual oscillation rate right now, in Sync mode as much as Free -- what its indicator dot's blink rate and Hz readout both key off. Shared by both LFO panels, called with whichever slot's own patch. */
+	function lfoHz(lfoPatch: AcidLfoPatch): number {
+		return lfoPatch.rateMode === 'sync'
+			? lfoSyncFrequencyHz(scalePractice.bpm, lfoPatch.division)
+			: lfoRateHzClamp(lfoPatch.rateHz);
+	}
 </script>
 
 {#snippet knobField(
@@ -89,6 +91,64 @@
 	<div class="field">
 		<span class="ff-label field-label">{label}</span>
 		<Knob {label} {value} {min} {max} {onChange} />
+	</div>
+{/snippet}
+
+{#snippet lfoPanelBody(lfoSlot: 1 | 2, lfoPatch: AcidLfoPatch)}
+	{@const hz = lfoHz(lfoPatch)}
+	<div class="row">
+		<HardwareButton
+			variant="secondary"
+			pressed={lfoPatch.enabled}
+			ariaLabel={`LFO ${lfoSlot}`}
+			onclick={() => scalePractice.setAcidBassLfoEnabled(lfoSlot, !lfoPatch.enabled)}
+		>
+			LFO {lfoPatch.enabled ? 'On' : 'Off'}
+		</HardwareButton>
+		<div class="lfo-rate-indicator" class:running={lfoPatch.enabled}>
+			<span class="lfo-dot" style:animation-duration={`${1 / hz}s`} aria-hidden="true"></span>
+			<span class="lfo-hz-readout">
+				{hz.toFixed(hz < 10 ? 2 : 1)} Hz
+			</span>
+		</div>
+		{@render pickerField('Destination', LFO_DESTINATIONS, lfoPatch.destination, (id) =>
+			scalePractice.setAcidBassLfoDestination(lfoSlot, id as AcidLfoDestination)
+		)}
+		{@render knobField('Depth', lfoPatch.depth, (v) => scalePractice.setAcidBassLfoDepth(lfoSlot, v))}
+	</div>
+	<div class="row">
+		{@render pickerField('Shape', LFO_SHAPES, lfoPatch.shape, (id) =>
+			scalePractice.setAcidBassLfoShape(lfoSlot, id as AcidLfoShape)
+		)}
+		{@render pickerField('Rate Mode', LFO_RATE_MODES, lfoPatch.rateMode, (id) =>
+			scalePractice.setAcidBassLfoRateMode(lfoSlot, id as AcidLfoRateMode)
+		)}
+		{#if lfoPatch.rateMode === 'free'}
+			{@render knobField(
+				'Rate',
+				lfoPatch.rateHz,
+				(v) => scalePractice.setAcidBassLfoRateHz(lfoSlot, v),
+				0.05,
+				20
+			)}
+		{:else}
+			<label class="field">
+				<span class="ff-label field-label">Division</span>
+				<select
+					aria-label="Division"
+					value={lfoPatch.division}
+					onchange={(event) =>
+						scalePractice.setAcidBassLfoDivision(
+							lfoSlot,
+							(event.currentTarget as HTMLSelectElement).value as AcidLfoDivision
+						)}
+				>
+					{#each LFO_DIVISIONS as division (division)}
+						<option value={division}>{division}</option>
+					{/each}
+				</select>
+			</label>
+		{/if}
 	</div>
 {/snippet}
 
@@ -183,6 +243,45 @@
 					scalePractice.setAcidBassSubLevel(v)
 				)}
 			</div>
+			<div class="row">
+				{@render pickerField('Osc 2 Wave', MAIN_WAVES, patch.oscillator.osc2Wave, (id) =>
+					scalePractice.setAcidBassOsc2Wave(id as AcidWave)
+				)}
+				<HardwareButton
+					variant="secondary"
+					pressed={patch.oscillator.osc2Enabled}
+					ariaLabel="Osc 2"
+					onclick={() => scalePractice.setAcidBassOsc2Enabled(!patch.oscillator.osc2Enabled)}
+				>
+					Osc 2 {patch.oscillator.osc2Enabled ? 'On' : 'Off'}
+				</HardwareButton>
+			</div>
+			<div class="row">
+				{@render knobField(
+					'Osc 2 Tune',
+					patch.oscillator.osc2Tune,
+					(v) => scalePractice.setAcidBassOsc2Tune(v),
+					-12,
+					12
+				)}
+				{@render knobField(
+					'Osc 2 Fine',
+					patch.oscillator.osc2Fine,
+					(v) => scalePractice.setAcidBassOsc2Fine(v),
+					-50,
+					50
+				)}
+				{@render knobField('Osc 2 Level', patch.oscillator.osc2Level, (v) =>
+					scalePractice.setAcidBassOsc2Level(v)
+				)}
+				{@render knobField(
+					'Osc 2 Pulse Width',
+					patch.oscillator.osc2PulseWidth,
+					(v) => scalePractice.setAcidBassOsc2PulseWidth(v),
+					5,
+					95
+				)}
+			</div>
 		</HardwarePanel>
 
 		<HardwarePanel title="VCF" tone="carbon">
@@ -237,61 +336,12 @@
 			</div>
 		</HardwarePanel>
 
-		<HardwarePanel title="MOD" tone="carbon">
-			<div class="row">
-				<HardwareButton
-					variant="secondary"
-					pressed={patch.lfo.enabled}
-					ariaLabel="LFO"
-					onclick={() => scalePractice.setAcidBassLfoEnabled(!patch.lfo.enabled)}
-				>
-					LFO {patch.lfo.enabled ? 'On' : 'Off'}
-				</HardwareButton>
-				<div class="lfo-rate-indicator" class:running={patch.lfo.enabled}>
-					<span class="lfo-dot" style:animation-duration={`${1 / lfoHz}s`} aria-hidden="true"
-					></span>
-					<span class="lfo-hz-readout">
-						{lfoHz.toFixed(lfoHz < 10 ? 2 : 1)} Hz
-					</span>
-				</div>
-				{@render pickerField('Destination', LFO_DESTINATIONS, patch.lfo.destination, (id) =>
-					scalePractice.setAcidBassLfoDestination(id as AcidLfoDestination)
-				)}
-				{@render knobField('Depth', patch.lfo.depth, (v) => scalePractice.setAcidBassLfoDepth(v))}
-			</div>
-			<div class="row">
-				{@render pickerField('Shape', LFO_SHAPES, patch.lfo.shape, (id) =>
-					scalePractice.setAcidBassLfoShape(id as AcidLfoShape)
-				)}
-				{@render pickerField('Rate Mode', LFO_RATE_MODES, patch.lfo.rateMode, (id) =>
-					scalePractice.setAcidBassLfoRateMode(id as AcidLfoRateMode)
-				)}
-				{#if patch.lfo.rateMode === 'free'}
-					{@render knobField(
-						'Rate',
-						patch.lfo.rateHz,
-						(v) => scalePractice.setAcidBassLfoRateHz(v),
-						0.05,
-						20
-					)}
-				{:else}
-					<label class="field">
-						<span class="ff-label field-label">Division</span>
-						<select
-							aria-label="Division"
-							value={patch.lfo.division}
-							onchange={(event) =>
-								scalePractice.setAcidBassLfoDivision(
-									(event.currentTarget as HTMLSelectElement).value as AcidLfoDivision
-								)}
-						>
-							{#each LFO_DIVISIONS as division (division)}
-								<option value={division}>{division}</option>
-							{/each}
-						</select>
-					</label>
-				{/if}
-			</div>
+		<HardwarePanel title="LFO 1" tone="carbon">
+			{@render lfoPanelBody(1, patch.lfo1)}
+		</HardwarePanel>
+
+		<HardwarePanel title="LFO 2" tone="carbon">
+			{@render lfoPanelBody(2, patch.lfo2)}
 		</HardwarePanel>
 
 		<HardwarePanel title="OUTPUT" tone="carbon">

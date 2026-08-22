@@ -2,11 +2,12 @@
  * Acid Bass's own migration/coercion layer (~/Downloads/ACID-BASS-ENGINE-V2.md
  * §77): `groove/migrate.ts` delegates all `acidBass`-shape handling here
  * instead of growing further inline, the same way this domain's own
- * `pattern.ts`/`resolve.ts` already own their own concerns. Two jobs, kept
+ * `pattern.ts`/`resolve.ts` already own their own concerns. Three jobs, kept
  * clearly separate below: migrating a genuinely V1-shaped patch/pattern
- * (spec §71-76), and validating/clamping data that already claims to be
- * current V2 shape but came from localStorage -- untrusted input either way
- * (spec §78).
+ * (spec §71-76), migrating a V2-shaped one (singular `patch.lfo`, no Osc 2)
+ * to the current V3 shape, and validating/clamping data that already claims
+ * to be current V3 shape but came from localStorage -- untrusted input
+ * either way (spec §78).
  */
 
 import { ALL_INTERVALS, type IntervalId } from '$lib/music/intervals';
@@ -136,12 +137,20 @@ function migrateV1Patch(raw: unknown): AcidBassPatch {
 	const decay = typeof p.decay === 'number' ? p.decay : 35;
 	const drive = typeof p.drive === 'number' ? p.drive : 0;
 
+	const neutral = createDefaultAcidPatch();
+
 	return {
 		oscillator: {
 			mainWave: wave,
 			tune: 0,
 			fine: 0,
 			mainLevel: 100,
+			osc2Enabled: neutral.oscillator.osc2Enabled,
+			osc2Wave: neutral.oscillator.osc2Wave,
+			osc2Tune: neutral.oscillator.osc2Tune,
+			osc2Fine: neutral.oscillator.osc2Fine,
+			osc2Level: neutral.oscillator.osc2Level,
+			osc2PulseWidth: neutral.oscillator.osc2PulseWidth,
 			subEnabled: false,
 			subOctave: -1,
 			subWave: 'square',
@@ -173,7 +182,7 @@ function migrateV1Patch(raw: unknown): AcidBassPatch {
 			// V1's slide was always a plain linearRampToValueAtTime.
 			curve: 'linear'
 		},
-		lfo: {
+		lfo1: {
 			enabled: false,
 			shape: 'sine',
 			destination: 'cutoff',
@@ -182,6 +191,7 @@ function migrateV1Patch(raw: unknown): AcidBassPatch {
 			division: '1/8',
 			depth: 0
 		},
+		lfo2: neutral.lfo2,
 		output: {
 			drive,
 			volume: v1MasterGainToV2Value(V1_MASTER_GAIN)
@@ -196,7 +206,7 @@ function migrateV1State(state: V1AcidBassState, meter: Meter): AcidBassState {
 		patterns[role] = migrateV1Pattern(rawPatterns[role], meter.stepsPerBar);
 	}
 	return {
-		version: 2,
+		version: 3,
 		enabled: state.enabled === true,
 		patch: migrateV1Patch(state.patch),
 		patterns,
@@ -207,7 +217,37 @@ function migrateV1State(state: V1AcidBassState, meter: Meter): AcidBassState {
 }
 
 // ---------------------------------------------------------------------------
-// V2 validation/coercion (persisted data is untrusted input, spec §78)
+// V2 -> V3 (singular `patch.lfo` -> `lfo1`/`lfo2`, Osc 2 added)
+// ---------------------------------------------------------------------------
+
+/**
+ * V2's own shape is a strict subset of V3's -- oscillator (minus `osc2*`),
+ * filter, envelope, glide, and output all coerce identically, so this
+ * re-keys the one field that actually changed shape (`lfo` -> `lfo1`) and
+ * hands off to `coercePatch` (defined below) rather than duplicating every
+ * other field's own defaulting/clamping logic. `osc2*`/`lfo2`, simply absent
+ * from a V2 record, come back as their safe neutral/off defaults for free.
+ */
+function migrateV2Patch(raw: unknown): AcidBassPatch {
+	const record = isRecord(raw) ? raw : {};
+	return coercePatch({ ...record, lfo1: record.lfo, lfo2: undefined });
+}
+
+function migrateV2State(raw: Record<string, unknown>, meter: Meter): AcidBassState {
+	return {
+		version: 3,
+		enabled: coerceBoolean(raw.enabled, false),
+		patch: migrateV2Patch(raw.patch),
+		patterns: coercePatterns(raw.patterns, meter.stepsPerBar),
+		// Unlike V1->V3 (forced false, since V1 never had this concept at
+		// all), V2 already modeled cross-bar slide correctly -- preserve
+		// whatever the groove already had.
+		crossBarSlide: coerceBoolean(raw.crossBarSlide, true)
+	};
+}
+
+// ---------------------------------------------------------------------------
+// V3 validation/coercion (persisted data is untrusted input, spec §78)
 // ---------------------------------------------------------------------------
 
 function coerceNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -244,7 +284,8 @@ const LFO_DESTINATIONS: readonly AcidLfoDestination[] = [
 	'cutoff',
 	'pitch',
 	'pulseWidth',
-	'subLevel'
+	'subLevel',
+	'osc2Level'
 ];
 const LFO_RATE_MODES: readonly AcidLfoRateMode[] = ['free', 'sync'];
 const LFO_DIVISIONS: readonly AcidLfoDivision[] = [
@@ -261,6 +302,19 @@ const OCTAVE_OFFSETS: readonly AcidOctaveOffset[] = [-1, 0, 1];
 const RATCHETS: readonly (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
 const LOCK_TARGETS = ['cutoff', 'resonance', 'envAmount', 'drive', 'lfoDepth'] as const;
 
+function coerceLfo(raw: unknown, defaults: AcidBassPatch['lfo1']): AcidBassPatch['lfo1'] {
+	const lfo = isRecord(raw) ? raw : {};
+	return {
+		enabled: coerceBoolean(lfo.enabled, defaults.enabled),
+		shape: coerceEnum(lfo.shape, LFO_SHAPES, defaults.shape),
+		destination: coerceEnum(lfo.destination, LFO_DESTINATIONS, defaults.destination),
+		rateMode: coerceEnum(lfo.rateMode, LFO_RATE_MODES, defaults.rateMode),
+		rateHz: coerceNumber(lfo.rateHz, defaults.rateHz, 0.05, 20),
+		division: coerceEnum(lfo.division, LFO_DIVISIONS, defaults.division),
+		depth: coerceNumber(lfo.depth, defaults.depth, 0, 100)
+	};
+}
+
 function coercePatch(raw: unknown): AcidBassPatch {
 	const defaults = createDefaultAcidPatch();
 	if (!isRecord(raw)) return defaults;
@@ -268,7 +322,6 @@ function coercePatch(raw: unknown): AcidBassPatch {
 	const filt = isRecord(raw.filter) ? raw.filter : {};
 	const env = isRecord(raw.envelope) ? raw.envelope : {};
 	const glide = isRecord(raw.glide) ? raw.glide : {};
-	const lfo = isRecord(raw.lfo) ? raw.lfo : {};
 	const output = isRecord(raw.output) ? raw.output : {};
 
 	return {
@@ -277,6 +330,12 @@ function coercePatch(raw: unknown): AcidBassPatch {
 			tune: coerceNumber(osc.tune, defaults.oscillator.tune, -12, 12),
 			fine: coerceNumber(osc.fine, defaults.oscillator.fine, -50, 50),
 			mainLevel: coerceNumber(osc.mainLevel, defaults.oscillator.mainLevel, 0, 100),
+			osc2Enabled: coerceBoolean(osc.osc2Enabled, defaults.oscillator.osc2Enabled),
+			osc2Wave: coerceEnum(osc.osc2Wave, MAIN_WAVES, defaults.oscillator.osc2Wave),
+			osc2Tune: coerceNumber(osc.osc2Tune, defaults.oscillator.osc2Tune, -12, 12),
+			osc2Fine: coerceNumber(osc.osc2Fine, defaults.oscillator.osc2Fine, -50, 50),
+			osc2Level: coerceNumber(osc.osc2Level, defaults.oscillator.osc2Level, 0, 100),
+			osc2PulseWidth: coerceNumber(osc.osc2PulseWidth, defaults.oscillator.osc2PulseWidth, 5, 95),
 			subEnabled: coerceBoolean(osc.subEnabled, defaults.oscillator.subEnabled),
 			subOctave: coerceNumericEnum(osc.subOctave, SUB_OCTAVES, defaults.oscillator.subOctave),
 			subWave: coerceEnum(osc.subWave, SUB_WAVES, defaults.oscillator.subWave),
@@ -301,15 +360,8 @@ function coercePatch(raw: unknown): AcidBassPatch {
 			time: coerceNumber(glide.time, defaults.glide.time, 0, 100),
 			curve: coerceEnum(glide.curve, GLIDE_CURVES, defaults.glide.curve)
 		},
-		lfo: {
-			enabled: coerceBoolean(lfo.enabled, defaults.lfo.enabled),
-			shape: coerceEnum(lfo.shape, LFO_SHAPES, defaults.lfo.shape),
-			destination: coerceEnum(lfo.destination, LFO_DESTINATIONS, defaults.lfo.destination),
-			rateMode: coerceEnum(lfo.rateMode, LFO_RATE_MODES, defaults.lfo.rateMode),
-			rateHz: coerceNumber(lfo.rateHz, defaults.lfo.rateHz, 0.05, 20),
-			division: coerceEnum(lfo.division, LFO_DIVISIONS, defaults.lfo.division),
-			depth: coerceNumber(lfo.depth, defaults.lfo.depth, 0, 100)
-		},
+		lfo1: coerceLfo(raw.lfo1, defaults.lfo1),
+		lfo2: coerceLfo(raw.lfo2, defaults.lfo2),
 		output: {
 			drive: coerceNumber(output.drive, defaults.output.drive, 0, 100),
 			volume: coerceNumber(output.volume, defaults.output.volume, 0, 100)
@@ -361,9 +413,10 @@ function coercePatterns(raw: unknown, stepsPerBar: number): Record<PatternRole, 
 /**
  * Reads whatever's persisted for `Groove.acidBass` and always returns a
  * valid, current-shape `AcidBassState` -- the Acid Bass equivalent of
- * `groove/migrate.ts`'s `coerceGroove`. Three cases: genuinely V1-shaped
- * (no `version` field at all) -> migrated via the `v1*ToV2Value` helpers,
- * with `crossBarSlide` forced off (spec §76); claims `version: 2` ->
+ * `groove/migrate.ts`'s `coerceGroove`. Four cases: genuinely V1-shaped (no
+ * `version` field at all) -> migrated via the `v1*ToV2Value` helpers, with
+ * `crossBarSlide` forced off (spec §76); `version: 2` (singular `patch.lfo`,
+ * no Osc 2) -> migrated via `migrateV2Patch`/`State`; `version: 3` ->
  * validated and clamped field-by-field rather than trusted outright
  * (persisted browser state is untrusted input, spec §78); anything else
  * (a pre-Acid-Bass groove with no `acidBass` at all, or unrecognizable
@@ -372,9 +425,11 @@ function coercePatterns(raw: unknown, stepsPerBar: number): Record<PatternRole, 
 export function coerceAcidBassState(raw: unknown, meter: Meter): AcidBassState {
 	if (isV1AcidBassState(raw)) return migrateV1State(raw, meter);
 
-	if (isRecord(raw) && raw.version === 2) {
+	if (isRecord(raw) && raw.version === 2) return migrateV2State(raw, meter);
+
+	if (isRecord(raw) && raw.version === 3) {
 		return {
-			version: 2,
+			version: 3,
 			enabled: coerceBoolean(raw.enabled, false),
 			patch: coercePatch(raw.patch),
 			patterns: coercePatterns(raw.patterns, meter.stepsPerBar),

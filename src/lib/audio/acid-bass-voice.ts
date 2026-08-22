@@ -54,17 +54,29 @@
  * at all (see the file's own "must not know about `PatternRole` semantics"
  * doctrine above).
  *
- * Modulation (M7): one LFO (`acid-bass-lfo.ts`), free-running and routed to
- * whichever single destination the patch names (Cutoff/Pitch/Sub Level/Pulse
- * Width -- the last only live once the M11 Pulse worklet has loaded, see
- * above) via a parallel bank of depth-scaling gain nodes, the same "always
+ * Modulation (M7): two independent, free-running LFOs (`lfo1`/`lfo2`, both
+ * `acid-bass-lfo.ts` instances), each routed to whichever single destination
+ * its own patch slot names (Cutoff/Pitch/Sub Level/Osc 2 Level/Pulse Width --
+ * the last only live once the M11 Pulse worklet has loaded, see above) via
+ * its own parallel bank of depth-scaling gain nodes, the same "always
  * connected, gain the inactive ones to zero" idiom as everything else here.
- * Sync-mode rate depends on the transport's current BPM, which
+ * Still not a many-to-many modulation matrix -- each LFO targets exactly one
+ * destination. Sync-mode rate depends on the transport's current BPM, which
  * this file otherwise never touches -- `setTempo()` is the one deliberate
- * exception, called by `scale-practice.svelte.ts` whenever tempo changes,
- * so a live tempo edit re-syncs the LFO without needing a full `setPatch()`.
+ * exception, called by `scale-practice.svelte.ts` whenever tempo changes, so
+ * a live tempo edit re-syncs both LFOs without needing a full `setPatch()`.
  * `lfoDepth` locks apply the same "override this trigger only, then revert"
- * treatment `locks.drive` already gets.
+ * treatment `locks.drive` already gets -- to LFO 1 only, never LFO 2 (see
+ * `AcidStepLocks`'s own doc comment).
+ *
+ * A second full oscillator (M13-ish, no spec doc -- a direct follow-up
+ * request): Osc 2 sits alongside Main and Sub, with its own wave (any
+ * `AcidWave`, including Pulse) and its own independent tune/fine (not
+ * Main's), which is what makes it useful for detune/unison stacking.
+ * Implemented as a single type-switched `OscillatorNode`, the same
+ * simplification Sub already uses, not a 4-way crossfaded bank like Main --
+ * a wave change here is an infrequent patch edit. `mixCompensation` now
+ * budgets all three oscillators' energy together.
  */
 
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
@@ -95,7 +107,8 @@ import type {
 	AcidFilterModel,
 	AcidGlideCurve,
 	AcidLfoDestination,
-	AcidStepLocks
+	AcidStepLocks,
+	AcidWave
 } from '$lib/acid-bass/types';
 
 import { createAcidBassLfo } from './acid-bass-lfo';
@@ -156,16 +169,18 @@ const DEFAULT_PATCH: AcidBassPatch = createDefaultAcidPatch();
 const MAX_CUTOFF_LFO_SWING_HZ = 2500;
 const MAX_PITCH_LFO_CENTS = 100;
 const MAX_SUBLEVEL_LFO_SWING = 0.5;
+const MAX_OSC2LEVEL_LFO_SWING = 0.5;
 // A fraction of the Pulse worklet's own 0-1 duty-cycle range -- the
 // AudioParam's own declared min/max (0.05-0.95) clamps the summed result,
 // so this doesn't need its own separate safety margin.
 const MAX_PULSE_WIDTH_LFO_SWING = 0.3;
 
-/** 0-100 depth -> the actual modulation amount for one destination -- `subLevel` is inert whenever Sub itself is off rather than audibly wobbling around silence, and `pulseWidth` only reaches anything once the Pulse oscillator worklet has loaded (see `lfoTargetGain`/`pulseWidthLfoGain`); this still resolves a real amount for it regardless, since the gain is what actually gates audibility. */
+/** 0-100 depth -> the actual modulation amount for one destination -- `subLevel`/`osc2Level` are inert whenever Sub/Osc 2 themselves are off rather than audibly wobbling around silence, and `pulseWidth` only reaches anything once the Pulse oscillator worklet has loaded (see `lfoTargetGain`); this still resolves a real amount for it regardless, since the gain is what actually gates audibility. */
 function lfoDepthAmount(
 	destination: AcidLfoDestination,
 	depth: number,
-	subEnabled: boolean
+	subEnabled: boolean,
+	osc2Enabled: boolean
 ): number {
 	const ratio = Math.min(1, Math.max(0, depth / 100));
 	switch (destination) {
@@ -175,6 +190,8 @@ function lfoDepthAmount(
 			return ratio * MAX_PITCH_LFO_CENTS;
 		case 'subLevel':
 			return subEnabled ? ratio * MAX_SUBLEVEL_LFO_SWING : 0;
+		case 'osc2Level':
+			return osc2Enabled ? ratio * MAX_OSC2LEVEL_LFO_SWING : 0;
 		case 'pulseWidth':
 			return ratio * MAX_PULSE_WIDTH_LFO_SWING;
 	}
@@ -197,6 +214,20 @@ function createDriveCurve(): Float32Array<ArrayBuffer> {
 }
 
 const DRIVE_CURVE = createDriveCurve();
+
+/** `AcidWave` values that map directly onto a native `OscillatorType`, i.e. everything but Pulse (which has no native oscillator type and goes through `createPulseWave` instead). "Saw" is the one name that doesn't match its native type string verbatim. */
+function nativeOscType(wave: Exclude<AcidWave, 'pulse'>): OscillatorType {
+	return wave === 'saw' ? 'sawtooth' : wave;
+}
+
+/** Sets Osc 2's wave the same way Sub's is set -- a direct type switch (or, for Pulse, a regenerated static `PeriodicWave`), not a 4-way crossfaded bank like Main's. A wave change here is an infrequent patch edit; see the file header. */
+function applyOsc2Wave(osc: OscillatorNode, ctx: AudioContext, wave: AcidWave, pulseWidth: number): void {
+	if (wave === 'pulse') {
+		osc.setPeriodicWave(createPulseWave(ctx, pulseWidth));
+	} else {
+		osc.type = nativeOscType(wave);
+	}
+}
 
 // Enough harmonics for a reasonably bandlimited bass-register pulse without
 // being wasteful -- this voice never runs above the bass register, so
@@ -238,6 +269,15 @@ export function createAcidBassVoice(
 	pulseOsc.setPeriodicWave(createPulseWave(ctx, currentPatch.oscillator.pulseWidth));
 	const subOsc = ctx.createOscillator();
 	subOsc.type = currentPatch.oscillator.subWave;
+	// Osc 2 -- a second full oscillator (own wave/tune/fine/level), a single
+	// type-switched node like Sub rather than a 4-way crossfaded bank like Main.
+	const osc2Osc = ctx.createOscillator();
+	applyOsc2Wave(
+		osc2Osc,
+		ctx,
+		currentPatch.oscillator.osc2Wave,
+		currentPatch.oscillator.osc2PulseWidth
+	);
 
 	const mainLevelRatio = currentPatch.oscillator.mainLevel / 100;
 	const sawGain = ctx.createGain();
@@ -271,12 +311,21 @@ export function createAcidBassVoice(
 		currentPatch.oscillator.subEnabled ? currentPatch.oscillator.subLevel / 100 : 0,
 		ctx.currentTime
 	);
-	// Applied once, after the main+sub gains are summed -- unity when only
-	// the main oscillator is driven, pulled down only once combined energy
-	// would exceed unity (see `mixCompensation`).
+	const osc2Gain = ctx.createGain();
+	osc2Gain.gain.setValueAtTime(
+		currentPatch.oscillator.osc2Enabled ? currentPatch.oscillator.osc2Level / 100 : 0,
+		ctx.currentTime
+	);
+	// Applied once, after the main+osc2+sub gains are summed -- unity when
+	// only the main oscillator is driven, pulled down only once combined
+	// energy would exceed unity (see `mixCompensation`).
 	const mixCompensationGain = ctx.createGain();
 	mixCompensationGain.gain.setValueAtTime(
-		mixCompensation(currentPatch.oscillator.mainLevel, currentPatch.oscillator.subLevel),
+		mixCompensation(
+			currentPatch.oscillator.mainLevel,
+			currentPatch.oscillator.osc2Level,
+			currentPatch.oscillator.subLevel
+		),
 		ctx.currentTime
 	);
 
@@ -328,33 +377,51 @@ export function createAcidBassVoice(
 	const master = ctx.createGain();
 	master.gain.setValueAtTime(volumeToGain(currentPatch.output.volume), ctx.currentTime);
 
-	// One LFO, routed to whichever single destination the patch names via a
-	// parallel bank of depth-scaling gains -- the inactive ones always sit at
-	// 0 rather than being connected/disconnected on the fly (see file header).
-	const lfo = createAcidBassLfo(ctx);
-	const cutoffLfoGain = ctx.createGain();
-	cutoffLfoGain.gain.setValueAtTime(0, ctx.currentTime);
-	const pitchLfoGain = ctx.createGain();
-	pitchLfoGain.gain.setValueAtTime(0, ctx.currentTime);
-	const subLevelLfoGain = ctx.createGain();
-	subLevelLfoGain.gain.setValueAtTime(0, ctx.currentTime);
+	// Two independent LFOs, each routed to whichever single destination the
+	// patch names via its own parallel bank of depth-scaling gains -- the
+	// inactive ones always sit at 0 rather than being connected/disconnected
+	// on the fly (see file header). Not a many-to-many modulation matrix:
+	// each LFO still targets exactly one destination at a time.
+	const lfo1 = createAcidBassLfo(ctx);
+	const cutoffLfo1Gain = ctx.createGain();
+	cutoffLfo1Gain.gain.setValueAtTime(0, ctx.currentTime);
+	const pitchLfo1Gain = ctx.createGain();
+	pitchLfo1Gain.gain.setValueAtTime(0, ctx.currentTime);
+	const subLevelLfo1Gain = ctx.createGain();
+	subLevelLfo1Gain.gain.setValueAtTime(0, ctx.currentTime);
+	const osc2LevelLfo1Gain = ctx.createGain();
+	osc2LevelLfo1Gain.gain.setValueAtTime(0, ctx.currentTime);
 	// Only ever reaches the worklet Pulse oscillator's own pulseWidth
 	// AudioParam (M11) -- connected once that worklet loads; a genuine no-op
 	// (stays at 0, nothing to connect it to) if it never does, per file header.
-	const pulseWidthLfoGain = ctx.createGain();
-	pulseWidthLfoGain.gain.setValueAtTime(0, ctx.currentTime);
+	const pulseWidthLfo1Gain = ctx.createGain();
+	pulseWidthLfo1Gain.gain.setValueAtTime(0, ctx.currentTime);
+
+	const lfo2 = createAcidBassLfo(ctx);
+	const cutoffLfo2Gain = ctx.createGain();
+	cutoffLfo2Gain.gain.setValueAtTime(0, ctx.currentTime);
+	const pitchLfo2Gain = ctx.createGain();
+	pitchLfo2Gain.gain.setValueAtTime(0, ctx.currentTime);
+	const subLevelLfo2Gain = ctx.createGain();
+	subLevelLfo2Gain.gain.setValueAtTime(0, ctx.currentTime);
+	const osc2LevelLfo2Gain = ctx.createGain();
+	osc2LevelLfo2Gain.gain.setValueAtTime(0, ctx.currentTime);
+	const pulseWidthLfo2Gain = ctx.createGain();
+	pulseWidthLfo2Gain.gain.setValueAtTime(0, ctx.currentTime);
 
 	sawOsc.connect(sawGain);
 	squareOsc.connect(squareGain);
 	triangleOsc.connect(triangleGain);
 	pulseOsc.connect(pulseGain);
 	subOsc.connect(subGain);
+	osc2Osc.connect(osc2Gain);
 	sawGain.connect(mixCompensationGain);
 	squareGain.connect(mixCompensationGain);
 	triangleGain.connect(mixCompensationGain);
 	pulseGain.connect(mixCompensationGain);
 	pulseWorkletGain.connect(mixCompensationGain);
 	subGain.connect(mixCompensationGain);
+	osc2Gain.connect(mixCompensationGain);
 	mixCompensationGain.connect(saturationInput);
 	saturationInput.connect(saturationShaper);
 	saturationShaper.connect(filter);
@@ -369,27 +436,55 @@ export function createAcidBassVoice(
 
 	// Cutoff/pitch modulation add onto whatever's already scheduled there
 	// (AudioParams sum every connected signal with their own automation
-	// curve) -- Sub Level modulation adds onto `subGain`'s own crossfade
-	// target the same way. Pitch reaches every oscillator's `detune`
-	// (cents-based, so the perceived depth stays consistent across notes
-	// regardless of the note's own absolute frequency) -- including the
-	// currently-inactive main waves, which is harmless since their own gain
-	// is 0 anyway.
-	cutoffLfoGain.connect(filter.frequency);
-	for (const osc of [sawOsc, squareOsc, triangleOsc, pulseOsc, subOsc]) {
-		pitchLfoGain.connect(osc.detune);
+	// curve, so both LFOs' contributions to the same destination simply sum)
+	// -- Sub Level/Osc 2 Level modulation adds onto their own gain's
+	// crossfade target the same way. Pitch reaches every oscillator's
+	// `detune` (cents-based, so the perceived depth stays consistent across
+	// notes regardless of the note's own absolute frequency) -- including
+	// Osc 2 and the currently-inactive main waves, which is harmless since
+	// an inactive wave's own gain is 0 anyway.
+	const pitchModulatedOscillators = [sawOsc, squareOsc, triangleOsc, pulseOsc, subOsc, osc2Osc];
+	for (const [lfo, gains] of [
+		[
+			lfo1,
+			{
+				cutoff: cutoffLfo1Gain,
+				pitch: pitchLfo1Gain,
+				subLevel: subLevelLfo1Gain,
+				osc2Level: osc2LevelLfo1Gain,
+				pulseWidth: pulseWidthLfo1Gain
+			}
+		],
+		[
+			lfo2,
+			{
+				cutoff: cutoffLfo2Gain,
+				pitch: pitchLfo2Gain,
+				subLevel: subLevelLfo2Gain,
+				osc2Level: osc2LevelLfo2Gain,
+				pulseWidth: pulseWidthLfo2Gain
+			}
+		]
+	] as const) {
+		gains.cutoff.connect(filter.frequency);
+		for (const osc of pitchModulatedOscillators) {
+			gains.pitch.connect(osc.detune);
+		}
+		gains.subLevel.connect(subGain.gain);
+		gains.osc2Level.connect(osc2Gain.gain);
+		lfo.output.connect(gains.cutoff);
+		lfo.output.connect(gains.pitch);
+		lfo.output.connect(gains.subLevel);
+		lfo.output.connect(gains.osc2Level);
+		lfo.output.connect(gains.pulseWidth);
 	}
-	subLevelLfoGain.connect(subGain.gain);
-	lfo.output.connect(cutoffLfoGain);
-	lfo.output.connect(pitchLfoGain);
-	lfo.output.connect(subLevelLfoGain);
-	lfo.output.connect(pulseWidthLfoGain);
 
 	sawOsc.start(ctx.currentTime);
 	squareOsc.start(ctx.currentTime);
 	triangleOsc.start(ctx.currentTime);
 	pulseOsc.start(ctx.currentTime);
 	subOsc.start(ctx.currentTime);
+	osc2Osc.start(ctx.currentTime);
 	let disposed = false;
 	let currentBpm = 80;
 	let acid24Node: AudioWorkletNode | null = null;
@@ -453,7 +548,8 @@ export function createAcidBassVoice(
 				pulseWidthClamp(currentPatch.oscillator.pulseWidth) / 100,
 				ctx.currentTime
 			);
-			pulseWidthLfoGain.connect(pulseWidthParam);
+			pulseWidthLfo1Gain.connect(pulseWidthParam);
+			pulseWidthLfo2Gain.connect(pulseWidthParam);
 		}
 		applyPulseOscillatorRouting(currentPatch, ctx.currentTime);
 	});
@@ -478,26 +574,34 @@ export function createAcidBassVoice(
 		param.setValueAtTime(Math.max(hz, MIN_SAFE_OSC_HZ), time);
 	}
 
-	/** Whichever depth-scaling gain node `destination` currently routes through. */
-	function lfoTargetGain(destination: AcidLfoDestination): GainNode | undefined {
-		switch (destination) {
-			case 'cutoff':
-				return cutoffLfoGain;
-			case 'pitch':
-				return pitchLfoGain;
-			case 'subLevel':
-				return subLevelLfoGain;
-			case 'pulseWidth':
-				return pulseWidthLfoGain;
-		}
+	/** Whichever depth-scaling gain node `destination` currently routes through, for the given LFO slot -- each LFO has its own independent 5-destination gain bank. */
+	function lfoTargetGain(lfoSlot: 1 | 2, destination: AcidLfoDestination): GainNode {
+		const gains =
+			lfoSlot === 1
+				? {
+						cutoff: cutoffLfo1Gain,
+						pitch: pitchLfo1Gain,
+						subLevel: subLevelLfo1Gain,
+						osc2Level: osc2LevelLfo1Gain,
+						pulseWidth: pulseWidthLfo1Gain
+					}
+				: {
+						cutoff: cutoffLfo2Gain,
+						pitch: pitchLfo2Gain,
+						subLevel: subLevelLfo2Gain,
+						osc2Level: osc2LevelLfo2Gain,
+						pulseWidth: pulseWidthLfo2Gain
+					};
+		return gains[destination];
 	}
 
-	function applyLfoRate(patch: AcidBassPatch): void {
+	function applyLfoRate(lfoSlot: 1 | 2, patch: AcidBassPatch): void {
+		const lfoPatch = lfoSlot === 1 ? patch.lfo1 : patch.lfo2;
 		const hz =
-			patch.lfo.rateMode === 'sync'
-				? lfoSyncFrequencyHz(currentBpm, patch.lfo.division)
-				: patch.lfo.rateHz;
-		lfo.setRateHz(hz);
+			lfoPatch.rateMode === 'sync'
+				? lfoSyncFrequencyHz(currentBpm, lfoPatch.division)
+				: lfoPatch.rateHz;
+		(lfoSlot === 1 ? lfo1 : lfo2).setRateHz(hz);
 	}
 
 	function setFrequencyAtTime(frequencyHz: number, time: number, patch: AcidBassPatch): void {
@@ -508,6 +612,10 @@ export function createAcidBassVoice(
 		}
 		const subHz = mainHz * subOctaveToRatio(patch.oscillator.subOctave);
 		setOscFrequencyAtTime(subOsc, subHz, time);
+		// Osc 2 uses its own independent tune/fine ratio, not Main's --
+		// that's what makes it useful for detune/unison stacking.
+		const osc2Ratio = tuneFineToRatio(patch.oscillator.osc2Tune, patch.oscillator.osc2Fine);
+		setOscFrequencyAtTime(osc2Osc, frequencyHz * osc2Ratio, time);
 	}
 
 	function rampParamFrequency(
@@ -585,6 +693,7 @@ export function createAcidBassVoice(
 			const squareTarget = patch.oscillator.mainWave === 'square' ? mainLevel : 0;
 			const triangleTarget = patch.oscillator.mainWave === 'triangle' ? mainLevel : 0;
 			const subTarget = patch.oscillator.subEnabled ? patch.oscillator.subLevel / 100 : 0;
+			const osc2Target = patch.oscillator.osc2Enabled ? patch.oscillator.osc2Level / 100 : 0;
 
 			sawGain.gain.cancelScheduledValues(atTime);
 			sawGain.gain.setTargetAtTime(sawTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
@@ -595,10 +704,16 @@ export function createAcidBassVoice(
 			applyPulseOscillatorRouting(patch, atTime);
 			subGain.gain.cancelScheduledValues(atTime);
 			subGain.gain.setTargetAtTime(subTarget, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
+			osc2Gain.gain.cancelScheduledValues(atTime);
+			osc2Gain.gain.setTargetAtTime(osc2Target, atTime, WAVE_CROSSFADE_TIME_CONSTANT);
 
 			mixCompensationGain.gain.cancelScheduledValues(atTime);
 			mixCompensationGain.gain.setTargetAtTime(
-				mixCompensation(patch.oscillator.mainLevel, patch.oscillator.subLevel),
+				mixCompensation(
+					patch.oscillator.mainLevel,
+					patch.oscillator.osc2Level,
+					patch.oscillator.subLevel
+				),
 				atTime,
 				PARAM_SMOOTH_TIME_CONSTANT
 			);
@@ -621,6 +736,10 @@ export function createAcidBassVoice(
 			// direct type switch is an infrequent patch edit, not a per-note
 			// automation target, so a small discontinuity on change is acceptable.
 			subOsc.type = patch.oscillator.subWave;
+			// Osc 2 gets the same treatment -- always a direct type switch (or,
+			// for Pulse, a regenerated static PeriodicWave), never a live-PWM
+			// worklet path (that stays Main-only, see the file header).
+			applyOsc2Wave(osc2Osc, ctx, patch.oscillator.osc2Wave, patch.oscillator.osc2PulseWidth);
 
 			// Resonance/Drive/Volume/Saturation aren't enveloped per-note, so they
 			// can apply to the currently-sounding note immediately -- Cutoff/
@@ -676,25 +795,38 @@ export function createAcidBassVoice(
 				PARAM_SMOOTH_TIME_CONSTANT
 			);
 
-			lfo.setShape(patch.lfo.shape);
-			applyLfoRate(patch);
-			const activeLfoGain = lfoTargetGain(patch.lfo.destination);
-			const lfoAmount = patch.lfo.enabled
-				? lfoDepthAmount(patch.lfo.destination, patch.lfo.depth, patch.oscillator.subEnabled)
-				: 0;
-			for (const gainNode of [cutoffLfoGain, pitchLfoGain, subLevelLfoGain]) {
-				gainNode.gain.cancelScheduledValues(atTime);
-				gainNode.gain.setTargetAtTime(
-					gainNode === activeLfoGain ? lfoAmount : 0,
-					atTime,
-					PARAM_SMOOTH_TIME_CONSTANT
-				);
+			lfo1.setShape(patch.lfo1.shape);
+			lfo2.setShape(patch.lfo2.shape);
+			applyLfoRate(1, patch);
+			applyLfoRate(2, patch);
+			for (const [lfoSlot, lfoPatch, allGains] of [
+				[1, patch.lfo1, [cutoffLfo1Gain, pitchLfo1Gain, subLevelLfo1Gain, osc2LevelLfo1Gain, pulseWidthLfo1Gain]],
+				[2, patch.lfo2, [cutoffLfo2Gain, pitchLfo2Gain, subLevelLfo2Gain, osc2LevelLfo2Gain, pulseWidthLfo2Gain]]
+			] as const) {
+				const activeGain = lfoTargetGain(lfoSlot, lfoPatch.destination);
+				const amount = lfoPatch.enabled
+					? lfoDepthAmount(
+							lfoPatch.destination,
+							lfoPatch.depth,
+							patch.oscillator.subEnabled,
+							patch.oscillator.osc2Enabled
+						)
+					: 0;
+				for (const gainNode of allGains) {
+					gainNode.gain.cancelScheduledValues(atTime);
+					gainNode.gain.setTargetAtTime(
+						gainNode === activeGain ? amount : 0,
+						atTime,
+						PARAM_SMOOTH_TIME_CONSTANT
+					);
+				}
 			}
 		},
 
 		setTempo(bpm) {
 			currentBpm = bpm;
-			applyLfoRate(currentPatch);
+			applyLfoRate(1, currentPatch);
+			applyLfoRate(2, currentPatch);
 		},
 
 		schedule(trigger) {
@@ -725,7 +857,8 @@ export function createAcidBassVoice(
 				resonance: patch.filter.resonance,
 				envAmount: patch.filter.envAmount,
 				drive: patch.output.drive,
-				lfoDepth: patch.lfo.depth
+				// A `lfoDepth` lock applies to LFO 1 only -- see AcidStepLocks's own doc comment.
+				lfoDepth: patch.lfo1.depth
 			});
 
 			if (!legato) {
@@ -750,29 +883,30 @@ export function createAcidBassVoice(
 				);
 			}
 
-			if (locks?.lfoDepth !== undefined && patch.lfo.enabled) {
+			if (locks?.lfoDepth !== undefined && patch.lfo1.enabled) {
 				// Same one-trigger-then-revert treatment as `locks.drive` above --
-				// only meaningful while the LFO is on and actually routed somewhere.
-				const target = lfoTargetGain(patch.lfo.destination);
-				if (target !== undefined) {
-					const lockedAmount = lfoDepthAmount(
-						patch.lfo.destination,
-						resolved.lfoDepth,
-						patch.oscillator.subEnabled
-					);
-					const baseAmount = lfoDepthAmount(
-						patch.lfo.destination,
-						patch.lfo.depth,
-						patch.oscillator.subEnabled
-					);
-					target.gain.cancelScheduledValues(time);
-					target.gain.setValueAtTime(lockedAmount, time);
-					target.gain.setTargetAtTime(
-						baseAmount,
-						time + stepDurationSeconds,
-						PARAM_SMOOTH_TIME_CONSTANT
-					);
-				}
+				// only meaningful while LFO 1 is on and actually routed somewhere
+				// (a `lfoDepth` lock applies to LFO 1 only, never LFO 2).
+				const target = lfoTargetGain(1, patch.lfo1.destination);
+				const lockedAmount = lfoDepthAmount(
+					patch.lfo1.destination,
+					resolved.lfoDepth,
+					patch.oscillator.subEnabled,
+					patch.oscillator.osc2Enabled
+				);
+				const baseAmount = lfoDepthAmount(
+					patch.lfo1.destination,
+					patch.lfo1.depth,
+					patch.oscillator.subEnabled,
+					patch.oscillator.osc2Enabled
+				);
+				target.gain.cancelScheduledValues(time);
+				target.gain.setValueAtTime(lockedAmount, time);
+				target.gain.setTargetAtTime(
+					baseAmount,
+					time + stepDurationSeconds,
+					PARAM_SMOOTH_TIME_CONSTANT
+				);
 			}
 
 			if (slideToFrequencyHz !== undefined) {
@@ -802,6 +936,16 @@ export function createAcidBassVoice(
 					glideSeconds,
 					patch.glide.curve
 				);
+				// Osc 2 slides using its own independent tune/fine ratio, not Main's.
+				const osc2Ratio = tuneFineToRatio(patch.oscillator.osc2Tune, patch.oscillator.osc2Fine);
+				rampParamFrequency(
+					osc2Osc.frequency,
+					frequencyHz * osc2Ratio,
+					slideToFrequencyHz * osc2Ratio,
+					slideStart,
+					glideSeconds,
+					patch.glide.curve
+				);
 			} else {
 				vca.gain.setValueAtTime(peakGain, time + gateSeconds);
 				vca.gain.exponentialRampToValueAtTime(MIN_GAIN, time + gateSeconds + releaseSeconds);
@@ -826,7 +970,9 @@ export function createAcidBassVoice(
 			triangleOsc.stop(stopTime);
 			pulseOsc.stop(stopTime);
 			subOsc.stop(stopTime);
-			lfo.dispose();
+			osc2Osc.stop(stopTime);
+			lfo1.dispose();
+			lfo2.dispose();
 			acid24Node?.disconnect();
 			pulseWorkletNode?.disconnect();
 		}

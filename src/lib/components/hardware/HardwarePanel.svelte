@@ -16,7 +16,7 @@
 	let { title, header, tone = 'yellow', class: className, children }: Props = $props();
 </script>
 
-<section class="hardware-panel {className ?? ''}" class:carbon={tone === 'carbon'}>
+<section class="hardware-panel {className ?? ''}" class:carbon={tone === 'carbon'} aria-label={title}>
 	{#if title || header}
 		<div class="header">
 			{#if title}

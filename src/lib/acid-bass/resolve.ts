@@ -32,18 +32,22 @@ export function pulseWidthClamp(value: number): number {
 }
 
 /**
- * Deterministic mixer compensation for main+sub summing -- unity at
- * mainLevel 100 / subLevel 0 (a bare main oscillator sounds the same as V1's
- * single-oscillator voice), compensated (not a bare sum) once both are
- * driven hard, so summing two full-scale oscillators never doubles the
- * output unpredictably (spec §12). An equal-power-style curve: only pulls
- * gain down once the combined "energy" would exceed unity, never boosts a
- * quiet single-oscillator patch.
+ * Deterministic mixer compensation for main+osc2+sub summing -- unity at
+ * mainLevel 100 / osc2Level 0 / subLevel 0 (a bare main oscillator sounds the
+ * same as V1's single-oscillator voice), compensated (not a bare sum) once
+ * more than one is driven hard, so summing up to three full-scale
+ * oscillators never doubles the output unpredictably (spec §12, extended to
+ * three sources). An equal-power-style curve: only pulls gain down once the
+ * combined "energy" would exceed unity, never boosts a quiet
+ * single-oscillator patch. Each level is factored in regardless of its own
+ * enabled flag (Osc 2/Sub), so toggling either on/off never jumps Main's
+ * gain -- the caller's own gain-to-zero handles silencing a disabled source.
  */
-export function mixCompensation(mainLevel: number, subLevel: number): number {
+export function mixCompensation(mainLevel: number, osc2Level: number, subLevel: number): number {
 	const main = clamp(mainLevel, 0, 100) / 100;
+	const osc2 = clamp(osc2Level, 0, 100) / 100;
 	const sub = clamp(subLevel, 0, 100) / 100;
-	const energy = main * main + sub * sub;
+	const energy = main * main + osc2 * osc2 + sub * sub;
 	return energy > 1 ? 1 / Math.sqrt(energy) : 1;
 }
 

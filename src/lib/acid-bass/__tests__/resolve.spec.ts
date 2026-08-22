@@ -49,17 +49,24 @@ describe('oscillator mapping', () => {
 	});
 
 	it('mixCompensation is unity for a bare main oscillator (matches V1 single-oscillator loudness)', () => {
-		expect(mixCompensation(100, 0)).toBeCloseTo(1, 5);
+		expect(mixCompensation(100, 0, 0)).toBeCloseTo(1, 5);
 	});
 
-	it('mixCompensation pulls gain down once both oscillators are driven hard, never doubling output', () => {
-		const scale = mixCompensation(100, 100);
+	it('mixCompensation pulls gain down once two oscillators are driven hard, never doubling output', () => {
+		const scale = mixCompensation(100, 0, 100);
 		expect(scale).toBeLessThan(1);
 		expect(scale).toBeGreaterThan(0);
 	});
 
+	it('mixCompensation pulls gain down further once all three oscillators are driven hard', () => {
+		const twoUp = mixCompensation(100, 0, 100);
+		const threeUp = mixCompensation(100, 100, 100);
+		expect(threeUp).toBeLessThan(twoUp);
+		expect(threeUp).toBeGreaterThan(0);
+	});
+
 	it('mixCompensation never boosts a quiet patch above unity', () => {
-		expect(mixCompensation(20, 10)).toBeLessThanOrEqual(1);
+		expect(mixCompensation(20, 5, 10)).toBeLessThanOrEqual(1);
 	});
 });
 

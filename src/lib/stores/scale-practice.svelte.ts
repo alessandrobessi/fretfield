@@ -571,6 +571,48 @@ export class ScalePracticeStore {
 		}));
 	}
 
+	setAcidBassOsc2Enabled(osc2Enabled: boolean): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, osc2Enabled }
+		}));
+	}
+
+	setAcidBassOsc2Wave(osc2Wave: AcidWave): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, osc2Wave }
+		}));
+	}
+
+	setAcidBassOsc2Tune(osc2Tune: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, osc2Tune: Math.min(12, Math.max(-12, Math.round(osc2Tune))) }
+		}));
+	}
+
+	setAcidBassOsc2Fine(osc2Fine: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, osc2Fine: Math.min(50, Math.max(-50, Math.round(osc2Fine))) }
+		}));
+	}
+
+	setAcidBassOsc2Level(osc2Level: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, osc2Level: clampPercent(osc2Level) }
+		}));
+	}
+
+	setAcidBassOsc2PulseWidth(osc2PulseWidth: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			oscillator: { ...patch.oscillator, osc2PulseWidth: pulseWidthClamp(osc2PulseWidth) }
+		}));
+	}
+
 	setAcidBassFilterModel(model: AcidFilterModel): void {
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
@@ -627,52 +669,64 @@ export class ScalePracticeStore {
 		}));
 	}
 
-	setAcidBassLfoEnabled(enabled: boolean): void {
+	/** Slot key for whichever LFO an edit targets -- both LFOs share this same set of setters rather than growing to two parallel sets of seven. */
+	private lfoKey(lfoSlot: 1 | 2): 'lfo1' | 'lfo2' {
+		return lfoSlot === 1 ? 'lfo1' : 'lfo2';
+	}
+
+	setAcidBassLfoEnabled(lfoSlot: 1 | 2, enabled: boolean): void {
+		const key = this.lfoKey(lfoSlot);
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			lfo: { ...patch.lfo, enabled }
+			[key]: { ...patch[key], enabled }
 		}));
 	}
 
-	setAcidBassLfoShape(shape: AcidLfoShape): void {
+	setAcidBassLfoShape(lfoSlot: 1 | 2, shape: AcidLfoShape): void {
+		const key = this.lfoKey(lfoSlot);
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			lfo: { ...patch.lfo, shape }
+			[key]: { ...patch[key], shape }
 		}));
 	}
 
-	setAcidBassLfoDestination(destination: AcidLfoDestination): void {
+	setAcidBassLfoDestination(lfoSlot: 1 | 2, destination: AcidLfoDestination): void {
+		const key = this.lfoKey(lfoSlot);
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			lfo: { ...patch.lfo, destination }
+			[key]: { ...patch[key], destination }
 		}));
 	}
 
-	setAcidBassLfoRateMode(rateMode: AcidLfoRateMode): void {
+	setAcidBassLfoRateMode(lfoSlot: 1 | 2, rateMode: AcidLfoRateMode): void {
+		const key = this.lfoKey(lfoSlot);
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			lfo: { ...patch.lfo, rateMode }
+			[key]: { ...patch[key], rateMode }
 		}));
 	}
 
-	setAcidBassLfoRateHz(rateHz: number): void {
+	setAcidBassLfoRateHz(lfoSlot: 1 | 2, rateHz: number): void {
+		const key = this.lfoKey(lfoSlot);
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			lfo: { ...patch.lfo, rateHz: lfoRateHzClamp(rateHz) }
+			[key]: { ...patch[key], rateHz: lfoRateHzClamp(rateHz) }
 		}));
 	}
 
-	setAcidBassLfoDivision(division: AcidLfoDivision): void {
+	setAcidBassLfoDivision(lfoSlot: 1 | 2, division: AcidLfoDivision): void {
+		const key = this.lfoKey(lfoSlot);
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			lfo: { ...patch.lfo, division }
+			[key]: { ...patch[key], division }
 		}));
 	}
 
-	setAcidBassLfoDepth(depth: number): void {
+	setAcidBassLfoDepth(lfoSlot: 1 | 2, depth: number): void {
+		const key = this.lfoKey(lfoSlot);
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			lfo: { ...patch.lfo, depth: clampPercent(depth) }
+			[key]: { ...patch[key], depth: clampPercent(depth) }
 		}));
 	}
 

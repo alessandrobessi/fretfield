@@ -9,10 +9,14 @@
  * became a nested patch grouped by signal-path responsibility (oscillator /
  * filter / envelope / glide / lfo / output), and a step gained software-only
  * sequencer powers (probability / ratchet / gate / parameter locks).
- * `version: 2` on `AcidBassState` is the runtime discriminant `acid-bass/
- * migrate.ts` reads to tell a persisted V1 groove from a current one --
- * deliberately not a `V2` suffix on any type name here, the same way V1
- * never had a `V1` suffix on anything.
+ *
+ * A later pass added a second full oscillator (`oscillator.osc2*`, alongside
+ * Main and Sub) and a second independent LFO (`lfo1`/`lfo2`, replacing the
+ * single `lfo` field) -- bumping `version` to 3. `acid-bass/migrate.ts` reads
+ * `version` as the runtime discriminant to tell a persisted V1 groove (no
+ * `version` at all) from a V2 one (singular `lfo`, no `osc2*`) from a current
+ * one -- deliberately not a `V2`/`V3` suffix on any type name here, the same
+ * way V1 never had a `V1` suffix on anything.
  *
  * Deliberately imports `PatternRole` from `groove/pattern-role` (a leaf
  * module with no dependencies of its own), never from `groove/types` --
@@ -34,7 +38,7 @@ export type AcidFilterModel = 'legacy' | 'svf12' | 'acid24';
 export type AcidGlideCurve = 'linear' | 'exponential';
 
 export type AcidLfoShape = 'sine' | 'triangle' | 'square' | 'sampleHold';
-export type AcidLfoDestination = 'cutoff' | 'pitch' | 'pulseWidth' | 'subLevel';
+export type AcidLfoDestination = 'cutoff' | 'pitch' | 'pulseWidth' | 'subLevel' | 'osc2Level';
 export type AcidLfoRateMode = 'free' | 'sync';
 export type AcidLfoDivision = '1/1' | '1/2' | '1/4' | '1/8' | '1/8T' | '1/16' | '1/16T' | '1/32';
 
@@ -46,6 +50,25 @@ export interface AcidOscillatorPatch {
 	fine: number;
 	/** 0-100. */
 	mainLevel: number;
+	/**
+	 * Osc 2 -- a second full oscillator, independent of the Sub below: its own
+	 * wave (any `AcidWave`, including Pulse), and its own tune/fine (not
+	 * Main's), which is what makes it useful for detune/unison stacking.
+	 * Implemented in the voice as a single type-switched `OscillatorNode`
+	 * (like Sub), not a 4-way crossfaded bank (like Main) -- a wave change
+	 * here is an infrequent patch edit, same reasoning the codebase already
+	 * applies to Sub.
+	 */
+	osc2Enabled: boolean;
+	osc2Wave: AcidWave;
+	/** -12..+12 semitones, independent of Main's `tune`. */
+	osc2Tune: number;
+	/** -50..+50 cents, independent of Main's `fine`. */
+	osc2Fine: number;
+	/** 0-100. */
+	osc2Level: number;
+	/** 5..95, meaningful only when `osc2Wave === 'pulse'` -- a static duty cycle regenerated on `setPatch()`, same as Main's pre-worklet Pulse. No live PWM/LFO routing for Osc 2 -- that stays Main-only. */
+	osc2PulseWidth: number;
 	subEnabled: boolean;
 	subOctave: AcidSubOctave;
 	subWave: AcidSubWave;
@@ -111,13 +134,21 @@ export interface AcidOutputPatch {
  * `acid-bass-voice.ts`'s own node graph (OSC -> FILTER -> ENV/VCA -> GLIDE,
  * with LFO/OUTPUT alongside) -- see spec §8 for why this replaced V1's flat
  * six-field patch.
+ *
+ * Two independent LFO slots (`lfo1`/`lfo2`), not an array/tuple -- keeps the
+ * existing spread-based updater style (`{...patch, lfo1: {...}}`) and keeps
+ * persisted JSON self-describing. Each is a full, independent `AcidLfoPatch`
+ * (its own shape/destination/rate/depth) -- still single-destination each,
+ * not a many-to-many modulation matrix (deliberately declined as bigger than
+ * what was asked for).
  */
 export interface AcidBassPatch {
 	oscillator: AcidOscillatorPatch;
 	filter: AcidFilterPatch;
 	envelope: AcidEnvelopePatch;
 	glide: AcidGlidePatch;
-	lfo: AcidLfoPatch;
+	lfo1: AcidLfoPatch;
+	lfo2: AcidLfoPatch;
 	output: AcidOutputPatch;
 }
 
@@ -133,6 +164,7 @@ export interface AcidStepLocks {
 	resonance?: number;
 	envAmount?: number;
 	drive?: number;
+	/** Applies to LFO 1's depth only -- kept singular rather than growing to `lfo1Depth`/`lfo2Depth` when the second LFO was added, per this type's own "deliberately only five lockable targets" doctrine. */
 	lfoDepth?: number;
 }
 
@@ -163,8 +195,8 @@ export interface AcidBassStep {
 export type AcidBassPattern = AcidBassStep[];
 
 export interface AcidBassState {
-	/** The runtime discriminant `acid-bass/migrate.ts` uses to tell a persisted V1 groove (no `version` field at all) from a current one. */
-	version: 2;
+	/** The runtime discriminant `acid-bass/migrate.ts` uses to tell a persisted V1 groove (no `version` field at all) from a V2 one (singular `patch.lfo`) from a current one (3: `patch.lfo1`/`lfo2`, Osc 2). */
+	version: 3;
 	/** Off by default, including for every migrated pre-Acid-Bass or V1 groove -- turning it on/off affects only this voice, never drums, chord backing, transport, or fretboard highlighting. */
 	enabled: boolean;
 	patch: AcidBassPatch;

@@ -25,7 +25,8 @@ interface PatchOverrides {
 	filter?: Partial<AcidFilterPatch>;
 	envelope?: Partial<AcidEnvelopePatch>;
 	glide?: Partial<AcidGlidePatch>;
-	lfo?: Partial<AcidLfoPatch>;
+	lfo1?: Partial<AcidLfoPatch>;
+	lfo2?: Partial<AcidLfoPatch>;
 	output?: Partial<AcidOutputPatch>;
 }
 
@@ -36,7 +37,8 @@ function buildPatch(overrides: PatchOverrides): AcidBassPatch {
 		filter: { ...base.filter, ...overrides.filter },
 		envelope: { ...base.envelope, ...overrides.envelope },
 		glide: { ...base.glide, ...overrides.glide },
-		lfo: { ...base.lfo, ...overrides.lfo },
+		lfo1: { ...base.lfo1, ...overrides.lfo1 },
+		lfo2: { ...base.lfo2, ...overrides.lfo2 },
 		output: { ...base.output, ...overrides.output }
 	};
 }
@@ -141,7 +143,7 @@ const FACTORY_PATCH_DEFINITIONS: AcidBassFactoryPatchDefinition[] = [
 		overrides: {
 			filter: { cutoff: 35, resonance: 40, envAmount: 20 },
 			envelope: { decay: 40 },
-			lfo: {
+			lfo1: {
 				enabled: true,
 				shape: 'sine',
 				destination: 'cutoff',

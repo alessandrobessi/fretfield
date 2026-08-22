@@ -46,8 +46,8 @@ describe('getAcidBassFactoryPatch', () => {
 		expect(third?.filter.cutoff).not.toBe(999);
 	});
 
-	it('deep-sub actually enables the sub oscillator, and slow-motion actually enables the LFO', () => {
+	it('deep-sub actually enables the sub oscillator, and slow-motion actually enables LFO 1', () => {
 		expect(getAcidBassFactoryPatch('deep-sub')?.oscillator.subEnabled).toBe(true);
-		expect(getAcidBassFactoryPatch('slow-motion')?.lfo.enabled).toBe(true);
+		expect(getAcidBassFactoryPatch('slow-motion')?.lfo1.enabled).toBe(true);
 	});
 });

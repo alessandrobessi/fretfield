@@ -44,7 +44,15 @@ describe('createDefaultAcidPatch', () => {
 		const patch = createDefaultAcidPatch();
 		expect(patch.filter.cutoff).toBeLessThan(50);
 		expect(patch.output.drive).toBeLessThan(20);
-		expect(patch.lfo.enabled).toBe(false);
+		expect(patch.lfo1.enabled).toBe(false);
+	});
+
+	it('Osc 2 and LFO 2 both default off/neutral -- the patch sounds identical to before either existed', () => {
+		const patch = createDefaultAcidPatch();
+		expect(patch.oscillator.osc2Enabled).toBe(false);
+		expect(patch.oscillator.osc2Level).toBe(0);
+		expect(patch.lfo2.enabled).toBe(false);
+		expect(patch.lfo2.depth).toBe(0);
 	});
 });
 
@@ -115,9 +123,9 @@ describe('createDefaultAcidBassState', () => {
 		}
 	});
 
-	it('is version 2, with cross-bar slide on by default for freshly-created state', () => {
+	it('is version 3, with cross-bar slide on by default for freshly-created state', () => {
 		const state = createDefaultAcidBassState(16, 4);
-		expect(state.version).toBe(2);
+		expect(state.version).toBe(3);
 		expect(state.crossBarSlide).toBe(true);
 	});
 });

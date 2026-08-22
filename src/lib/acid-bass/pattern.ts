@@ -121,6 +121,29 @@ export function createDefaultAcidPattern(
  * drive values -- musical on the first note, not screaming. `legacy` exists
  * for migration compatibility, not as the new-user starting point.
  */
+const DEFAULT_LFO1: AcidBassPatch['lfo1'] = {
+	enabled: false,
+	shape: 'sine',
+	destination: 'cutoff',
+	rateMode: 'free',
+	rateHz: 2,
+	division: '1/8',
+	depth: 0
+};
+
+// Neutral/off -- Osc 2 and LFO 2 both default disabled so every existing
+// factory patch and every freshly-created patch keeps sounding exactly like
+// it did before these two capabilities existed.
+const DEFAULT_LFO2: AcidBassPatch['lfo2'] = {
+	enabled: false,
+	shape: 'sine',
+	destination: 'cutoff',
+	rateMode: 'free',
+	rateHz: 2,
+	division: '1/8',
+	depth: 0
+};
+
 export function createDefaultAcidPatch(): AcidBassPatch {
 	return {
 		oscillator: {
@@ -128,6 +151,12 @@ export function createDefaultAcidPatch(): AcidBassPatch {
 			tune: 0,
 			fine: 0,
 			mainLevel: 100,
+			osc2Enabled: false,
+			osc2Wave: 'saw',
+			osc2Tune: 0,
+			osc2Fine: 0,
+			osc2Level: 0,
+			osc2PulseWidth: 50,
 			subEnabled: false,
 			subOctave: -1,
 			subWave: 'square',
@@ -152,15 +181,8 @@ export function createDefaultAcidPatch(): AcidBassPatch {
 			time: 55,
 			curve: 'exponential'
 		},
-		lfo: {
-			enabled: false,
-			shape: 'sine',
-			destination: 'cutoff',
-			rateMode: 'free',
-			rateHz: 2,
-			division: '1/8',
-			depth: 0
-		},
+		lfo1: DEFAULT_LFO1,
+		lfo2: DEFAULT_LFO2,
 		output: {
 			drive: 4,
 			volume: 70
@@ -177,7 +199,7 @@ export function createDefaultAcidBassState(
 		patterns[role] = createDefaultAcidPattern(stepsPerBar, stepsPerBeatGroup, role);
 	}
 	return {
-		version: 2,
+		version: 3,
 		enabled: false,
 		patch: createDefaultAcidPatch(),
 		patterns,
