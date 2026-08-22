@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Acid Bass Intelligence V4 M11: the LINE section's generation controls
- * (Style/Harmony/Register/Density/Chromatic/Movement/Playability/
- * Intelligence/New Variation) and the generated bar selector + step
- * inspector, all in AcidBassControls.svelte. No real-audio assertions,
- * matching this app's existing testing boundary -- only UI/state.
+ * Acid Bass Intelligence V4 M11: the generation controls (Style/Harmony/
+ * Register/Density/Chromatic/Movement/Playability/Intelligence/New
+ * Variation) and the generated bar selector + step inspector, all living in
+ * Groove Editor's "Bass Steps" tab (co-located with the pattern content
+ * itself, not a disconnected panel). No real-audio assertions, matching
+ * this app's existing testing boundary -- only UI/state.
  */
 
 async function openGeneratedLine(page: import('@playwright/test').Page): Promise<void> {
@@ -13,7 +14,8 @@ async function openGeneratedLine(page: import('@playwright/test').Page): Promise
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 	await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 	await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
-	await page.getByRole('button', { name: 'Bass', exact: true }).click();
+	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 	await page.getByRole('button', { name: 'Generated', exact: true }).click();
 }
 
@@ -87,7 +89,8 @@ test.describe('Acid Bass Intelligence V4: LINE controls', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Bass', exact: true }).click();
+		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await expect(
 			page
 				.getByRole('group', { name: 'Style', exact: true })
@@ -102,7 +105,8 @@ test.describe('Acid Bass Intelligence V4: generation unavailable messaging', () 
 	}) => {
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Bass', exact: true }).click();
+		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await page.getByRole('button', { name: 'Generated', exact: true }).click();
 
 		await expect(

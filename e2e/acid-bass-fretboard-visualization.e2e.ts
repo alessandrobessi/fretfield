@@ -16,7 +16,8 @@ async function openGeneratedLine(page: import('@playwright/test').Page): Promise
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 	await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 	await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
-	await page.getByRole('button', { name: 'Bass', exact: true }).click();
+	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 	await page.getByRole('button', { name: 'Generated', exact: true }).click();
 }
 

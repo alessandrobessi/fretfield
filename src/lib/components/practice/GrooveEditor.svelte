@@ -1,5 +1,13 @@
 <script lang="ts">
-	import type { AcidBassStep, AcidOctaveOffset, AcidStepLocks } from '$lib/acid-bass/types';
+	import type {
+		AcidBassMode,
+		AcidBassStep,
+		AcidOctaveOffset,
+		AcidStepLocks,
+		BassHarmonyMode,
+		BasslineStyleId,
+		BassRegisterMode
+	} from '$lib/acid-bass/types';
 	import {
 		DRUM_VOICES,
 		PATTERN_ROLES,
@@ -14,10 +22,13 @@
 	} from '$lib/groove/time-signature';
 	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
+	import Knob from '$lib/components/hardware/Knob.svelte';
 	import AcidBassStepEditor from '$lib/components/practice/AcidBassStepEditor.svelte';
 	import AcidBassStepGrid from '$lib/components/practice/AcidBassStepGrid.svelte';
 	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
-	import type { IntervalId } from '$lib/music/intervals';
+	import { listBasslineStyleProfiles } from '$lib/music/bassline/styles';
+	import { intervalLabel, type IntervalId } from '$lib/music/intervals';
+	import { defaultNoteName } from '$lib/music/pitch';
 	import type { SavedItem } from '$lib/stores/saved-collection.svelte';
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
@@ -26,6 +37,62 @@
 	let stepGridTab = $state<StepGridTab>('drums');
 	/** Transient UI focus only -- which Bass step the step editor below is showing, not part of saved groove data. */
 	let selectedAcidStepIndex = $state<number | null>(null);
+
+	// Acid Bass Intelligence V4: Manual/Generated mode and the generation
+	// controls live here, co-located with "Bass Steps" -- whichever mode is
+	// active, this is the one place "the bass pattern" is shown (manual
+	// editable steps, or the generated read-only line), rather than the mode
+	// switch living in a disconnected panel while this tab kept showing a
+	// stale manual editor regardless of it.
+	const MODES: { id: AcidBassMode; label: string }[] = [
+		{ id: 'manual', label: 'Manual' },
+		{ id: 'generated', label: 'Generated' }
+	];
+	const STYLES: { id: BasslineStyleId; label: string }[] = listBasslineStyleProfiles().map(
+		(profile) => ({ id: profile.id, label: profile.label })
+	);
+	const HARMONY_MODES: { id: BassHarmonyMode; label: string }[] = [
+		{ id: 'chord', label: 'Chord' },
+		{ id: 'key', label: 'Key' },
+		{ id: 'voice-leading', label: 'Voice Lead' }
+	];
+	const REGISTER_MODES: { id: BassRegisterMode; label: string }[] = [
+		{ id: 'low', label: 'Low' },
+		{ id: 'mid', label: 'Mid' },
+		{ id: 'high', label: 'High' },
+		{ id: 'zone', label: 'Zone' }
+	];
+
+	const generation = $derived(scalePractice.groove.acidBass.generation);
+	const generatedPlan = $derived(scalePractice.generatedBasslinePlan);
+
+	let selectedGeneratedBarIndex = $state(0);
+	let selectedGeneratedStepIndex = $state<number | null>(null);
+
+	/** Clamped to the plan's own current bar count -- an arrangement/progression edit can shrink the cycle out from under whatever bar was previously selected. */
+	const selectedGeneratedBar = $derived.by(() => {
+		if (generatedPlan === null || generatedPlan.bars.length === 0) return null;
+		const index = Math.min(selectedGeneratedBarIndex, generatedPlan.bars.length - 1);
+		return generatedPlan.bars[index];
+	});
+	const selectedGeneratedStep = $derived(
+		selectedGeneratedBar !== null && selectedGeneratedStepIndex !== null
+			? (selectedGeneratedBar.steps[selectedGeneratedStepIndex] ?? null)
+			: null
+	);
+
+	function selectGeneratedBar(index: number): void {
+		selectedGeneratedBarIndex = index;
+		selectedGeneratedStepIndex = null;
+	}
+
+	/** "chord-tone" -> "Chord Tone" -- musical-language labels throughout (spec §48), never the raw camelCase/kebab-case identifier. */
+	function functionLabel(fn: string): string {
+		return fn
+			.split('-')
+			.map((word) => word[0].toUpperCase() + word.slice(1))
+			.join(' ');
+	}
 
 	const VOICE_LABELS: Record<DrumVoice, string> = {
 		kick: 'Kick',
@@ -177,6 +244,43 @@
 	}
 </script>
 
+{#snippet pickerField(
+	label: string,
+	options: { id: string; label: string }[],
+	selected: string,
+	onSelect: (id: string) => void
+)}
+	<div class="field">
+		<span class="ff-label field-label">{label}</span>
+		<div class="picker" role="group" aria-label={label}>
+			{#each options as opt (opt.id)}
+				<button
+					type="button"
+					class="picker-button"
+					class:active={selected === opt.id}
+					aria-pressed={selected === opt.id}
+					onclick={() => onSelect(opt.id)}
+				>
+					{opt.label}
+				</button>
+			{/each}
+		</div>
+	</div>
+{/snippet}
+
+{#snippet knobField(
+	label: string,
+	value: number,
+	onChange: (v: number) => void,
+	min = 0,
+	max = 100
+)}
+	<div class="field">
+		<span class="ff-label field-label">{label}</span>
+		<Knob {label} {value} {min} {max} {onChange} />
+	</div>
+{/snippet}
+
 <HardwarePanel class="groove-editor">
 	<div class="controls-row">
 		<label class="field">
@@ -306,80 +410,198 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="transform-row" role="group" aria-label="Bass pattern transforms">
-			<button
-				type="button"
-				class="transform-button"
-				onclick={() => scalePractice.rotateAcidPatternLeft()}
-			>
-				Rotate ◀
-			</button>
-			<button
-				type="button"
-				class="transform-button"
-				onclick={() => scalePractice.rotateAcidPatternRight()}
-			>
-				Rotate ▶
-			</button>
-			<button
-				type="button"
-				class="transform-button"
-				onclick={() => scalePractice.simplifyAcidPattern()}
-			>
-				Simplify
-			</button>
-			<button
-				type="button"
-				class="transform-button"
-				onclick={() => scalePractice.densifyAcidPattern()}
-			>
-				Densify
-			</button>
-			<button
-				type="button"
-				class="transform-button"
-				onclick={() => scalePractice.octaveShiftAcidPattern(1)}
-			>
-				Octave ▲
-			</button>
-			<button
-				type="button"
-				class="transform-button"
-				onclick={() => scalePractice.octaveShiftAcidPattern(-1)}
-			>
-				Octave ▼
-			</button>
-			<button
-				type="button"
-				class="transform-button"
-				onclick={() => scalePractice.clearAcidPatternLocks()}
-			>
-				Clear All Locks
-			</button>
-		</div>
-		<div class="step-grid">
-			<AcidBassStepGrid
-				pattern={selectedAcidPattern}
-				{stepsPerBeatGroup}
-				activeStepIndex={scalePractice.activeStepIndex}
-				selectedStepIndex={selectedAcidStepIndex}
-				onSelectStep={(index) => (selectedAcidStepIndex = index)}
+		{@render pickerField('Mode', MODES, scalePractice.groove.acidBass.mode, (id) =>
+			scalePractice.setAcidBassMode(id as AcidBassMode)
+		)}
+
+		{#if scalePractice.groove.acidBass.mode === 'manual'}
+			<div class="transform-row" role="group" aria-label="Bass pattern transforms">
+				<button
+					type="button"
+					class="transform-button"
+					onclick={() => scalePractice.rotateAcidPatternLeft()}
+				>
+					Rotate ◀
+				</button>
+				<button
+					type="button"
+					class="transform-button"
+					onclick={() => scalePractice.rotateAcidPatternRight()}
+				>
+					Rotate ▶
+				</button>
+				<button
+					type="button"
+					class="transform-button"
+					onclick={() => scalePractice.simplifyAcidPattern()}
+				>
+					Simplify
+				</button>
+				<button
+					type="button"
+					class="transform-button"
+					onclick={() => scalePractice.densifyAcidPattern()}
+				>
+					Densify
+				</button>
+				<button
+					type="button"
+					class="transform-button"
+					onclick={() => scalePractice.octaveShiftAcidPattern(1)}
+				>
+					Octave ▲
+				</button>
+				<button
+					type="button"
+					class="transform-button"
+					onclick={() => scalePractice.octaveShiftAcidPattern(-1)}
+				>
+					Octave ▼
+				</button>
+				<button
+					type="button"
+					class="transform-button"
+					onclick={() => scalePractice.clearAcidPatternLocks()}
+				>
+					Clear All Locks
+				</button>
+			</div>
+			<div class="step-grid">
+				<AcidBassStepGrid
+					pattern={selectedAcidPattern}
+					{stepsPerBeatGroup}
+					activeStepIndex={scalePractice.activeStepIndex}
+					selectedStepIndex={selectedAcidStepIndex}
+					onSelectStep={(index) => (selectedAcidStepIndex = index)}
+				/>
+			</div>
+			<AcidBassStepEditor
+				step={selectedAcidStep}
+				stepIndex={selectedAcidStepIndex}
+				onSetActive={handleSetAcidStepActive}
+				onSetInterval={handleSetAcidStepInterval}
+				onSetOctave={handleSetAcidStepOctave}
+				onToggleAccent={handleToggleAcidStepAccent}
+				onToggleSlide={handleToggleAcidStepSlide}
+				onSetProbability={handleSetAcidStepProbability}
+				onSetRatchet={handleSetAcidStepRatchet}
+				onSetGate={handleSetAcidStepGate}
+				onSetLock={handleSetAcidStepLock}
+				onClearLocks={handleClearAcidStepLocks}
 			/>
-		</div>
-		<AcidBassStepEditor
-			step={selectedAcidStep}
-			stepIndex={selectedAcidStepIndex}
-			onSetActive={handleSetAcidStepActive}
-			onSetInterval={handleSetAcidStepInterval}
-			onSetOctave={handleSetAcidStepOctave}
-			onToggleAccent={handleToggleAcidStepAccent}
-			onToggleSlide={handleToggleAcidStepSlide}
-			onSetProbability={handleSetAcidStepProbability}
-			onSetRatchet={handleSetAcidStepRatchet}
-			onSetGate={handleSetAcidStepGate}
-			onSetLock={handleSetAcidStepLock}
-			onClearLocks={handleClearAcidStepLocks}
-		/>
+		{:else}
+			{@render pickerField('Style', STYLES, generation.style, (id) =>
+				scalePractice.setAcidBassGenerationStyle(id as BasslineStyleId)
+			)}
+			{@render pickerField('Harmony', HARMONY_MODES, generation.harmonyMode, (id) =>
+				scalePractice.setAcidBassGenerationHarmonyMode(id as BassHarmonyMode)
+			)}
+			{@render pickerField('Register', REGISTER_MODES, generation.register, (id) =>
+				scalePractice.setAcidBassGenerationRegister(id as BassRegisterMode)
+			)}
+			<div class="row">
+				{@render knobField('Density', generation.density, (v) =>
+					scalePractice.setAcidBassGenerationDensity(v)
+				)}
+				{@render knobField('Chromatic', generation.chromaticism, (v) =>
+					scalePractice.setAcidBassGenerationChromaticism(v)
+				)}
+				{@render knobField('Movement', generation.movement, (v) =>
+					scalePractice.setAcidBassGenerationMovement(v)
+				)}
+				{@render knobField('Playability', generation.playability, (v) =>
+					scalePractice.setAcidBassGenerationPlayability(v)
+				)}
+				{@render knobField('Intelligence', generation.intelligence, (v) =>
+					scalePractice.setAcidBassGenerationIntelligence(v)
+				)}
+			</div>
+
+			<HardwareButton variant="secondary" onclick={() => scalePractice.newAcidBassVariation()}>
+				New Variation
+			</HardwareButton>
+
+			{#if generatedPlan === null}
+				<p class="generation-unavailable">
+					Choose a root and progression above to generate a bassline.
+				</p>
+			{:else if selectedGeneratedBar !== null}
+				<div class="generated-inspector">
+					<div class="bar-strip" role="group" aria-label="Generated bar">
+						{#each generatedPlan.bars as bar, index (bar.barIndex)}
+							<button
+								type="button"
+								class="bar-strip-button"
+								class:active={index === selectedGeneratedBarIndex}
+								aria-pressed={index === selectedGeneratedBarIndex}
+								onclick={() => selectGeneratedBar(index)}
+							>
+								{index + 1}
+							</button>
+						{/each}
+					</div>
+
+					<div
+						class="generated-step-grid"
+						role="group"
+						aria-label={`Bar ${selectedGeneratedBarIndex + 1} steps`}
+					>
+						{#each selectedGeneratedBar.steps as step, index (index)}
+							<button
+								type="button"
+								class="generated-step"
+								class:active={step.active}
+								class:accent={step.active && step.accent}
+								class:slide={step.active && step.slide}
+								class:selected={index === selectedGeneratedStepIndex}
+								aria-pressed={index === selectedGeneratedStepIndex}
+								aria-label={step.active
+									? `Step ${index + 1}, ${defaultNoteName(step.pitchClass)}${step.accent ? ', accent' : ''}${step.slide ? ', slide' : ''}`
+									: `Step ${index + 1}, rest`}
+								disabled={!step.active}
+								onclick={() => (selectedGeneratedStepIndex = index)}
+							>
+								{step.active ? intervalLabel(step.intervalFromChord) : ''}
+							</button>
+						{/each}
+					</div>
+
+					{#if selectedGeneratedStep !== null && selectedGeneratedStep.active}
+						<dl class="step-inspector">
+							<div>
+								<dt>Note</dt>
+								<dd>{defaultNoteName(selectedGeneratedStep.pitchClass)}</dd>
+							</div>
+							<div>
+								<dt>Interval</dt>
+								<dd>{intervalLabel(selectedGeneratedStep.intervalFromChord)}</dd>
+							</div>
+							<div>
+								<dt>Function</dt>
+								<dd>{functionLabel(selectedGeneratedStep.function)}</dd>
+							</div>
+							<div>
+								<dt>Position</dt>
+								<dd>
+									{#if selectedGeneratedStep.preferredPosition}
+										String {selectedGeneratedStep.preferredPosition.stringIndex + 1} · Fret {selectedGeneratedStep
+											.preferredPosition.fret}
+									{:else}
+										—
+									{/if}
+								</dd>
+							</div>
+							<div class="explanation">
+								<dt>{selectedGeneratedStep.explanation.headline}</dt>
+								<dd>{selectedGeneratedStep.explanation.detail}</dd>
+							</div>
+						</dl>
+					{:else}
+						<p class="generation-unavailable">Select an active step to inspect it.</p>
+					{/if}
+				</div>
+			{/if}
+		{/if}
 	{/if}
 
 	{#if savedGrooves.items.length > 0}
@@ -444,6 +666,46 @@
 
 	.field-label {
 		color: inherit;
+	}
+
+	.row {
+		display: flex;
+		align-items: flex-end;
+		gap: 0.7rem;
+		flex-wrap: wrap;
+		min-width: 0;
+	}
+
+	.picker {
+		display: flex;
+		flex-wrap: wrap;
+		max-width: 100%;
+		border: 1px solid var(--ff-black, #151411);
+		border-radius: var(--ff-radius-control, 4px);
+		overflow: hidden;
+		background: var(--ff-black, #151411);
+	}
+
+	.picker-button {
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.8rem;
+		padding: 0.4rem 0.7rem;
+		background: transparent;
+		color: var(--ff-yellow, #e3ac18);
+		border: none;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.picker-button.active {
+		background: var(--ff-yellow-dark, #c9910d);
+		color: var(--ff-black, #151411);
+	}
+
+	.picker-button:focus-visible {
+		outline: 3px solid var(--focus-ring, #e3ac18);
+		outline-offset: -3px;
 	}
 
 	select,
@@ -611,6 +873,122 @@
 	.transform-button:focus-visible {
 		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
+	}
+
+	.generation-unavailable {
+		font-size: 0.8rem;
+		opacity: 0.8;
+		margin: 0;
+	}
+
+	.generated-inspector {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		width: 100%;
+	}
+
+	.bar-strip {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.2rem;
+		max-width: 100%;
+		overflow-x: auto;
+	}
+
+	.bar-strip-button {
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.7rem;
+		min-width: 1.6rem;
+		padding: 0.25rem 0.4rem;
+		background: var(--ff-black, #151411);
+		color: var(--ff-yellow, #e3ac18);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
+		cursor: pointer;
+	}
+
+	.bar-strip-button.active {
+		background: var(--ff-yellow-dark, #c9910d);
+		color: var(--ff-black, #151411);
+		border-color: var(--ff-yellow-dark, #c9910d);
+	}
+
+	/* Accent/slide are shown via border weight/style, not color alone --
+	   selection via filled background -- so the grid stays legible without
+	   relying on color perception. */
+	.generated-step-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(1.8rem, 1fr));
+		gap: 0.2rem;
+		width: 100%;
+	}
+
+	.generated-step {
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.7rem;
+		aspect-ratio: 1;
+		background: var(--ff-black, #151411);
+		color: var(--ff-ivory, #f1e6c5);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
+		cursor: pointer;
+		opacity: 0.4;
+	}
+
+	.generated-step.active {
+		opacity: 1;
+		color: var(--ff-yellow, #e3ac18);
+		border-color: var(--ff-yellow-dark, #c9910d);
+	}
+
+	.generated-step.active.accent {
+		border-width: 2px;
+	}
+
+	.generated-step.active.slide {
+		border-style: dashed;
+	}
+
+	.generated-step.selected {
+		background: var(--ff-yellow-dark, #c9910d);
+		color: var(--ff-black, #151411);
+	}
+
+	.generated-step:disabled {
+		cursor: default;
+	}
+
+	.generated-step:focus-visible {
+		outline: 3px solid var(--focus-ring, #e3ac18);
+		outline-offset: 1px;
+	}
+
+	.step-inspector {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+		gap: 0.5rem 1rem;
+		margin: 0;
+		font-size: 0.8rem;
+		width: 100%;
+	}
+
+	.step-inspector dt {
+		font-weight: 700;
+		opacity: 0.7;
+		font-size: 0.7rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.step-inspector dd {
+		margin: 0;
+	}
+
+	.step-inspector .explanation {
+		grid-column: 1 / -1;
 	}
 
 	/* The A/B/F/T pattern-role selector -- hardware toggle group per spec §12. */

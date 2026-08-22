@@ -2,7 +2,6 @@
 	import { listAcidBassFactoryPatches } from '$lib/acid-bass/factory-patches';
 	import { lfoRateHzClamp, lfoSyncFrequencyHz } from '$lib/acid-bass/resolve';
 	import type {
-		AcidBassMode,
 		AcidFilterModel,
 		AcidGlideCurve,
 		AcidLfoDestination,
@@ -12,72 +11,16 @@
 		AcidLfoShape,
 		AcidSubOctave,
 		AcidSubWave,
-		AcidWave,
-		BassHarmonyMode,
-		BasslineStyleId,
-		BassRegisterMode
+		AcidWave
 	} from '$lib/acid-bass/types';
 	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Knob from '$lib/components/hardware/Knob.svelte';
 	import Led from '$lib/components/hardware/Led.svelte';
-	import { intervalLabel } from '$lib/music/intervals';
-	import { defaultNoteName } from '$lib/music/pitch';
-	import { listBasslineStyleProfiles } from '$lib/music/bassline/styles';
 	import AcidBassLfoScope from './AcidBassLfoScope.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	const FACTORY_PATCHES = listAcidBassFactoryPatches();
-
-	const MODES: { id: AcidBassMode; label: string }[] = [
-		{ id: 'manual', label: 'Manual' },
-		{ id: 'generated', label: 'Generated' }
-	];
-	const STYLES: { id: BasslineStyleId; label: string }[] = listBasslineStyleProfiles().map(
-		(profile) => ({ id: profile.id, label: profile.label })
-	);
-	const HARMONY_MODES: { id: BassHarmonyMode; label: string }[] = [
-		{ id: 'chord', label: 'Chord' },
-		{ id: 'key', label: 'Key' },
-		{ id: 'voice-leading', label: 'Voice Lead' }
-	];
-	const REGISTER_MODES: { id: BassRegisterMode; label: string }[] = [
-		{ id: 'low', label: 'Low' },
-		{ id: 'mid', label: 'Mid' },
-		{ id: 'high', label: 'High' },
-		{ id: 'zone', label: 'Zone' }
-	];
-
-	const generation = $derived(scalePractice.groove.acidBass.generation);
-	const generatedPlan = $derived(scalePractice.generatedBasslinePlan);
-
-	let selectedBarIndex = $state(0);
-	let selectedStepIndex = $state<number | null>(null);
-
-	/** Clamped to the plan's own current bar count -- an arrangement/progression edit can shrink the cycle out from under whatever bar was previously selected. */
-	const selectedBar = $derived.by(() => {
-		if (generatedPlan === null || generatedPlan.bars.length === 0) return null;
-		const index = Math.min(selectedBarIndex, generatedPlan.bars.length - 1);
-		return generatedPlan.bars[index];
-	});
-	const selectedStep = $derived(
-		selectedBar !== null && selectedStepIndex !== null
-			? (selectedBar.steps[selectedStepIndex] ?? null)
-			: null
-	);
-
-	function selectBar(index: number): void {
-		selectedBarIndex = index;
-		selectedStepIndex = null;
-	}
-
-	/** "chord-tone" -> "Chord Tone" -- musical-language labels throughout (spec §48), never the raw camelCase/kebab-case identifier. */
-	function functionLabel(fn: string): string {
-		return fn
-			.split('-')
-			.map((word) => word[0].toUpperCase() + word.slice(1))
-			.join(' ');
-	}
 
 	const MAIN_WAVES: { id: AcidWave; label: string }[] = [
 		{ id: 'saw', label: 'Saw' },
@@ -239,127 +182,6 @@
 {/snippet}
 
 <div class="acid-bass-controls">
-	<div class="line-section" role="region" aria-label="Line">
-		<h3 class="ff-label section-title">Line</h3>
-		{@render pickerField('Mode', MODES, scalePractice.groove.acidBass.mode, (id) =>
-			scalePractice.setAcidBassMode(id as AcidBassMode)
-		)}
-
-		{#if scalePractice.groove.acidBass.mode === 'generated'}
-			{@render pickerField('Style', STYLES, generation.style, (id) =>
-				scalePractice.setAcidBassGenerationStyle(id as BasslineStyleId)
-			)}
-			{@render pickerField('Harmony', HARMONY_MODES, generation.harmonyMode, (id) =>
-				scalePractice.setAcidBassGenerationHarmonyMode(id as BassHarmonyMode)
-			)}
-			{@render pickerField('Register', REGISTER_MODES, generation.register, (id) =>
-				scalePractice.setAcidBassGenerationRegister(id as BassRegisterMode)
-			)}
-			<div class="row">
-				{@render knobField('Density', generation.density, (v) =>
-					scalePractice.setAcidBassGenerationDensity(v)
-				)}
-				{@render knobField('Chromatic', generation.chromaticism, (v) =>
-					scalePractice.setAcidBassGenerationChromaticism(v)
-				)}
-				{@render knobField('Movement', generation.movement, (v) =>
-					scalePractice.setAcidBassGenerationMovement(v)
-				)}
-				{@render knobField('Playability', generation.playability, (v) =>
-					scalePractice.setAcidBassGenerationPlayability(v)
-				)}
-				{@render knobField('Intelligence', generation.intelligence, (v) =>
-					scalePractice.setAcidBassGenerationIntelligence(v)
-				)}
-			</div>
-
-			<HardwareButton variant="secondary" onclick={() => scalePractice.newAcidBassVariation()}>
-				New Variation
-			</HardwareButton>
-
-			{#if generatedPlan === null}
-				<p class="generation-unavailable">
-					Choose a root and progression above to generate a bassline.
-				</p>
-			{:else if selectedBar !== null}
-				<div class="generated-inspector">
-					<div class="bar-strip" role="group" aria-label="Generated bar">
-						{#each generatedPlan.bars as bar, index (bar.barIndex)}
-							<button
-								type="button"
-								class="bar-strip-button"
-								class:active={index === selectedBarIndex}
-								aria-pressed={index === selectedBarIndex}
-								onclick={() => selectBar(index)}
-							>
-								{index + 1}
-							</button>
-						{/each}
-					</div>
-
-					<div
-						class="generated-step-grid"
-						role="group"
-						aria-label={`Bar ${selectedBarIndex + 1} steps`}
-					>
-						{#each selectedBar.steps as step, index (index)}
-							<button
-								type="button"
-								class="generated-step"
-								class:active={step.active}
-								class:accent={step.active && step.accent}
-								class:slide={step.active && step.slide}
-								class:selected={index === selectedStepIndex}
-								aria-pressed={index === selectedStepIndex}
-								aria-label={step.active
-									? `Step ${index + 1}, ${defaultNoteName(step.pitchClass)}${step.accent ? ', accent' : ''}${step.slide ? ', slide' : ''}`
-									: `Step ${index + 1}, rest`}
-								disabled={!step.active}
-								onclick={() => (selectedStepIndex = index)}
-							>
-								{step.active ? intervalLabel(step.intervalFromChord) : ''}
-							</button>
-						{/each}
-					</div>
-
-					{#if selectedStep !== null && selectedStep.active}
-						<dl class="step-inspector">
-							<div>
-								<dt>Note</dt>
-								<dd>{defaultNoteName(selectedStep.pitchClass)}</dd>
-							</div>
-							<div>
-								<dt>Interval</dt>
-								<dd>{intervalLabel(selectedStep.intervalFromChord)}</dd>
-							</div>
-							<div>
-								<dt>Function</dt>
-								<dd>{functionLabel(selectedStep.function)}</dd>
-							</div>
-							<div>
-								<dt>Position</dt>
-								<dd>
-									{#if selectedStep.preferredPosition}
-										String {selectedStep.preferredPosition.stringIndex + 1} · Fret {selectedStep
-											.preferredPosition.fret}
-									{:else}
-										—
-									{/if}
-								</dd>
-							</div>
-							<div class="explanation">
-								<dt>{selectedStep.explanation.headline}</dt>
-								<dd>{selectedStep.explanation.detail}</dd>
-							</div>
-						</dl>
-					{:else}
-						<p class="generation-unavailable">Select an active step to inspect it.</p>
-					{/if}
-				</div>
-			{/if}
-		{/if}
-	</div>
-
 	<label class="field patch-picker">
 		<span class="ff-label field-label">Patch</span>
 		<select
@@ -705,137 +527,5 @@
 	select:focus-visible {
 		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
-	}
-
-	.line-section {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.6rem;
-		padding-bottom: 0.6rem;
-		border-bottom: 1px solid var(--surface-border, #3a382f);
-	}
-
-	.section-title {
-		font-size: 0.75rem;
-		letter-spacing: 0.08em;
-		opacity: 0.75;
-		margin: 0;
-	}
-
-	.generation-unavailable {
-		font-size: 0.8rem;
-		opacity: 0.8;
-		margin: 0;
-	}
-
-	.generated-inspector {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		width: 100%;
-	}
-
-	.bar-strip {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.2rem;
-		max-width: 100%;
-		overflow-x: auto;
-	}
-
-	.bar-strip-button {
-		font: inherit;
-		font-weight: 600;
-		font-size: 0.7rem;
-		min-width: 1.6rem;
-		padding: 0.25rem 0.4rem;
-		background: var(--ff-black, #151411);
-		color: var(--ff-yellow, #e3ac18);
-		border: 1px solid var(--surface-border, #3a382f);
-		border-radius: var(--ff-radius-control, 4px);
-		cursor: pointer;
-	}
-
-	.bar-strip-button.active {
-		background: var(--ff-yellow-dark, #c9910d);
-		color: var(--ff-black, #151411);
-		border-color: var(--ff-yellow-dark, #c9910d);
-	}
-
-	/* Accent/slide are shown via border weight/style, not color alone --
-	   selection via filled background -- so the grid stays legible without
-	   relying on color perception. */
-	.generated-step-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(1.8rem, 1fr));
-		gap: 0.2rem;
-		width: 100%;
-	}
-
-	.generated-step {
-		font: inherit;
-		font-weight: 700;
-		font-size: 0.7rem;
-		aspect-ratio: 1;
-		background: var(--ff-black, #151411);
-		color: var(--ff-ivory, #f1e6c5);
-		border: 1px solid var(--surface-border, #3a382f);
-		border-radius: var(--ff-radius-control, 4px);
-		cursor: pointer;
-		opacity: 0.4;
-	}
-
-	.generated-step.active {
-		opacity: 1;
-		color: var(--ff-yellow, #e3ac18);
-		border-color: var(--ff-yellow-dark, #c9910d);
-	}
-
-	.generated-step.active.accent {
-		border-width: 2px;
-	}
-
-	.generated-step.active.slide {
-		border-style: dashed;
-	}
-
-	.generated-step.selected {
-		background: var(--ff-yellow-dark, #c9910d);
-		color: var(--ff-black, #151411);
-	}
-
-	.generated-step:disabled {
-		cursor: default;
-	}
-
-	.generated-step:focus-visible {
-		outline: 3px solid var(--focus-ring, #e3ac18);
-		outline-offset: 1px;
-	}
-
-	.step-inspector {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-		gap: 0.5rem 1rem;
-		margin: 0;
-		font-size: 0.8rem;
-		width: 100%;
-	}
-
-	.step-inspector dt {
-		font-weight: 700;
-		opacity: 0.7;
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.step-inspector dd {
-		margin: 0;
-	}
-
-	.step-inspector .explanation {
-		grid-column: 1 / -1;
 	}
 </style>
