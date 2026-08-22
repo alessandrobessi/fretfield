@@ -47,6 +47,7 @@
 import type { IntervalId } from '$lib/music/intervals';
 
 import type { PatternRole } from '$lib/groove/pattern-role';
+import type { BassHarmonyMode, BasslineStyleId, BassRegisterMode } from '$lib/music/bassline/types';
 
 export type AcidWave = 'saw' | 'square' | 'triangle' | 'pulse';
 export type AcidSubWave = 'square' | 'triangle';
@@ -154,9 +155,13 @@ export interface AcidOutputPatch {
 
 export type AcidBassMode = 'manual' | 'generated';
 
-export type BasslineStyleId = 'rooted' | 'funk' | 'acid' | 'chromatic' | 'melodic' | 'walking';
-export type BassHarmonyMode = 'chord' | 'key' | 'voice-leading';
-export type BassRegisterMode = 'low' | 'mid' | 'high' | 'zone';
+/**
+ * Re-exported, not redefined -- `$lib/music/bassline/types.ts` is the
+ * canonical home (the V4 architecture's innermost layer; this module
+ * bridges *into* Acid Bass domain data from there, never the reverse, per
+ * `~/Downloads/ACID-BASS-INTELLIGENCE-V4.md` §5/§45).
+ */
+export type { BasslineStyleId, BassHarmonyMode, BassRegisterMode };
 
 /**
  * Persisted alongside a groove; the generated plan itself is derived from
