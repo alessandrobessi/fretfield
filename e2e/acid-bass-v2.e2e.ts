@@ -281,6 +281,42 @@ test.describe('Acid Bass Intelligence V4: tempo-synced delay (M17)', () => {
 	});
 });
 
+test.describe('Acid Bass: knob glossary', () => {
+	test('is hidden by default, and the toggle button shows/hides a GLOSSARY panel covering every control section', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		await expect(page.getByRole('region', { name: 'GLOSSARY' })).toHaveCount(0);
+
+		const toggle = page.getByRole('button', { name: 'Knob glossary' });
+		await expect(toggle).toHaveText('Show Glossary');
+		await toggle.click();
+		await expect(toggle).toHaveText('Hide Glossary');
+
+		const glossary = page.getByRole('region', { name: 'GLOSSARY' });
+		await expect(glossary).toBeVisible();
+		for (const section of [
+			'VCO',
+			'SUB',
+			'OSC 2',
+			'VCF',
+			'ENV',
+			'LFO 1 / LFO 2',
+			'ENV MOD / ACCENT MOD / RANDOM MOD',
+			'DELAY',
+			'OUTPUT'
+		]) {
+			await expect(glossary.getByText(section, { exact: true })).toBeVisible();
+		}
+		await expect(glossary.getByText('Cutoff', { exact: true }).first()).toBeVisible();
+
+		await toggle.click();
+		await expect(toggle).toHaveText('Show Glossary');
+		await expect(page.getByRole('region', { name: 'GLOSSARY' })).toHaveCount(0);
+	});
+});
+
 test.describe('Acid Bass V2: Osc 2', () => {
 	test('Osc 2 On/Off toggles (lighting its panel LED), its Wave picker selects, and its knobs update state', async ({
 		page

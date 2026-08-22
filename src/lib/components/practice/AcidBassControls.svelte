@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { listAcidBassFactoryPatches } from '$lib/acid-bass/factory-patches';
+	import { ACID_BASS_GLOSSARY } from '$lib/acid-bass/glossary';
 	import { lfoRateHzClamp, lfoSyncFrequencyHz } from '$lib/acid-bass/resolve';
 	import type {
 		AcidAuxModulationPatch,
@@ -105,6 +106,9 @@
 	];
 
 	const patch = $derived(scalePractice.groove.acidBass.patch);
+
+	/** Transient UI focus only -- whether the knob glossary reference is open, not part of saved groove data. */
+	let showGlossary = $state(false);
 
 	/** An LFO's actual oscillation rate right now, in Sync mode as much as Free -- what its indicator dot's blink rate and Hz readout both key off. Shared by both LFO panels, called with whichever slot's own patch. */
 	function lfoHz(lfoPatch: AcidLfoPatch): number {
@@ -240,19 +244,51 @@
 {/snippet}
 
 <div class="acid-bass-controls">
-	<label class="field patch-picker">
-		<span class="ff-label field-label">Patch</span>
-		<select
-			aria-label="Patch"
-			onchange={(event) =>
-				scalePractice.applyAcidBassFactoryPatch((event.currentTarget as HTMLSelectElement).value)}
+	<div class="top-row">
+		<label class="field patch-picker">
+			<span class="ff-label field-label">Patch</span>
+			<select
+				aria-label="Patch"
+				onchange={(event) =>
+					scalePractice.applyAcidBassFactoryPatch((event.currentTarget as HTMLSelectElement).value)}
+			>
+				<option value="">Choose a patch…</option>
+				{#each FACTORY_PATCHES as preset (preset.id)}
+					<option value={preset.id} title={preset.description}>{preset.label}</option>
+				{/each}
+			</select>
+		</label>
+
+		<HardwareButton
+			variant="secondary"
+			pressed={showGlossary}
+			ariaLabel="Knob glossary"
+			onclick={() => (showGlossary = !showGlossary)}
 		>
-			<option value="">Choose a patch…</option>
-			{#each FACTORY_PATCHES as preset (preset.id)}
-				<option value={preset.id} title={preset.description}>{preset.label}</option>
-			{/each}
-		</select>
-	</label>
+			{showGlossary ? 'Hide' : 'Show'} Glossary
+		</HardwareButton>
+	</div>
+
+	{#if showGlossary}
+		<HardwarePanel title="GLOSSARY" tone="carbon">
+			<p class="glossary-intro">What each control on this synth does, briefly.</p>
+			<div class="glossary-sections">
+				{#each ACID_BASS_GLOSSARY as section (section.title)}
+					<div class="glossary-section">
+						<h3 class="ff-label glossary-section-title">{section.title}</h3>
+						<dl class="glossary-list">
+							{#each section.entries as entry (entry.term)}
+								<div>
+									<dt>{entry.term}</dt>
+									<dd>{entry.description}</dd>
+								</div>
+							{/each}
+						</dl>
+					</div>
+				{/each}
+			</div>
+		</HardwarePanel>
+	{/if}
 
 	<div class="panel-grid">
 		<HardwarePanel title="VCO" tone="carbon">
@@ -494,6 +530,49 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.6rem;
+	}
+
+	.top-row {
+		display: flex;
+		align-items: flex-end;
+		gap: 0.7rem;
+		flex-wrap: wrap;
+	}
+
+	.glossary-intro {
+		margin: 0 0 0.6rem;
+		font-size: 0.8rem;
+		opacity: 0.85;
+	}
+
+	.glossary-sections {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 0.9rem;
+		align-items: start;
+	}
+
+	.glossary-section-title {
+		margin: 0 0 0.4rem;
+		font-size: 0.75rem;
+	}
+
+	.glossary-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		margin: 0;
+		font-size: 0.78rem;
+	}
+
+	.glossary-list dt {
+		font-weight: 700;
+	}
+
+	.glossary-list dd {
+		margin: 0;
+		opacity: 0.85;
+		line-height: 1.35;
 	}
 
 	/* Five panels side by side wherever there's room, wrapping down to fewer
