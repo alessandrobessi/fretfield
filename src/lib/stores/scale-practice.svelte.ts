@@ -35,6 +35,7 @@ import type {
 	AcidLfoDivision,
 	AcidLfoRateMode,
 	AcidLfoShape,
+	AcidModulationDestination,
 	AcidOctaveOffset,
 	AcidStepLocks,
 	AcidSubOctave,
@@ -952,6 +953,34 @@ export class ScalePracticeStore {
 		}));
 	}
 
+	/** All three aux modulation sources (Envelope/Accent/Random, M15) share this one set of setters -- `source` is directly the key into `patch.modulation`, no translation needed (unlike `lfoKey`'s `1|2 -> 'lfo1'|'lfo2'`). */
+	setAcidBassModulationEnabled(source: 'envelope' | 'accent' | 'random', enabled: boolean): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			modulation: { ...patch.modulation, [source]: { ...patch.modulation[source], enabled } }
+		}));
+	}
+
+	setAcidBassModulationDestination(
+		source: 'envelope' | 'accent' | 'random',
+		destination: AcidModulationDestination
+	): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			modulation: { ...patch.modulation, [source]: { ...patch.modulation[source], destination } }
+		}));
+	}
+
+	setAcidBassModulationDepth(source: 'envelope' | 'accent' | 'random', depth: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			modulation: {
+				...patch.modulation,
+				[source]: { ...patch.modulation[source], depth: clampBipolarPercent(depth) }
+			}
+		}));
+	}
+
 	setAcidBassVolume(volume: number): void {
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
@@ -1316,7 +1345,8 @@ export class ScalePracticeStore {
 					stepDurationSeconds: stepDurationSeconds / step.ratchet,
 					accent: step.accent,
 					gatePercent: step.gate,
-					locks: step.locks
+					locks: step.locks,
+					randomModulationValue: 0
 				});
 			}
 			return;
@@ -1353,7 +1383,8 @@ export class ScalePracticeStore {
 			gatePercent: step.gate,
 			locks: step.locks,
 			slideToFrequencyHz,
-			legato
+			legato,
+			randomModulationValue: 0
 		});
 	}
 
@@ -1430,7 +1461,8 @@ export class ScalePracticeStore {
 			gatePercent: playbackStep.gatePercent,
 			locks: playbackStep.locks,
 			slideToFrequencyHz,
-			legato
+			legato,
+			randomModulationValue: playbackStep.randomModulationValue
 		});
 	}
 

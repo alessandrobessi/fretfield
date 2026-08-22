@@ -2,6 +2,7 @@
 	import { listAcidBassFactoryPatches } from '$lib/acid-bass/factory-patches';
 	import { lfoRateHzClamp, lfoSyncFrequencyHz } from '$lib/acid-bass/resolve';
 	import type {
+		AcidAuxModulationPatch,
 		AcidFilterModel,
 		AcidGlideCurve,
 		AcidLfoDestination,
@@ -9,6 +10,7 @@
 		AcidLfoPatch,
 		AcidLfoRateMode,
 		AcidLfoShape,
+		AcidModulationDestination,
 		AcidSubOctave,
 		AcidSubWave,
 		AcidWave
@@ -71,6 +73,17 @@
 		'1/16',
 		'1/16T',
 		'1/32'
+	];
+	// Wider than LFO_DESTINATIONS -- adds Resonance/Drive, which only the aux
+	// modulation sources (Envelope/Accent/Random, M15) can reach so far.
+	const MOD_DESTINATIONS: { id: AcidModulationDestination; label: string }[] = [
+		{ id: 'cutoff', label: 'Cutoff' },
+		{ id: 'resonance', label: 'Resonance' },
+		{ id: 'pitch', label: 'Pitch' },
+		{ id: 'pulseWidth', label: 'Pulse Width' },
+		{ id: 'subLevel', label: 'Sub Level' },
+		{ id: 'osc2Level', label: 'Osc 2 Level' },
+		{ id: 'drive', label: 'Drive' }
 	];
 
 	const patch = $derived(scalePractice.groove.acidBass.patch);
@@ -155,6 +168,33 @@
 		{/if}
 	</div>
 	<AcidBassLfoScope shape={lfoPatch.shape} {hz} depth={lfoPatch.depth} enabled={lfoPatch.enabled} />
+{/snippet}
+
+{#snippet auxModPanelBody(
+	source: 'envelope' | 'accent' | 'random',
+	label: string,
+	modPatch: AcidAuxModulationPatch
+)}
+	<div class="row">
+		<HardwareButton
+			variant="secondary"
+			pressed={modPatch.enabled}
+			ariaLabel={label}
+			onclick={() => scalePractice.setAcidBassModulationEnabled(source, !modPatch.enabled)}
+		>
+			{label} {modPatch.enabled ? 'On' : 'Off'}
+		</HardwareButton>
+		{@render pickerField('Destination', MOD_DESTINATIONS, modPatch.destination, (id) =>
+			scalePractice.setAcidBassModulationDestination(source, id as AcidModulationDestination)
+		)}
+		{@render knobField(
+			'Depth',
+			modPatch.depth,
+			(v) => scalePractice.setAcidBassModulationDepth(source, v),
+			-100,
+			100
+		)}
+	</div>
 {/snippet}
 
 {#snippet pickerField(
@@ -361,6 +401,18 @@
 
 		<HardwarePanel title="LFO 2" tone="carbon">
 			{@render lfoPanelBody(2, patch.lfo2)}
+		</HardwarePanel>
+
+		<HardwarePanel title="ENV MOD" tone="carbon">
+			{@render auxModPanelBody('envelope', 'Env Mod', patch.modulation.envelope)}
+		</HardwarePanel>
+
+		<HardwarePanel title="ACCENT MOD" tone="carbon">
+			{@render auxModPanelBody('accent', 'Accent Mod', patch.modulation.accent)}
+		</HardwarePanel>
+
+		<HardwarePanel title="RANDOM MOD" tone="carbon">
+			{@render auxModPanelBody('random', 'Random Mod', patch.modulation.random)}
 		</HardwarePanel>
 
 		<HardwarePanel title="OUTPUT" tone="carbon">

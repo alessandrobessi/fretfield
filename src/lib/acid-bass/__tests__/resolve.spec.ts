@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { noteNameToPitchClass } from '$lib/music/pitch';
 
 import { createEmptyAcidStep } from '../pattern';
+import type { AcidModulationDestination } from '../types';
 import {
 	accentAmountToMultipliers,
 	attackToSeconds,
+	auxModulationDepthRatio,
+	auxModulationSwing,
 	clampCutoffHz,
 	cutoffToHz,
 	decayToSeconds,
@@ -17,7 +20,10 @@ import {
 	mixCompensation,
 	pulseWidthClamp,
 	releaseToSeconds,
+	resolveAccentModulationAmount,
 	resolveAcidStepMidi,
+	resolveAuxModulationAmount,
+	resolveRandomModulationAmount,
 	resonanceToModelParameter,
 	saturationToPregain,
 	subOctaveToRatio,
@@ -215,6 +221,154 @@ describe('LFO mapping', () => {
 
 	it('lfoSyncFrequencyHz scales with BPM at a fixed division', () => {
 		expect(lfoSyncFrequencyHz(240, '1/4')).toBeCloseTo(lfoSyncFrequencyHz(120, '1/4') * 2, 5);
+	});
+});
+
+describe('auxiliary modulation mapping (Envelope/Accent/Random)', () => {
+	const ALL_DESTINATIONS: AcidModulationDestination[] = [
+		'cutoff',
+		'resonance',
+		'pitch',
+		'pulseWidth',
+		'subLevel',
+		'osc2Level',
+		'drive'
+	];
+
+	it('auxModulationDepthRatio: bipolar depth maps -100..100 to -1..1, clamped beyond', () => {
+		expect(auxModulationDepthRatio(0)).toBe(0);
+		expect(auxModulationDepthRatio(100)).toBe(1);
+		expect(auxModulationDepthRatio(-100)).toBe(-1);
+		expect(auxModulationDepthRatio(50)).toBeCloseTo(0.5, 5);
+		expect(auxModulationDepthRatio(9999)).toBe(1);
+		expect(auxModulationDepthRatio(-9999)).toBe(-1);
+	});
+
+	it('auxModulationSwing: destination mapping -- every destination returns a positive, finite, distinct-by-kind swing', () => {
+		for (const destination of ALL_DESTINATIONS) {
+			const swing = auxModulationSwing(destination, true, true);
+			expect(Number.isFinite(swing)).toBe(true);
+			expect(swing).toBeGreaterThan(0);
+		}
+	});
+
+	it('auxModulationSwing: subLevel/osc2Level are inert whenever Sub/Osc 2 are off', () => {
+		expect(auxModulationSwing('subLevel', false, true)).toBe(0);
+		expect(auxModulationSwing('osc2Level', true, false)).toBe(0);
+		expect(auxModulationSwing('subLevel', true, true)).toBeGreaterThan(0);
+		expect(auxModulationSwing('osc2Level', true, true)).toBeGreaterThan(0);
+	});
+
+	it('auxModulationSwing: every destination stays within a musically safe, bounded range', () => {
+		// Pinned, explicit ceilings -- a regression guard against a swing
+		// constant accidentally growing large enough to push a destination
+		// unsafe (spec M15's own "safe parameter clamps" requirement). Compared
+		// against each destination's own known base-value ceiling elsewhere in
+		// this file: cutoff tops out at MAX_CUTOFF_HZ (4500) before this swing,
+		// well under MAX_SAFE_CUTOFF_HZ (12000) even with several sources
+		// stacked; resonance/drive stay modest fractions of their own DSP
+		// ranges (Q 0.5-16, pregain 1-10).
+		expect(auxModulationSwing('cutoff', true, true)).toBeLessThanOrEqual(2000);
+		expect(auxModulationSwing('resonance', true, true)).toBeLessThanOrEqual(3);
+		expect(auxModulationSwing('drive', true, true)).toBeLessThanOrEqual(3);
+		expect(auxModulationSwing('pitch', true, true)).toBeLessThanOrEqual(100);
+		expect(auxModulationSwing('subLevel', true, true)).toBeLessThanOrEqual(1);
+		expect(auxModulationSwing('osc2Level', true, true)).toBeLessThanOrEqual(1);
+		expect(auxModulationSwing('pulseWidth', true, true)).toBeLessThanOrEqual(0.9);
+	});
+
+	describe('resolveAuxModulationAmount (Envelope source)', () => {
+		it('source enable/disable: disabled always resolves to 0 regardless of depth', () => {
+			expect(
+				resolveAuxModulationAmount({ enabled: false, destination: 'cutoff', depth: 100 }, true, true)
+			).toBe(0);
+			expect(
+				resolveAuxModulationAmount(
+					{ enabled: false, destination: 'cutoff', depth: -100 },
+					true,
+					true
+				)
+			).toBe(0);
+		});
+
+		it('enabled resolves to depth ratio times the destination swing, sign-preserving', () => {
+			const positive = resolveAuxModulationAmount(
+				{ enabled: true, destination: 'cutoff', depth: 50 },
+				true,
+				true
+			);
+			const negative = resolveAuxModulationAmount(
+				{ enabled: true, destination: 'cutoff', depth: -50 },
+				true,
+				true
+			);
+			expect(positive).toBeCloseTo(0.5 * auxModulationSwing('cutoff', true, true), 5);
+			expect(negative).toBeCloseTo(-0.5 * auxModulationSwing('cutoff', true, true), 5);
+		});
+	});
+
+	describe('resolveAccentModulationAmount (Accent source)', () => {
+		it('only accented triggers ever get a nonzero contribution', () => {
+			const source = { enabled: true, destination: 'drive' as const, depth: 100 };
+			expect(resolveAccentModulationAmount(source, false, true, true)).toBe(0);
+			expect(resolveAccentModulationAmount(source, true, true, true)).toBeGreaterThan(0);
+		});
+
+		it('an unaccented trigger is 0 even at full depth and a live destination', () => {
+			expect(
+				resolveAccentModulationAmount(
+					{ enabled: true, destination: 'cutoff', depth: 100 },
+					false,
+					true,
+					true
+				)
+			).toBe(0);
+		});
+
+		it('a disabled source stays 0 even when accented', () => {
+			expect(
+				resolveAccentModulationAmount(
+					{ enabled: false, destination: 'cutoff', depth: 100 },
+					true,
+					true,
+					true
+				)
+			).toBe(0);
+		});
+	});
+
+	describe('resolveRandomModulationAmount (Random source)', () => {
+		const source = { enabled: true, destination: 'pitch' as const, depth: 100 };
+
+		it('bounded: never exceeds the destination swing in magnitude, across the full random range', () => {
+			const swing = auxModulationSwing('pitch', true, true);
+			for (let value = -1; value <= 1; value += 0.25) {
+				const amount = resolveRandomModulationAmount(source, value, true, true);
+				expect(Math.abs(amount)).toBeLessThanOrEqual(swing + 1e-9);
+			}
+		});
+
+		it('deterministic: the same inputs always produce the same output', () => {
+			const a = resolveRandomModulationAmount(source, 0.37, true, true);
+			const b = resolveRandomModulationAmount(source, 0.37, true, true);
+			expect(a).toBe(b);
+		});
+
+		it('a randomModulationValue of 0 always resolves to 0, regardless of depth', () => {
+			expect(resolveRandomModulationAmount(source, 0, true, true)).toBe(0);
+		});
+
+		it('clamps an out-of-range randomModulationValue to -1..1 before applying it', () => {
+			const atCeiling = resolveRandomModulationAmount(source, 1, true, true);
+			const beyondCeiling = resolveRandomModulationAmount(source, 5, true, true);
+			expect(beyondCeiling).toBeCloseTo(atCeiling, 5);
+		});
+
+		it('a disabled source stays 0 regardless of the random value', () => {
+			expect(
+				resolveRandomModulationAmount({ ...source, enabled: false }, 1, true, true)
+			).toBe(0);
+		});
 	});
 });
 

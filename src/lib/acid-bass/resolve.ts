@@ -1,7 +1,14 @@
 import { intervalSemitones } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
 
-import type { AcidBassStep, AcidFilterModel, AcidLfoDivision, AcidSubOctave } from './types';
+import type {
+	AcidAuxModulationPatch,
+	AcidBassStep,
+	AcidFilterModel,
+	AcidLfoDivision,
+	AcidModulationDestination,
+	AcidSubOctave
+} from './types';
 
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, value));
@@ -293,6 +300,114 @@ export function lfoSyncFrequencyHz(bpm: number, division: AcidLfoDivision): numb
 	const beats = DIVISION_BEATS[division];
 	const secondsPerBeat = 60 / bpm;
 	return 1 / (beats * secondsPerBeat);
+}
+
+// ---------------------------------------------------------------------------
+// Auxiliary modulation (Envelope/Accent/Random -- Acid Bass Intelligence V4
+// §33, alongside lfo1/lfo2). Only the pure destination/depth math lives here
+// -- the actual per-trigger contour (attack/hold/decay shape) is DSP-layer,
+// resolved in acid-bass-voice.ts like every other envelope-shaped behavior in
+// that file (no unit tests for scheduling, per its own established boundary).
+// ---------------------------------------------------------------------------
+
+/** -100..100 -> -1..1, clamped -- shared bipolar-depth mapping for every aux modulation source. */
+export function auxModulationDepthRatio(depth: number): number {
+	return clamp(depth, -100, 100) / 100;
+}
+
+// Fixed max swing per destination at full (|depth| = 100), the same
+// "musically convincing, not circuit-accurate" idiom the LFO destinations
+// already use (`lfoDepthAmount` in acid-bass-voice.ts) -- chosen
+// conservatively so a base value at its own safe ceiling, plus this swing,
+// still lands well inside each destination's safe range even before
+// considering the browser's own AudioParam clamping. `resonance`/`drive` are
+// new here -- LFO doesn't reach either yet.
+const MAX_MOD_CUTOFF_SWING_HZ = 2000;
+const MAX_MOD_RESONANCE_SWING = 3;
+const MAX_MOD_PITCH_CENTS = 100;
+const MAX_MOD_SUBLEVEL_SWING = 0.5;
+const MAX_MOD_OSC2LEVEL_SWING = 0.5;
+const MAX_MOD_PULSE_WIDTH_SWING = 0.3;
+const MAX_MOD_DRIVE_SWING = 3;
+
+/** The destination's own max swing at full depth -- `subLevel`/`osc2Level` are inert whenever Sub/Osc 2 themselves are off, mirroring `lfoDepthAmount`'s identical rule for the same two destinations. */
+export function auxModulationSwing(
+	destination: AcidModulationDestination,
+	subEnabled: boolean,
+	osc2Enabled: boolean
+): number {
+	switch (destination) {
+		case 'cutoff':
+			return MAX_MOD_CUTOFF_SWING_HZ;
+		case 'resonance':
+			return MAX_MOD_RESONANCE_SWING;
+		case 'pitch':
+			return MAX_MOD_PITCH_CENTS;
+		case 'subLevel':
+			return subEnabled ? MAX_MOD_SUBLEVEL_SWING : 0;
+		case 'osc2Level':
+			return osc2Enabled ? MAX_MOD_OSC2LEVEL_SWING : 0;
+		case 'pulseWidth':
+			return MAX_MOD_PULSE_WIDTH_SWING;
+		case 'drive':
+			return MAX_MOD_DRIVE_SWING;
+	}
+}
+
+/**
+ * Final bipolar modulation amount for one aux source at its own destination
+ * -- 0 whenever the source itself is disabled (spec: "source enable/
+ * disable"), regardless of depth. Deliberately takes only the three fields it
+ * needs (not the whole `AcidAuxModulationPatch`) so callers -- including
+ * `resolveAccentModulationAmount`/`resolveRandomModulationAmount` below,
+ * which each apply one further gate on top -- can share this one
+ * implementation.
+ */
+export function resolveAuxModulationAmount(
+	source: Pick<AcidAuxModulationPatch, 'enabled' | 'destination' | 'depth'>,
+	subEnabled: boolean,
+	osc2Enabled: boolean
+): number {
+	if (!source.enabled) return 0;
+	return (
+		auxModulationDepthRatio(source.depth) *
+		auxModulationSwing(source.destination, subEnabled, osc2Enabled)
+	);
+}
+
+/** Accent source: contributes only on accented triggers (spec §33) -- 0 on every unaccented trigger regardless of the source's own settings, otherwise identical to `resolveAuxModulationAmount`. */
+export function resolveAccentModulationAmount(
+	source: Pick<AcidAuxModulationPatch, 'enabled' | 'destination' | 'depth'>,
+	accent: boolean,
+	subEnabled: boolean,
+	osc2Enabled: boolean
+): number {
+	if (!accent) return 0;
+	return resolveAuxModulationAmount(source, subEnabled, osc2Enabled);
+}
+
+/**
+ * Random source: one deterministic held bipolar value per trigger (spec
+ * §33) -- `randomModulationValue` (-1..1) is supplied by the caller (the
+ * Acid Intelligence bridge in generated mode, always 0 in manual mode; see
+ * `intelligence.ts`), never generated here, so this function itself never
+ * calls `Math.random()`. Bounded: the product of two values each already
+ * clamped to -1..1 and a fixed swing constant can never exceed that swing's
+ * own magnitude.
+ */
+export function resolveRandomModulationAmount(
+	source: Pick<AcidAuxModulationPatch, 'enabled' | 'destination' | 'depth'>,
+	randomModulationValue: number,
+	subEnabled: boolean,
+	osc2Enabled: boolean
+): number {
+	if (!source.enabled) return 0;
+	const clampedRandom = clamp(randomModulationValue, -1, 1);
+	return (
+		auxModulationDepthRatio(source.depth) *
+		clampedRandom *
+		auxModulationSwing(source.destination, subEnabled, osc2Enabled)
+	);
 }
 
 // ---------------------------------------------------------------------------

@@ -77,6 +77,24 @@
  * simplification Sub already uses, not a 4-way crossfaded bank like Main --
  * a wave change here is an infrequent patch edit. `mixCompensation` now
  * budgets all three oscillators' energy together.
+ *
+ * Auxiliary modulation (M15, Acid Bass Intelligence V4 §33): three more
+ * single-destination sources -- Envelope, Accent, Random -- alongside
+ * lfo1/lfo2 (still five total, still never a many-to-many matrix). Unlike
+ * the LFOs (continuous, free-running oscillators), all three are inherently
+ * per-trigger phenomena, so each is built as one silent `ConstantSourceNode`
+ * (a fixed DC "1", started once and never touched again) feeding its own
+ * 7-destination gain bank (the wider `AcidModulationDestination` set --
+ * adds Resonance/Drive, which LFO doesn't reach yet) -- the *shape* of each
+ * trigger's contribution is scheduled directly onto whichever gain node is
+ * currently the active destination, inside `schedule()` itself, via
+ * `scheduleAuxModulationContour()`: Envelope reuses the same rise/decay
+ * timing the filter envelope already uses for that trigger; Accent only
+ * ever schedules a nonzero contour on an accented trigger; Random schedules
+ * a flat held value (`trigger.randomModulationValue`, -1..1, supplied by the
+ * caller -- see `AcidBassTrigger`'s own doc comment) for the trigger's gate
+ * duration. All three are skipped on a legato (slide-destination) trigger,
+ * matching `retriggerFilterEnvelope`'s own "no fresh attack on legato" rule.
  */
 
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
@@ -95,6 +113,9 @@ import {
 	mixCompensation,
 	pulseWidthClamp,
 	releaseToSeconds,
+	resolveAccentModulationAmount,
+	resolveAuxModulationAmount,
+	resolveRandomModulationAmount,
 	resonanceToModelParameter,
 	saturationToPregain,
 	subOctaveToRatio,
@@ -107,6 +128,7 @@ import type {
 	AcidFilterModel,
 	AcidGlideCurve,
 	AcidLfoDestination,
+	AcidModulationDestination,
 	AcidStepLocks,
 	AcidWave
 } from '$lib/acid-bass/types';
@@ -130,6 +152,8 @@ export interface AcidBassTrigger {
 	slideToFrequencyHz?: number;
 	/** This note is the destination of an incoming slide from the previous step -- continue the already-open envelope rather than re-triggering a fresh attack/filter-sweep. */
 	legato?: boolean;
+	/** -1..1, deterministic per trigger -- the Random aux modulation source's own held value for this note (spec §33: "Random value enters voice as a plain trigger number"). 0 for manual-mode triggers (no random source exists there); the Acid Intelligence bridge supplies a real value in generated mode (M14). Never `Math.random()` inside this file. */
+	randomModulationValue: number;
 }
 
 export interface AcidBassVoice {
@@ -484,12 +508,76 @@ export function createAcidBassVoice(
 		lfo.output.connect(gains.pulseWidth);
 	}
 
+	// Three more single-destination modulation sources (Envelope/Accent/
+	// Random, M15) -- unlike the LFOs, all three are per-trigger phenomena, so
+	// each is a silent constant "1" source whose own 7-destination gain bank
+	// (the wider `AcidModulationDestination` set, adding Resonance/Drive) gets
+	// scheduled directly inside `schedule()` rather than left continuously
+	// running. Still the same "always connected, gain the inactive ones to
+	// zero" idiom as the LFO destinations.
+	function createAuxModGainBank(): Record<AcidModulationDestination, GainNode> {
+		const bank: Record<AcidModulationDestination, GainNode> = {
+			cutoff: ctx.createGain(),
+			resonance: ctx.createGain(),
+			pitch: ctx.createGain(),
+			pulseWidth: ctx.createGain(),
+			subLevel: ctx.createGain(),
+			osc2Level: ctx.createGain(),
+			drive: ctx.createGain()
+		};
+		for (const gainNode of Object.values(bank)) {
+			gainNode.gain.setValueAtTime(0, ctx.currentTime);
+		}
+		return bank;
+	}
+
+	function connectAuxModSource(
+		source: ConstantSourceNode,
+		gains: Record<AcidModulationDestination, GainNode>
+	): void {
+		source.connect(gains.cutoff);
+		source.connect(gains.resonance);
+		source.connect(gains.pitch);
+		source.connect(gains.pulseWidth);
+		source.connect(gains.subLevel);
+		source.connect(gains.osc2Level);
+		source.connect(gains.drive);
+		gains.cutoff.connect(filter.frequency);
+		gains.resonance.connect(filter.Q);
+		for (const osc of pitchModulatedOscillators) {
+			gains.pitch.connect(osc.detune);
+		}
+		gains.subLevel.connect(subGain.gain);
+		gains.osc2Level.connect(osc2Gain.gain);
+		gains.drive.connect(driveInput.gain);
+		// gains.pulseWidth connects once the Pulse worklet loads (see below) --
+		// a genuine no-op against the static PeriodicWave fallback, same as LFO.
+	}
+
+	const envModSource = ctx.createConstantSource();
+	envModSource.offset.setValueAtTime(1, ctx.currentTime);
+	const envModGains = createAuxModGainBank();
+	connectAuxModSource(envModSource, envModGains);
+
+	const accentModSource = ctx.createConstantSource();
+	accentModSource.offset.setValueAtTime(1, ctx.currentTime);
+	const accentModGains = createAuxModGainBank();
+	connectAuxModSource(accentModSource, accentModGains);
+
+	const randomModSource = ctx.createConstantSource();
+	randomModSource.offset.setValueAtTime(1, ctx.currentTime);
+	const randomModGains = createAuxModGainBank();
+	connectAuxModSource(randomModSource, randomModGains);
+
 	sawOsc.start(ctx.currentTime);
 	squareOsc.start(ctx.currentTime);
 	triangleOsc.start(ctx.currentTime);
 	pulseOsc.start(ctx.currentTime);
 	subOsc.start(ctx.currentTime);
 	osc2Osc.start(ctx.currentTime);
+	envModSource.start(ctx.currentTime);
+	accentModSource.start(ctx.currentTime);
+	randomModSource.start(ctx.currentTime);
 	let disposed = false;
 	let currentBpm = 80;
 	let acid24Node: AudioWorkletNode | null = null;
@@ -555,6 +643,9 @@ export function createAcidBassVoice(
 			);
 			pulseWidthLfo1Gain.connect(pulseWidthParam);
 			pulseWidthLfo2Gain.connect(pulseWidthParam);
+			envModGains.pulseWidth.connect(pulseWidthParam);
+			accentModGains.pulseWidth.connect(pulseWidthParam);
+			randomModGains.pulseWidth.connect(pulseWidthParam);
 		}
 		applyPulseOscillatorRouting(currentPatch, ctx.currentTime);
 	});
@@ -598,6 +689,47 @@ export function createAcidBassVoice(
 						pulseWidth: pulseWidthLfo2Gain
 					};
 		return gains[destination];
+	}
+
+	type AuxModulationSourceKind = 'envelope' | 'accent' | 'random';
+
+	function auxModGainBank(sourceKind: AuxModulationSourceKind): Record<AcidModulationDestination, GainNode> {
+		if (sourceKind === 'envelope') return envModGains;
+		if (sourceKind === 'accent') return accentModGains;
+		return randomModGains;
+	}
+
+	/**
+	 * Schedules one aux-mod source's per-trigger contour on whichever gain
+	 * node currently targets `destination`: ramps 0 -> `amount` over
+	 * `riseSeconds`, holds, then settles back to 0 starting `holdSeconds`
+	 * later (the same `setTargetAtTime`-after-`time`-plus-`duration` idiom
+	 * `locks.drive`'s own revert-after-one-trigger scheduling already uses
+	 * below). Every *other* destination for this source is explicitly ramped
+	 * to 0 at the same time, so a mid-pattern destination change never leaves
+	 * a stale contribution lingering on the old target. `amount === 0`
+	 * (source disabled, or Accent/Random resolving to nothing this trigger)
+	 * just settles every destination to 0 -- no audible contour at all.
+	 */
+	function scheduleAuxModulationContour(
+		sourceKind: AuxModulationSourceKind,
+		destination: AcidModulationDestination,
+		amount: number,
+		time: number,
+		riseSeconds: number,
+		holdSeconds: number
+	): void {
+		const gains = auxModGainBank(sourceKind);
+		for (const [dest, gainNode] of Object.entries(gains) as [AcidModulationDestination, GainNode][]) {
+			gainNode.gain.cancelScheduledValues(time);
+			if (dest !== destination || amount === 0) {
+				gainNode.gain.setTargetAtTime(0, time, PARAM_SMOOTH_TIME_CONSTANT);
+				continue;
+			}
+			gainNode.gain.setValueAtTime(0, time);
+			gainNode.gain.linearRampToValueAtTime(amount, time + riseSeconds);
+			gainNode.gain.setTargetAtTime(0, time + riseSeconds + holdSeconds, PARAM_SMOOTH_TIME_CONSTANT);
+		}
 	}
 
 	function applyLfoRate(lfoSlot: 1 | 2, patch: AcidBassPatch): void {
@@ -852,7 +984,8 @@ export function createAcidBassVoice(
 				gatePercent,
 				locks,
 				slideToFrequencyHz,
-				legato
+				legato,
+				randomModulationValue
 			} = trigger;
 			const patch = currentPatch;
 			const decaySeconds = Math.min(decayToSeconds(patch.envelope.decay), stepDurationSeconds);
@@ -880,6 +1013,59 @@ export function createAcidBassVoice(
 				vca.gain.cancelScheduledValues(time);
 				vca.gain.setValueAtTime(MIN_GAIN, time);
 				vca.gain.exponentialRampToValueAtTime(peakGain, time + attackSeconds);
+
+				// Auxiliary modulation (M15) -- skipped on legato the same way the
+				// filter envelope itself is, since there's no fresh attack to shape.
+				const subEnabled = patch.oscillator.subEnabled;
+				const osc2Enabled = patch.oscillator.osc2Enabled;
+
+				// ENV: reuses the filter envelope's own rise/decay timing (spec:
+				// "the existing note-envelope timing as a modulation contour").
+				const envAmount = resolveAuxModulationAmount(patch.modulation.envelope, subEnabled, osc2Enabled);
+				scheduleAuxModulationContour(
+					'envelope',
+					patch.modulation.envelope.destination,
+					envAmount,
+					time,
+					attackSeconds,
+					decaySeconds
+				);
+
+				// ACCENT: contributes only on accented triggers, held through the
+				// gate the same way the VCA's own accent boost is.
+				const accentAmount = resolveAccentModulationAmount(
+					patch.modulation.accent,
+					accent,
+					subEnabled,
+					osc2Enabled
+				);
+				scheduleAuxModulationContour(
+					'accent',
+					patch.modulation.accent.destination,
+					accentAmount,
+					time,
+					attackSeconds,
+					gateSeconds
+				);
+
+				// RANDOM: one deterministic held bipolar value per trigger --
+				// `randomModulationValue` is already deterministic (Acid
+				// Intelligence bridge, M14; always 0 for manual-mode triggers) --
+				// never Math.random() in this file.
+				const randomAmount = resolveRandomModulationAmount(
+					patch.modulation.random,
+					randomModulationValue,
+					subEnabled,
+					osc2Enabled
+				);
+				scheduleAuxModulationContour(
+					'random',
+					patch.modulation.random.destination,
+					randomAmount,
+					time,
+					attackSeconds,
+					gateSeconds
+				);
 			}
 
 			if (locks?.drive !== undefined) {
@@ -984,6 +1170,9 @@ export function createAcidBassVoice(
 			pulseOsc.stop(stopTime);
 			subOsc.stop(stopTime);
 			osc2Osc.stop(stopTime);
+			envModSource.stop(stopTime);
+			accentModSource.stop(stopTime);
+			randomModSource.stop(stopTime);
 			lfo1.dispose();
 			lfo2.dispose();
 			acid24Node?.disconnect();

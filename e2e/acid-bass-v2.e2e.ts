@@ -31,9 +31,12 @@ test.describe('Acid Bass V2: panel layout', () => {
 		await expect(page.getByRole('heading', { name: 'SUB', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'OSC 2', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'VCF' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'ENV' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'ENV', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'LFO 1', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'LFO 2', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'ENV MOD' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'ACCENT MOD' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'RANDOM MOD' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'OUTPUT' })).toBeVisible();
 
 		const vcoPanel = page.getByRole('region', { name: 'VCO', exact: true });
@@ -110,6 +113,86 @@ test.describe('Acid Bass V2: panel layout', () => {
 		expect(box1?.height).toBeGreaterThan(0);
 		expect(box2?.width).toBeGreaterThan(0);
 		expect(box2?.height).toBeGreaterThan(0);
+	});
+});
+
+test.describe('Acid Bass Intelligence V4: auxiliary modulation (Envelope/Accent/Random, M15)', () => {
+	test('each source On/Off toggles independently, and each Destination picker (including Resonance/Drive) selects independently', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const envPanel = page.getByRole('region', { name: 'ENV MOD' });
+		const accentPanel = page.getByRole('region', { name: 'ACCENT MOD' });
+		const randomPanel = page.getByRole('region', { name: 'RANDOM MOD' });
+
+		const envToggle = envPanel.getByRole('button', { name: 'Env Mod' });
+		await expect(envToggle).toHaveAttribute('aria-pressed', 'false');
+		await envToggle.click();
+		await expect(envToggle).toHaveAttribute('aria-pressed', 'true');
+
+		const accentToggle = accentPanel.getByRole('button', { name: 'Accent Mod' });
+		await expect(accentToggle).toHaveAttribute('aria-pressed', 'false');
+
+		const envResonance = envPanel.getByRole('button', { name: 'Resonance', exact: true });
+		await envResonance.click();
+		await expect(envResonance).toHaveAttribute('aria-pressed', 'true');
+
+		const accentDrive = accentPanel.getByRole('button', { name: 'Drive', exact: true });
+		await accentDrive.click();
+		await expect(accentDrive).toHaveAttribute('aria-pressed', 'true');
+		const accentCutoff = accentPanel.getByRole('button', { name: 'Cutoff', exact: true });
+		await expect(accentCutoff).toHaveAttribute('aria-pressed', 'false');
+
+		const randomDestinationOptions = [
+			'Cutoff',
+			'Resonance',
+			'Pitch',
+			'Pulse Width',
+			'Sub Level',
+			'Osc 2 Level',
+			'Drive'
+		];
+		for (const label of randomDestinationOptions) {
+			await expect(randomPanel.getByRole('button', { name: label, exact: true })).toBeVisible();
+		}
+	});
+
+	test('each source has its own bipolar Depth knob', async ({ page }) => {
+		await openBassTab(page);
+
+		await expect(
+			page.getByRole('region', { name: 'ENV MOD' }).getByRole('slider', { name: 'Depth' })
+		).toBeVisible();
+		await expect(
+			page.getByRole('region', { name: 'ACCENT MOD' }).getByRole('slider', { name: 'Depth' })
+		).toBeVisible();
+		await expect(
+			page.getByRole('region', { name: 'RANDOM MOD' }).getByRole('slider', { name: 'Depth' })
+		).toBeVisible();
+	});
+
+	test('aux modulation settings survive a reload', async ({ page }) => {
+		await openBassTab(page);
+
+		const randomPanel = page.getByRole('region', { name: 'RANDOM MOD' });
+		const randomToggle = randomPanel.getByRole('button', { name: 'Random Mod' });
+		await randomToggle.click();
+		await expect(randomToggle).toHaveAttribute('aria-pressed', 'true');
+		await randomPanel.getByRole('button', { name: 'Pitch', exact: true }).click();
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
+
+		const reloadedRandomPanel = page.getByRole('region', { name: 'RANDOM MOD' });
+		await expect(reloadedRandomPanel.getByRole('button', { name: 'Random Mod' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect(
+			reloadedRandomPanel.getByRole('button', { name: 'Pitch', exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 	});
 });
 
