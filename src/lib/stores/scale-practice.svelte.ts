@@ -24,6 +24,7 @@ import {
 	simplifyPattern as simplifyAcidPattern
 } from '$lib/acid-bass/transforms';
 import type {
+	AcidBassGenerationSettings,
 	AcidBassMode,
 	AcidBassPattern,
 	AcidBassPatch,
@@ -80,7 +81,13 @@ import {
 import { midiToFrequency } from '$lib/audio/note-mapping';
 import { STANDARD_4_STRING_ABSOLUTE_TUNING } from '$lib/music/absolute-pitch';
 import { generateBassline } from '$lib/music/bassline/generate';
-import type { GeneratedBassBar, GeneratedBasslinePlan } from '$lib/music/bassline/types';
+import type {
+	BassHarmonyMode,
+	BasslineStyleId,
+	BassRegisterMode,
+	GeneratedBassBar,
+	GeneratedBasslinePlan
+} from '$lib/music/bassline/types';
 import { getChordDefinition } from '$lib/music/chords';
 import type { FretPosition } from '$lib/music/fretboard';
 import { intervalSemitones, type IntervalId } from '$lib/music/intervals';
@@ -530,6 +537,70 @@ export class ScalePracticeStore {
 		this.groove = { ...this.groove, acidBass: { ...this.groove.acidBass, mode } };
 		this.acidBassVoice?.silence();
 		this.persist();
+	}
+
+	private updateAcidBassGeneration(
+		mutate: (generation: AcidBassGenerationSettings) => AcidBassGenerationSettings
+	): void {
+		const nextGeneration = mutate(this.groove.acidBass.generation);
+		this.groove = {
+			...this.groove,
+			acidBass: { ...this.groove.acidBass, generation: nextGeneration }
+		};
+		this.persist();
+	}
+
+	setAcidBassGenerationStyle(style: BasslineStyleId): void {
+		this.updateAcidBassGeneration((generation) => ({ ...generation, style }));
+	}
+
+	setAcidBassGenerationHarmonyMode(harmonyMode: BassHarmonyMode): void {
+		this.updateAcidBassGeneration((generation) => ({ ...generation, harmonyMode }));
+	}
+
+	setAcidBassGenerationRegister(register: BassRegisterMode): void {
+		this.updateAcidBassGeneration((generation) => ({ ...generation, register }));
+	}
+
+	setAcidBassGenerationDensity(density: number): void {
+		this.updateAcidBassGeneration((generation) => ({
+			...generation,
+			density: clampPercent(density)
+		}));
+	}
+
+	setAcidBassGenerationChromaticism(chromaticism: number): void {
+		this.updateAcidBassGeneration((generation) => ({
+			...generation,
+			chromaticism: clampPercent(chromaticism)
+		}));
+	}
+
+	setAcidBassGenerationMovement(movement: number): void {
+		this.updateAcidBassGeneration((generation) => ({
+			...generation,
+			movement: clampPercent(movement)
+		}));
+	}
+
+	setAcidBassGenerationPlayability(playability: number): void {
+		this.updateAcidBassGeneration((generation) => ({
+			...generation,
+			playability: clampPercent(playability)
+		}));
+	}
+
+	setAcidBassGenerationIntelligence(intelligence: number): void {
+		this.updateAcidBassGeneration((generation) => ({
+			...generation,
+			intelligence: clampPercent(intelligence)
+		}));
+	}
+
+	/** §26: "when the user asks for a new variation: assign a new seed; do not mutate the current plan in place" -- `generatedBasslinePlan` is derived, so reassigning the seed is the entire implementation; the next read naturally rebuilds from it. */
+	newAcidBassVariation(): void {
+		const seed = Math.floor(Math.random() * 0x100000000) >>> 0;
+		this.updateAcidBassGeneration((generation) => ({ ...generation, seed }));
 	}
 
 	setAcidBassWave(wave: AcidWave): void {
