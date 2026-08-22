@@ -160,6 +160,74 @@ const GROOVE_PRESETS: GroovePreset[] = [
 			'shuffle',
 			65
 		)
+	},
+	{
+		id: 'house',
+		label: 'House',
+		groove: grooveFrom({
+			kick: [0, 4, 8, 12],
+			snare: [4, 12],
+			closedHat: [0, 2, 4, 6, 8, 10, 12, 14],
+			openHat: [2, 6, 10, 14]
+		})
+	},
+	{
+		id: 'techno',
+		label: 'Techno',
+		groove: grooveFrom({
+			kick: [0, 4, 8, 12],
+			closedHat: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+			rim: [8]
+		})
+	},
+	{
+		id: 'drum-and-bass',
+		label: 'Drum & Bass',
+		groove: grooveFrom({
+			// A syncopated breakbeat feel rather than four-on-the-floor -- kick
+			// on 1 and the "and" of 3, snare backbeat, dense hats underneath.
+			kick: [0, 10],
+			snare: [4, 12],
+			closedHat: [0, 2, 4, 6, 8, 10, 12, 14],
+			openHat: [14]
+		})
+	},
+	{
+		id: 'trance',
+		label: 'Trance',
+		groove: grooveFrom({
+			kick: [0, 4, 8, 12],
+			snare: [4, 12],
+			closedHat: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+			openHat: [14]
+		})
+	},
+	{
+		id: 'rnb',
+		label: 'RnB',
+		groove: grooveFrom(
+			{
+				// A laid-back one-drop-ish kick (not on every beat) under a
+				// gentle swing pocket, rather than a straight backbeat.
+				kick: [0, 7, 8],
+				snare: [4, 12],
+				closedHat: [0, 2, 4, 6, 8, 10, 12, 14]
+			},
+			'swing',
+			40
+		)
+	},
+	{
+		id: 'bossa-nova',
+		label: 'Bossa Nova',
+		groove: grooveFrom({
+			// The classic bossa "boom-chick": a syncopated kick, rim clicks
+			// standing in for the clave/side-stick pattern, and a sparse
+			// downbeat-only hat -- no backbeat snare at all.
+			kick: [0, 6, 8, 14],
+			rim: [2, 5, 10, 13],
+			closedHat: [0, 4, 8, 12]
+		})
 	}
 ];
 

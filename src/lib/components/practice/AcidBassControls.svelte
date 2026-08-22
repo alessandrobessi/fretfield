@@ -42,10 +42,13 @@
 		{ id: '-1', label: '−1 oct' },
 		{ id: '-2', label: '−2 oct' }
 	];
+	// Display labels only -- the underlying AcidFilterModel ids ('legacy'/
+	// 'svf12'/'acid24') are unchanged and still persisted in saved grooves, so
+	// renaming happens here, never in the type itself.
 	const FILTER_MODELS: { id: AcidFilterModel; label: string }[] = [
-		{ id: 'legacy', label: 'Legacy' },
-		{ id: 'svf12', label: 'SVF-12' },
-		{ id: 'acid24', label: 'Acid 24' }
+		{ id: 'legacy', label: 'Classic' },
+		{ id: 'svf12', label: 'Smooth' },
+		{ id: 'acid24', label: 'Squelch' }
 	];
 	const GLIDE_CURVES: { id: AcidGlideCurve; label: string }[] = [
 		{ id: 'linear', label: 'Linear' },

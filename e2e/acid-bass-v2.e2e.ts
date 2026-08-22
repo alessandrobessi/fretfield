@@ -63,12 +63,12 @@ test.describe('Acid Bass V2: panel layout', () => {
 		await expect(subToggle).toHaveAttribute('aria-pressed', 'true');
 		await expect(subLed).toHaveClass(/active/);
 
-		const acid24 = page.getByRole('button', { name: 'Acid 24', exact: true });
-		await expect(acid24).toHaveAttribute('aria-pressed', 'true');
-		const legacy = page.getByRole('button', { name: 'Legacy', exact: true });
-		await legacy.click();
-		await expect(legacy).toHaveAttribute('aria-pressed', 'true');
-		await expect(acid24).toHaveAttribute('aria-pressed', 'false');
+		const squelch = page.getByRole('button', { name: 'Squelch', exact: true });
+		await expect(squelch).toHaveAttribute('aria-pressed', 'true');
+		const classic = page.getByRole('button', { name: 'Classic', exact: true });
+		await classic.click();
+		await expect(classic).toHaveAttribute('aria-pressed', 'true');
+		await expect(squelch).toHaveAttribute('aria-pressed', 'false');
 	});
 
 	test('each LFO On/Off toggles independently, and each Destination picker selects independently', async ({
@@ -393,7 +393,7 @@ test.describe('Acid Bass V2: Osc 2', () => {
 });
 
 test.describe('Acid Bass V2: factory patches', () => {
-	test('applying "Classic Acid" writes resolved patch values -- Saw, Acid 24, and a moved Cutoff knob', async ({
+	test('applying "Classic Acid" writes resolved patch values -- Saw, Squelch filter, and a moved Cutoff knob', async ({
 		page
 	}) => {
 		await openBassTab(page);
@@ -413,7 +413,7 @@ test.describe('Acid Bass V2: factory patches', () => {
 				.getByRole('group', { name: 'Wave', exact: true })
 				.getByRole('button', { name: 'Saw', exact: true })
 		).toHaveAttribute('aria-pressed', 'true');
-		await expect(page.getByRole('button', { name: 'Acid 24', exact: true })).toHaveAttribute(
+		await expect(page.getByRole('button', { name: 'Squelch', exact: true })).toHaveAttribute(
 			'aria-pressed',
 			'true'
 		);

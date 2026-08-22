@@ -79,7 +79,7 @@ export const ACID_BASS_GLOSSARY: GlossarySection[] = [
 			{
 				term: 'Model',
 				description:
-					'Which filter circuit shapes the tone -- Legacy and SVF-12 are cleaner, Acid 24 is a squelchy 4-pole ladder filter.'
+					'Which filter circuit shapes the tone -- Classic and Smooth are gentler two-pole filters, Squelch is an aggressive 4-pole ladder filter for that classic acid growl.'
 			},
 			{
 				term: 'Cutoff',
