@@ -10,10 +10,10 @@
  */
 
 import { resolveAcidStepMidi } from './resolve';
-import type { AcidBassStep, AcidStepLocks } from './types';
+import type { AcidBassPatch, AcidBassStep, AcidStepLocks } from './types';
 import { resolveAcidIntelligence } from './intelligence';
 
-import type { GeneratedBassStep } from '$lib/music/bassline/types';
+import type { BasslineStyleId, GeneratedBassStep } from '$lib/music/bassline/types';
 import { midiToFrequency } from '$lib/audio/note-mapping';
 import type { PitchClass } from '$lib/music/pitch';
 
@@ -59,10 +59,15 @@ export function manualStepToPlaybackStep(
 	};
 }
 
-/** Generated conversion (§25.3): `GeneratedBassStep.midi` + the Acid Intelligence bridge -> `AcidPlaybackStep`. §25.4: generated steps are always `probability: 100, ratchet: 1`, already guaranteed by `GeneratedBassNoteStep`'s own type. */
-export function generatedStepToPlaybackStep(step: GeneratedBassStep): AcidPlaybackStep {
+/** Generated conversion (§25.3): `GeneratedBassStep.midi` + the Acid Intelligence bridge -> `AcidPlaybackStep`. §25.4: generated steps are always `probability: 100, ratchet: 1`, already guaranteed by `GeneratedBassNoteStep`'s own type. `patch`/`intelligence`/`style` are §22's own bridge inputs -- the current patch (for locks to lift relative to, e.g. `envAmount`), the user's Intelligence knob, and the active generation style (accent-emphasis scales by the style's own `accentDensity`). */
+export function generatedStepToPlaybackStep(
+	step: GeneratedBassStep,
+	patch: AcidBassPatch,
+	intelligence: number,
+	style: BasslineStyleId
+): AcidPlaybackStep {
 	if (!step.active) return INACTIVE_PLAYBACK_STEP;
-	const expression = resolveAcidIntelligence(step);
+	const expression = resolveAcidIntelligence(step, patch, intelligence, style);
 	return {
 		active: true,
 		frequencyHz: midiToFrequency(step.midi),

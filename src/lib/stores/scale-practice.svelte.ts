@@ -1383,7 +1383,13 @@ export class ScalePracticeStore {
 			crossedFromPreviousBar ||
 			(previousStep !== undefined && previousStep.active && previousStep.slide);
 
-		const playbackStep = generatedStepToPlaybackStep(step);
+		const { patch, generation } = this.groove.acidBass;
+		const playbackStep = generatedStepToPlaybackStep(
+			step,
+			patch,
+			generation.intelligence,
+			generation.style
+		);
 		const stepDurationSeconds = 60 / this.bpm / 4;
 
 		let slideToFrequencyHz: number | undefined;
@@ -1394,14 +1400,24 @@ export class ScalePracticeStore {
 					const nextBar = this.resolveGeneratedBassBar(this.currentBar + 1);
 					const nextStep = nextBar?.steps[0];
 					if (nextStep !== undefined && nextStep.active) {
-						slideToFrequencyHz = generatedStepToPlaybackStep(nextStep).frequencyHz;
+						slideToFrequencyHz = generatedStepToPlaybackStep(
+							nextStep,
+							patch,
+							generation.intelligence,
+							generation.style
+						).frequencyHz;
 						this.pendingCrossBarLegato = true;
 					}
 				}
 			} else {
 				const nextStep = bar.steps[stepIndex + 1];
 				if (nextStep !== undefined && nextStep.active) {
-					slideToFrequencyHz = generatedStepToPlaybackStep(nextStep).frequencyHz;
+					slideToFrequencyHz = generatedStepToPlaybackStep(
+						nextStep,
+						patch,
+						generation.intelligence,
+						generation.style
+					).frequencyHz;
 				}
 			}
 		}

@@ -5,8 +5,11 @@ import type { GeneratedBassNoteStep, GeneratedBassRestStep } from '$lib/music/ba
 import { noteNameToPitchClass } from '$lib/music/pitch';
 
 import { generatedStepToPlaybackStep, manualStepToPlaybackStep } from '../generated-playback';
+import { createDefaultAcidPatch } from '../pattern';
 import { resolveAcidStepMidi } from '../resolve';
 import type { AcidBassStep } from '../types';
+
+const patch = createDefaultAcidPatch();
 
 const C = noteNameToPitchClass('C');
 
@@ -82,27 +85,39 @@ describe('manualStepToPlaybackStep', () => {
 describe('generatedStepToPlaybackStep', () => {
 	it("resolves frequency directly from the generated step's absolute midi", () => {
 		const step = generatedNoteStep({ midi: 50 });
-		const result = generatedStepToPlaybackStep(step);
+		const result = generatedStepToPlaybackStep(step, patch, 0, 'acid');
 		expect(result.active).toBe(true);
 		expect(result.frequencyHz).toBe(midiToFrequency(50));
 	});
 
 	it('a rest step converts to the shared inactive shape', () => {
-		const result = generatedStepToPlaybackStep(restStep);
+		const result = generatedStepToPlaybackStep(restStep, patch, 0, 'acid');
 		expect(result.active).toBe(false);
 	});
 
 	it('is always probability 100 and ratchet 1 (§25.4)', () => {
-		const result = generatedStepToPlaybackStep(generatedNoteStep());
+		const result = generatedStepToPlaybackStep(generatedNoteStep(), patch, 0, 'acid');
 		expect(result.probability).toBe(100);
 		expect(result.ratchet).toBe(1);
 	});
 
 	it('slide comes from the generated step itself, accent/gate come through the Acid Intelligence bridge', () => {
 		const step = generatedNoteStep({ slide: true, accent: true, gate: 45 });
-		const result = generatedStepToPlaybackStep(step);
+		const result = generatedStepToPlaybackStep(step, patch, 0, 'acid');
 		expect(result.slide).toBe(true);
 		expect(result.accent).toBe(true);
 		expect(result.gatePercent).toBe(45);
+	});
+
+	it('at intelligence > 0, accent/gate/locks/randomModulationValue come from resolveAcidIntelligence, not the raw step', () => {
+		const step = generatedNoteStep({
+			function: 'chromatic-approach',
+			harmonicRole: 'tension',
+			gate: 78,
+			accent: false
+		});
+		const result = generatedStepToPlaybackStep(step, patch, 100, 'acid');
+		expect(result.gatePercent).toBeLessThan(78);
+		expect(result.locks?.envAmount).toBeDefined();
 	});
 });
