@@ -12,11 +12,30 @@
  *
  * A later pass added a second full oscillator (`oscillator.osc2*`, alongside
  * Main and Sub) and a second independent LFO (`lfo1`/`lfo2`, replacing the
- * single `lfo` field) -- bumping `version` to 3. `acid-bass/migrate.ts` reads
- * `version` as the runtime discriminant to tell a persisted V1 groove (no
- * `version` at all) from a V2 one (singular `lfo`, no `osc2*`) from a current
- * one -- deliberately not a `V2`/`V3` suffix on any type name here, the same
- * way V1 never had a `V1` suffix on anything.
+ * single `lfo` field) -- bumping `version` to 3.
+ *
+ * Acid Bass Intelligence V4 (`~/Downloads/ACID-BASS-INTELLIGENCE-V4.md`,
+ * implemented incrementally -- see `ROADMAP.md` for current milestone
+ * status) bumps `version` to 4 and adds, all additive/neutral-by-default on
+ * top of the V3 shape: `AcidBassMode` (`mode: 'manual' | 'generated'` on
+ * `AcidBassState`, `'manual'` for every migrated groove); `generation:
+ * AcidBassGenerationSettings` (style/harmony-mode/seed/density/chromaticism/
+ * movement/register/playability/intelligence -- the *settings* a future pure
+ * `$lib/music/bassline/` generator will read; the generated plan itself is
+ * derived at runtime, never persisted here); and three new patch
+ * sub-objects -- `modulation: AcidAuxModulationSection` (three more
+ * single-destination modulation sources: Envelope/Accent/Random, alongside
+ * the existing `lfo1`/`lfo2` -- still five sources total, still never a
+ * many-to-many matrix), `distortion: AcidDistortionPatch` (a shared
+ * transfer-curve character, `'soft'` reproducing the existing V3 curve
+ * exactly), and `delay: AcidDelayPatch` (one dedicated tempo-synced delay,
+ * disabled/dry by default). `acid-bass/migrate.ts` reads `version` as the
+ * runtime discriminant to tell a persisted V1 groove (no `version` at all)
+ * from a V2 one (singular `lfo`, no `osc2*`) from a V3-or-current one (V3's
+ * shape is a strict subset of V4's -- pure additions, no restructuring --
+ * so both coerce through the identical trusted-shape path) -- deliberately
+ * not a `V2`/`V3`/`V4` suffix on any type name here, the same way V1 never
+ * had a `V1` suffix on anything.
  *
  * Deliberately imports `PatternRole` from `groove/pattern-role` (a leaf
  * module with no dependencies of its own), never from `groove/types` --
@@ -129,6 +148,100 @@ export interface AcidOutputPatch {
 	volume: number;
 }
 
+// ---------------------------------------------------------------------------
+// V4: bassline generation settings (Acid Bass Intelligence V4)
+// ---------------------------------------------------------------------------
+
+export type AcidBassMode = 'manual' | 'generated';
+
+export type BasslineStyleId = 'rooted' | 'funk' | 'acid' | 'chromatic' | 'melodic' | 'walking';
+export type BassHarmonyMode = 'chord' | 'key' | 'voice-leading';
+export type BassRegisterMode = 'low' | 'mid' | 'high' | 'zone';
+
+/**
+ * Persisted alongside a groove; the generated plan itself is derived from
+ * these settings (plus the current progression/scale/zone/tuning context)
+ * at runtime and never persisted -- see the file header.
+ */
+export interface AcidBassGenerationSettings {
+	style: BasslineStyleId;
+	harmonyMode: BassHarmonyMode;
+	/** Unsigned 32-bit deterministic generator seed -- the pure generator never calls `Math.random()`. */
+	seed: number;
+	/** 0-100. Amount of available rhythmic slots to activate. */
+	density: number;
+	/** 0-100. Permission to transform weak notes into targeted chromatic motion. */
+	chromaticism: number;
+	/** 0-100. Preference for melodic movement versus repetition/root anchoring. */
+	movement: number;
+	register: BassRegisterMode;
+	/** 0-100. Strength of physical fretboard-motion penalties. */
+	playability: number;
+	/** 0-100. Strength of synthesis/articulation response to musical function -- 0 means generated notes still exist, but the Acid Intelligence bridge (a later milestone) adds no extra expression locks/decisions. */
+	intelligence: number;
+}
+
+// ---------------------------------------------------------------------------
+// V4: distortion character
+// ---------------------------------------------------------------------------
+
+export type AcidDistortionCharacter = 'soft' | 'diode' | 'hard';
+
+/** Shared transfer-curve character for both pre-filter Saturation and post-VCA Drive -- existing controls still determine amount/pregain independently. `soft` reproduces the existing V3 tanh-like curve exactly. */
+export interface AcidDistortionPatch {
+	character: AcidDistortionCharacter;
+}
+
+// ---------------------------------------------------------------------------
+// V4: auxiliary modulation (Envelope/Accent/Random -- alongside lfo1/lfo2)
+// ---------------------------------------------------------------------------
+
+/** The common destination vocabulary shared by every V4 modulation source, including LFO 1/LFO 2. Wider than the original `AcidLfoDestination` (adds `resonance`/`drive`) -- `AcidLfoDestination` stays its own narrower type until a later milestone actually widens what LFO 1/LFO 2 can target. */
+export type AcidModulationDestination =
+	'cutoff' | 'resonance' | 'pitch' | 'pulseWidth' | 'subLevel' | 'osc2Level' | 'drive';
+
+/**
+ * One auxiliary modulation source, exactly one destination -- the same
+ * single-destination discipline `AcidLfoPatch` already keeps. Depth is
+ * bipolar so a source can push a destination up or down.
+ */
+export interface AcidAuxModulationPatch {
+	enabled: boolean;
+	destination: AcidModulationDestination;
+	/** -100..100. */
+	depth: number;
+}
+
+/**
+ * Three fixed sources -- Envelope (the existing note-envelope timing as a
+ * modulation contour), Accent (contributes only on accented triggers), and
+ * Random (one deterministic held bipolar value per trigger, never audio-rate
+ * noise, never `Math.random()` inside the audio voice). Together with
+ * `lfo1`/`lfo2` this is five single-destination sources total -- still not a
+ * many-to-many modulation matrix.
+ */
+export interface AcidAuxModulationSection {
+	envelope: AcidAuxModulationPatch;
+	accent: AcidAuxModulationPatch;
+	random: AcidAuxModulationPatch;
+}
+
+// ---------------------------------------------------------------------------
+// V4: tempo-synced delay
+// ---------------------------------------------------------------------------
+
+export type AcidDelayDivision = '1/4' | '1/8' | '1/8D' | '1/8T' | '1/16' | '1/16D' | '1/16T';
+
+/** One dedicated tempo-synced delay -- not a general effects rack. `enabled: false` or `mix: 0` must reproduce dry V3 output exactly. */
+export interface AcidDelayPatch {
+	enabled: boolean;
+	division: AcidDelayDivision;
+	/** 0-100 UI value; internally capped well below unity feedback (see `resolve.ts`, a later milestone). */
+	feedback: number;
+	/** 0-100 wet mix. */
+	mix: number;
+}
+
 /**
  * Grouped by signal-path responsibility so the data model matches
  * `acid-bass-voice.ts`'s own node graph (OSC -> FILTER -> ENV/VCA -> GLIDE,
@@ -149,6 +262,12 @@ export interface AcidBassPatch {
 	glide: AcidGlidePatch;
 	lfo1: AcidLfoPatch;
 	lfo2: AcidLfoPatch;
+	/** V4: three more single-destination modulation sources, alongside lfo1/lfo2. */
+	modulation: AcidAuxModulationSection;
+	/** V4: shared distortion character for Saturation and Drive. */
+	distortion: AcidDistortionPatch;
+	/** V4: one dedicated tempo-synced delay. */
+	delay: AcidDelayPatch;
 	output: AcidOutputPatch;
 }
 
@@ -195,12 +314,16 @@ export interface AcidBassStep {
 export type AcidBassPattern = AcidBassStep[];
 
 export interface AcidBassState {
-	/** The runtime discriminant `acid-bass/migrate.ts` uses to tell a persisted V1 groove (no `version` field at all) from a V2 one (singular `patch.lfo`) from a current one (3: `patch.lfo1`/`lfo2`, Osc 2). */
-	version: 3;
+	/** The runtime discriminant `acid-bass/migrate.ts` uses to tell a persisted V1 groove (no `version` field at all) from a V2 one (singular `patch.lfo`) from a V3-or-current one (4: `mode`/`generation`/`patch.modulation`/`patch.distortion`/`patch.delay` -- V3's own shape is a strict subset, so it coerces through the same trusted path). */
+	version: 4;
 	/** Off by default, including for every migrated pre-Acid-Bass or V1 groove -- turning it on/off affects only this voice, never drums, chord backing, transport, or fretboard highlighting. */
 	enabled: boolean;
+	/** V4: `'manual'` for every migrated groove and every fresh groove by default -- V4 must never silently replace a user's manual sequencer with generated music. */
+	mode: AcidBassMode;
 	patch: AcidBassPatch;
 	patterns: Record<PatternRole, AcidBassPattern>;
 	/** Whether a slide on a pattern's last step glides into the next bar's first active step (spec §30/§76). Defaults `true` for freshly-created V2 state, `false` for anything migrated from V1 -- a migrated groove must not gain new end-of-bar articulation it wasn't authored with. */
 	crossBarSlide: boolean;
+	/** V4: settings for the (not-yet-implemented, as of this milestone) bassline generator -- see `AcidBassGenerationSettings`. */
+	generation: AcidBassGenerationSettings;
 }

@@ -2,6 +2,7 @@ import type { IntervalId } from '$lib/music/intervals';
 
 import { PATTERN_ROLES, type PatternRole } from '$lib/groove/pattern-role';
 import type {
+	AcidBassGenerationSettings,
 	AcidBassPattern,
 	AcidBassPatch,
 	AcidBassState,
@@ -144,6 +145,46 @@ const DEFAULT_LFO2: AcidBassPatch['lfo2'] = {
 	depth: 0
 };
 
+// V4: neutral/off for every existing (pre-V4) patch and factory preset --
+// none of them should gain audible modulation, a curve change, or a wet
+// delay signal just by existing after this milestone.
+function createNeutralAuxModulationPatch(): AcidBassPatch['modulation']['envelope'] {
+	return { enabled: false, destination: 'cutoff', depth: 0 };
+}
+
+const DEFAULT_MODULATION: AcidBassPatch['modulation'] = {
+	envelope: createNeutralAuxModulationPatch(),
+	accent: createNeutralAuxModulationPatch(),
+	random: createNeutralAuxModulationPatch()
+};
+
+// `'soft'` reproduces the existing V3 tanh-like curve exactly (spec §31) --
+// the only character that may exist before Diode/Hard are implemented.
+const DEFAULT_DISTORTION: AcidBassPatch['distortion'] = { character: 'soft' };
+
+// Disabled + zero wet -- must preserve existing V3 (dry) output exactly.
+const DEFAULT_DELAY: AcidBassPatch['delay'] = {
+	enabled: false,
+	division: '1/8D',
+	feedback: 30,
+	mix: 0
+};
+
+/** A fresh object every call -- these settings aren't consumed by any generator yet (that lands in a later milestone), but must never be a single shared/mutable reference in the meantime. Recommended defaults per spec §7.2. */
+export function createDefaultGenerationSettings(): AcidBassGenerationSettings {
+	return {
+		style: 'acid',
+		harmonyMode: 'chord',
+		seed: 0x303303,
+		density: 62,
+		chromaticism: 35,
+		movement: 55,
+		register: 'zone',
+		playability: 75,
+		intelligence: 70
+	};
+}
+
 export function createDefaultAcidPatch(): AcidBassPatch {
 	return {
 		oscillator: {
@@ -183,6 +224,9 @@ export function createDefaultAcidPatch(): AcidBassPatch {
 		},
 		lfo1: DEFAULT_LFO1,
 		lfo2: DEFAULT_LFO2,
+		modulation: DEFAULT_MODULATION,
+		distortion: DEFAULT_DISTORTION,
+		delay: DEFAULT_DELAY,
 		output: {
 			drive: 4,
 			volume: 70
@@ -199,11 +243,13 @@ export function createDefaultAcidBassState(
 		patterns[role] = createDefaultAcidPattern(stepsPerBar, stepsPerBeatGroup, role);
 	}
 	return {
-		version: 3,
+		version: 4,
 		enabled: false,
+		mode: 'manual',
 		patch: createDefaultAcidPatch(),
 		patterns,
-		crossBarSlide: true
+		crossBarSlide: true,
+		generation: createDefaultGenerationSettings()
 	};
 }
 

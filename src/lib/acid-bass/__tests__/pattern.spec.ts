@@ -4,6 +4,7 @@ import {
 	createDefaultAcidBassState,
 	createDefaultAcidPattern,
 	createDefaultAcidPatch,
+	createDefaultGenerationSettings,
 	createEmptyAcidStep,
 	resizeAcidBassState,
 	resizeAcidPattern,
@@ -53,6 +54,36 @@ describe('createDefaultAcidPatch', () => {
 		expect(patch.oscillator.osc2Level).toBe(0);
 		expect(patch.lfo2.enabled).toBe(false);
 		expect(patch.lfo2.depth).toBe(0);
+	});
+
+	it('V4: modulation/distortion/delay all default off/neutral -- every existing patch keeps sounding like V3', () => {
+		const patch = createDefaultAcidPatch();
+		expect(patch.modulation.envelope.enabled).toBe(false);
+		expect(patch.modulation.accent.enabled).toBe(false);
+		expect(patch.modulation.random.enabled).toBe(false);
+		expect(patch.distortion.character).toBe('soft');
+		expect(patch.delay.enabled).toBe(false);
+		expect(patch.delay.mix).toBe(0);
+	});
+});
+
+describe('createDefaultGenerationSettings', () => {
+	it('matches the spec-recommended defaults', () => {
+		expect(createDefaultGenerationSettings()).toEqual({
+			style: 'acid',
+			harmonyMode: 'chord',
+			seed: 0x303303,
+			density: 62,
+			chromaticism: 35,
+			movement: 55,
+			register: 'zone',
+			playability: 75,
+			intelligence: 70
+		});
+	});
+
+	it('returns a fresh object every call, not a shared reference', () => {
+		expect(createDefaultGenerationSettings()).not.toBe(createDefaultGenerationSettings());
 	});
 });
 
@@ -123,10 +154,16 @@ describe('createDefaultAcidBassState', () => {
 		}
 	});
 
-	it('is version 3, with cross-bar slide on by default for freshly-created state', () => {
+	it('is version 4, in manual mode, with cross-bar slide on by default for freshly-created state', () => {
 		const state = createDefaultAcidBassState(16, 4);
-		expect(state.version).toBe(3);
+		expect(state.version).toBe(4);
+		expect(state.mode).toBe('manual');
 		expect(state.crossBarSlide).toBe(true);
+	});
+
+	it('has generation settings matching the spec defaults', () => {
+		const state = createDefaultAcidBassState(16, 4);
+		expect(state.generation).toEqual(createDefaultGenerationSettings());
 	});
 });
 

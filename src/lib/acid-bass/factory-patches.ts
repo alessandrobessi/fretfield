@@ -11,7 +11,10 @@
 
 import { createDefaultAcidPatch } from './pattern';
 import type {
+	AcidAuxModulationSection,
 	AcidBassPatch,
+	AcidDelayPatch,
+	AcidDistortionPatch,
 	AcidEnvelopePatch,
 	AcidFilterPatch,
 	AcidGlidePatch,
@@ -27,9 +30,13 @@ interface PatchOverrides {
 	glide?: Partial<AcidGlidePatch>;
 	lfo1?: Partial<AcidLfoPatch>;
 	lfo2?: Partial<AcidLfoPatch>;
+	modulation?: Partial<AcidAuxModulationSection>;
+	distortion?: Partial<AcidDistortionPatch>;
+	delay?: Partial<AcidDelayPatch>;
 	output?: Partial<AcidOutputPatch>;
 }
 
+/** No factory preset below overrides `modulation`/`distortion`/`delay` -- V4 factory patches are deferred to the final polish milestone (spec §38), so every preset inherits the neutral V3-equivalent defaults (Soft, no aux modulation, dry) for free rather than needing them copy-pasted into all eight definitions. */
 function buildPatch(overrides: PatchOverrides): AcidBassPatch {
 	const base = createDefaultAcidPatch();
 	return {
@@ -39,6 +46,9 @@ function buildPatch(overrides: PatchOverrides): AcidBassPatch {
 		glide: { ...base.glide, ...overrides.glide },
 		lfo1: { ...base.lfo1, ...overrides.lfo1 },
 		lfo2: { ...base.lfo2, ...overrides.lfo2 },
+		modulation: { ...base.modulation, ...overrides.modulation },
+		distortion: { ...base.distortion, ...overrides.distortion },
+		delay: { ...base.delay, ...overrides.delay },
 		output: { ...base.output, ...overrides.output }
 	};
 }

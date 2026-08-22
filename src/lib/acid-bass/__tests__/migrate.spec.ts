@@ -25,26 +25,28 @@ function v1State(overrides: Record<string, unknown> = {}) {
 }
 
 describe('coerceAcidBassState: no acidBass at all (pre-Acid-Bass groove)', () => {
-	it('returns a fresh, disabled, version-3 default state', () => {
+	it('returns a fresh, disabled, version-4, manual-mode default state', () => {
 		const state = coerceAcidBassState(undefined, METER);
-		expect(state.version).toBe(3);
+		expect(state.version).toBe(4);
 		expect(state.enabled).toBe(false);
+		expect(state.mode).toBe('manual');
 		expect(state).toEqual(createDefaultAcidBassState(METER.stepsPerBar, METER.stepsPerBeatGroup));
 	});
 
 	it('also handles null and unrecognizable garbage the same way', () => {
 		expect(coerceAcidBassState(null, METER).enabled).toBe(false);
-		expect(coerceAcidBassState('not an object', METER).version).toBe(3);
-		expect(coerceAcidBassState(42, METER).version).toBe(3);
+		expect(coerceAcidBassState('not an object', METER).version).toBe(4);
+		expect(coerceAcidBassState(42, METER).version).toBe(4);
 	});
 });
 
-describe('coerceAcidBassState: V1 -> V3 migration', () => {
-	it('preserves enabled, and forces crossBarSlide off (a migrated groove must not gain new articulation)', () => {
+describe('coerceAcidBassState: V1 -> V4 migration', () => {
+	it('preserves enabled, forces crossBarSlide off and mode manual (a migrated groove must not gain new articulation or start generating)', () => {
 		const state = coerceAcidBassState(v1State({ enabled: true }), METER);
 		expect(state.enabled).toBe(true);
 		expect(state.crossBarSlide).toBe(false);
-		expect(state.version).toBe(3);
+		expect(state.mode).toBe('manual');
+		expect(state.version).toBe(4);
 	});
 
 	it('maps every V1 patch macro onto its V2/V3 home, and defaults to the legacy filter (not acid24)', () => {
@@ -70,7 +72,7 @@ describe('coerceAcidBassState: V1 -> V3 migration', () => {
 		expect(a.patch.glide.curve).toBe('linear');
 	});
 
-	it('new sections added since V1 (sub oscillator, Osc 2, both LFOs) come back at safe, inert compatibility defaults', () => {
+	it('new sections added since V1 (sub oscillator, Osc 2, both LFOs, V4 modulation/distortion/delay) come back at safe, inert compatibility defaults', () => {
 		const state = coerceAcidBassState(v1State(), METER);
 		expect(state.patch.oscillator.subEnabled).toBe(false);
 		expect(state.patch.oscillator.osc2Enabled).toBe(false);
@@ -78,6 +80,15 @@ describe('coerceAcidBassState: V1 -> V3 migration', () => {
 		expect(state.patch.lfo2.enabled).toBe(false);
 		expect(state.patch.filter.keyTracking).toBe(0);
 		expect(state.patch.filter.saturation).toBe(0);
+		expect(state.patch.modulation.envelope.enabled).toBe(false);
+		expect(state.patch.modulation.accent.enabled).toBe(false);
+		expect(state.patch.modulation.random.enabled).toBe(false);
+		expect(state.patch.distortion.character).toBe('soft');
+		expect(state.patch.delay.enabled).toBe(false);
+		expect(state.patch.delay.mix).toBe(0);
+		expect(state.generation).toEqual(
+			expect.objectContaining({ style: 'acid', harmonyMode: 'chord' })
+		);
 	});
 
 	it("preserves every migrated step's interval/octave/accent/slide unchanged, and adds the new sequencer fields at neutral defaults", () => {
@@ -105,7 +116,7 @@ describe('coerceAcidBassState: V1 -> V3 migration', () => {
 			{ enabled: true, patch: null, patterns: 'not an object' },
 			METER
 		);
-		expect(state.version).toBe(3);
+		expect(state.version).toBe(4);
 		expect(state.patch.oscillator.mainWave).toBe('saw');
 		for (const role of PATTERN_ROLES) {
 			expect(state.patterns[role]).toHaveLength(16);
@@ -113,7 +124,7 @@ describe('coerceAcidBassState: V1 -> V3 migration', () => {
 	});
 });
 
-describe('coerceAcidBassState: V2 -> V3 migration', () => {
+describe('coerceAcidBassState: V2 -> V4 migration', () => {
 	function v2State(overrides: Record<string, unknown> = {}) {
 		const base = createDefaultAcidBassState(16, 4);
 		return {
@@ -134,23 +145,28 @@ describe('coerceAcidBassState: V2 -> V3 migration', () => {
 		};
 	}
 
-	it('bumps to version 3, and preserves the old singular LFO settings on lfo1 unchanged', () => {
+	it('bumps to version 4, forces mode manual, and preserves the old singular LFO settings on lfo1 unchanged', () => {
 		const state = coerceAcidBassState(v2State(), METER);
-		expect(state.version).toBe(3);
+		expect(state.version).toBe(4);
+		expect(state.mode).toBe('manual');
 		expect(state.patch.lfo1.enabled).toBe(true);
 		expect(state.patch.lfo1.destination).toBe('pitch');
 		expect(state.patch.lfo1.depth).toBe(65);
 	});
 
-	it('defaults lfo2 and Osc 2 to neutral/off -- a migrated V2 groove must sound identical', () => {
+	it('defaults lfo2, Osc 2, and V4 modulation/distortion/delay to neutral/off -- a migrated V2 groove must sound identical', () => {
 		const state = coerceAcidBassState(v2State(), METER);
 		expect(state.patch.lfo2.enabled).toBe(false);
 		expect(state.patch.lfo2.depth).toBe(0);
 		expect(state.patch.oscillator.osc2Enabled).toBe(false);
 		expect(state.patch.oscillator.osc2Level).toBe(0);
+		expect(state.patch.modulation.envelope.enabled).toBe(false);
+		expect(state.patch.distortion.character).toBe('soft');
+		expect(state.patch.delay.enabled).toBe(false);
+		expect(state.patch.delay.mix).toBe(0);
 	});
 
-	it('preserves crossBarSlide as-is, unlike the forced-false V1->V3 path', () => {
+	it('preserves crossBarSlide as-is, unlike the forced-false V1->V4 path', () => {
 		const state = coerceAcidBassState(v2State({ crossBarSlide: true }), METER);
 		expect(state.crossBarSlide).toBe(true);
 	});
@@ -160,7 +176,7 @@ describe('coerceAcidBassState: V2 -> V3 migration', () => {
 			{ version: 2, enabled: true, patch: { lfo: 'not-an-object' }, patterns: {} },
 			METER
 		);
-		expect(state.version).toBe(3);
+		expect(state.version).toBe(4);
 		expect(state.patch.lfo1.enabled).toBe(false);
 		for (const role of PATTERN_ROLES) {
 			expect(state.patterns[role]).toHaveLength(16);
@@ -168,8 +184,57 @@ describe('coerceAcidBassState: V2 -> V3 migration', () => {
 	});
 });
 
-describe('coerceAcidBassState: current V3 data (untrusted persisted state)', () => {
-	it('passes through a well-formed V3 state unchanged', () => {
+describe('coerceAcidBassState: V3 -> V4 migration', () => {
+	// A genuine V3 record has no mode/generation/modulation/distortion/delay
+	// at all -- V3's shape is a strict subset of V4's (pure additions, no
+	// restructuring), so this exercises the same coercion path as "current
+	// V4 data" below, just confirming the version:3 entry point specifically.
+	function v3State(overrides: Record<string, unknown> = {}) {
+		const base = createDefaultAcidBassState(16, 4);
+		return {
+			version: 3,
+			enabled: true,
+			patch: {
+				oscillator: base.patch.oscillator,
+				filter: base.patch.filter,
+				envelope: base.patch.envelope,
+				glide: base.patch.glide,
+				lfo1: { ...base.patch.lfo1, enabled: true, destination: 'cutoff', depth: 50 },
+				lfo2: base.patch.lfo2,
+				output: base.patch.output
+			},
+			patterns: base.patterns,
+			crossBarSlide: true,
+			...overrides
+		};
+	}
+
+	it('bumps to version 4, defaults mode to manual and generation to the spec defaults, and preserves every V3 field unchanged', () => {
+		const state = coerceAcidBassState(v3State(), METER);
+		expect(state.version).toBe(4);
+		expect(state.mode).toBe('manual');
+		expect(state.enabled).toBe(true);
+		expect(state.crossBarSlide).toBe(true);
+		expect(state.patch.lfo1.enabled).toBe(true);
+		expect(state.patch.lfo1.destination).toBe('cutoff');
+		expect(state.patch.lfo1.depth).toBe(50);
+		expect(state.generation.style).toBe('acid');
+		expect(state.generation.harmonyMode).toBe('chord');
+	});
+
+	it('defaults V4 modulation/distortion/delay to neutral/off -- a migrated V3 groove must sound identical', () => {
+		const state = coerceAcidBassState(v3State(), METER);
+		expect(state.patch.modulation.envelope.enabled).toBe(false);
+		expect(state.patch.modulation.accent.enabled).toBe(false);
+		expect(state.patch.modulation.random.enabled).toBe(false);
+		expect(state.patch.distortion.character).toBe('soft');
+		expect(state.patch.delay.enabled).toBe(false);
+		expect(state.patch.delay.mix).toBe(0);
+	});
+});
+
+describe('coerceAcidBassState: current V4 data (untrusted persisted state)', () => {
+	it('passes through a well-formed V4 state unchanged', () => {
 		const original = createDefaultAcidBassState(16, 4);
 		const withContent = {
 			...original,
@@ -228,6 +293,102 @@ describe('coerceAcidBassState: current V3 data (untrusted persisted state)', () 
 		expect(state.patch.lfo2.enabled).toBe(true);
 		expect(state.patch.lfo2.destination).toBe('pitch');
 		expect(state.patch.lfo2.depth).toBe(0);
+	});
+
+	it('round-trips mode and generation settings, clamping out-of-range values', () => {
+		const original = createDefaultAcidBassState(16, 4);
+		const state = coerceAcidBassState(
+			{
+				...original,
+				mode: 'generated',
+				generation: {
+					style: 'walking',
+					harmonyMode: 'voice-leading',
+					seed: -1,
+					density: 999,
+					chromaticism: -999,
+					movement: 40,
+					register: 'low',
+					playability: 60,
+					intelligence: 80
+				}
+			},
+			METER
+		);
+		expect(state.mode).toBe('generated');
+		expect(state.generation.style).toBe('walking');
+		expect(state.generation.harmonyMode).toBe('voice-leading');
+		expect(state.generation.seed).toBe(-1 >>> 0);
+		expect(state.generation.density).toBe(100);
+		expect(state.generation.chromaticism).toBe(0);
+		expect(state.generation.movement).toBe(40);
+		expect(state.generation.register).toBe('low');
+	});
+
+	it('falls back to a safe default mode/generation for malformed values rather than throwing', () => {
+		const original = createDefaultAcidBassState(16, 4);
+		const state = coerceAcidBassState(
+			{ ...original, mode: 'not-a-real-mode', generation: 'not-an-object' },
+			METER
+		);
+		expect(state.mode).toBe('manual');
+		expect(state.generation).toEqual(original.generation);
+	});
+
+	it('round-trips modulation/distortion/delay, clamping out-of-range values', () => {
+		const original = createDefaultAcidBassState(16, 4);
+		const state = coerceAcidBassState(
+			{
+				...original,
+				patch: {
+					...original.patch,
+					modulation: {
+						envelope: { enabled: true, destination: 'drive', depth: 999 },
+						accent: { enabled: true, destination: 'resonance', depth: -999 },
+						random: { enabled: false, destination: 'cutoff', depth: 10 }
+					},
+					distortion: { character: 'hard' },
+					delay: { enabled: true, division: '1/16T', feedback: 999, mix: -20 }
+				}
+			},
+			METER
+		);
+		expect(state.patch.modulation.envelope).toEqual({
+			enabled: true,
+			destination: 'drive',
+			depth: 100
+		});
+		expect(state.patch.modulation.accent).toEqual({
+			enabled: true,
+			destination: 'resonance',
+			depth: -100
+		});
+		expect(state.patch.modulation.random.enabled).toBe(false);
+		expect(state.patch.distortion.character).toBe('hard');
+		expect(state.patch.delay.enabled).toBe(true);
+		expect(state.patch.delay.division).toBe('1/16T');
+		expect(state.patch.delay.feedback).toBe(100);
+		expect(state.patch.delay.mix).toBe(0);
+	});
+
+	it('falls back to safe defaults for malformed modulation/distortion/delay rather than throwing', () => {
+		const original = createDefaultAcidBassState(16, 4);
+		const state = coerceAcidBassState(
+			{
+				...original,
+				patch: {
+					...original.patch,
+					modulation: 'not-an-object',
+					distortion: { character: 'not-a-real-character' },
+					delay: { enabled: 'yes', division: 'not-a-real-division' }
+				}
+			},
+			METER
+		);
+		expect(state.patch.modulation).toEqual(original.patch.modulation);
+		expect(state.patch.distortion.character).toBe('soft');
+		expect(state.patch.delay.enabled).toBe(false);
+		expect(state.patch.delay.division).toBe('1/8D');
 	});
 
 	it('falls back to a safe default for an invalid enum rather than accepting arbitrary strings', () => {
