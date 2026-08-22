@@ -316,6 +316,15 @@ export class ScalePracticeStore {
 	activeGeneratedBarIndex = $state<number | null>(null);
 	/** Which pattern role the 16-step grid is currently showing/editing -- set by clicking a bar in the arrangement strip, or the pattern-role picker directly. Session-only, like `activeChordIndex`. */
 	selectedPatternRole = $state<PatternRole>('A');
+	/**
+	 * Which of `GrooveEditor.svelte`'s own two step-grid views (Drum Steps /
+	 * Bass Steps) is showing -- lives here, not as that component's own local
+	 * state, because the Band panel's Editor tab (user-requested, 2026-08)
+	 * unmounts `GrooveEditor` whenever another Band tab is selected; a local
+	 * `$state` would silently reset to Drum Steps on every trip back to the
+	 * Editor tab. Session-only, same as `selectedPatternRole` above.
+	 */
+	selectedStepGridTab = $state<'drums' | 'bass'>('drums');
 	countIn = $state<CountIn>(this.persisted.countIn);
 	/** True for the count-in bar(s) after `start()`, before real playback (and `activeStepIndex`/`activeChordIndex` updates) begins. */
 	isCountingIn = $state(false);

@@ -40,7 +40,7 @@ test('critical path: root -> progression -> enable Bass -> Generated -> choose s
 	await expect(bassToggle).toHaveText('Bass On');
 
 	// Switch to Generated mode.
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 	await page.getByRole('button', { name: 'Generated', exact: true }).click();
 	await expect(page.getByRole('button', { name: 'Generated', exact: true })).toHaveAttribute(
@@ -69,8 +69,11 @@ test('critical path: root -> progression -> enable Bass -> Generated -> choose s
 	const afterVariation = await stepGrid.innerText();
 	expect(afterVariation).not.toBe(beforeVariation);
 
-	// Play.
+	// Play -- switch to the Bass tab first, since that's what makes the
+	// "Acid Bass"/"Playing" region visible now that the Editor tab (Bass
+	// Steps/Generated setup above) is mutually exclusive with it.
 	await page.getByRole('button', { name: 'Play' }).click();
+	await page.getByRole('button', { name: 'Bass', exact: true }).click();
 	const bassPanel = page.getByRole('region', { name: 'Acid Bass', exact: true });
 	await expect(bassPanel.getByText('Playing', { exact: true })).toBeVisible({ timeout: 3000 });
 	await page.waitForTimeout(1000);
@@ -78,7 +81,9 @@ test('critical path: root -> progression -> enable Bass -> Generated -> choose s
 	await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 
 	// Inspect a generated note -- step 1 (the downbeat) is always active
-	// (rhythm.ts's own anchor rule).
+	// (rhythm.ts's own anchor rule). Back to the Editor tab, where the step
+	// grid lives.
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 	await page
 		.getByRole('group', { name: /^Bar 1 steps$/ })
 		.getByRole('button', { name: /^Step 1,/ })

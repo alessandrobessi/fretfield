@@ -12,18 +12,18 @@ import { expect, test } from '@playwright/test';
  * live in the always-visible PracticeSessionBar; Feel/Amount/Intensity/
  * Count-in/pattern-readout live in the Band panel's Drums tab (the default
  * tab); the 16-step grid/arrangement editor/time signature/saved grooves
- * live behind "Edit Groove", collapsed by default (see AGENTS.md's compact
- * Practice UI).
+ * live in the Band panel's own Editor tab, not shown until it's selected
+ * (see AGENTS.md's compact Practice UI).
  */
 async function openScalePractice(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 }
 
-/** `openScalePractice` plus expanding the Groove Editor -- for tests exercising the step grid, arrangement editor, time signature, or saved grooves. */
+/** `openScalePractice` plus switching to the Band panel's Editor tab -- for tests exercising the step grid, arrangement editor, time signature, or saved grooves. */
 async function openGrooveEditor(page: import('@playwright/test').Page): Promise<void> {
 	await openScalePractice(page);
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 }
 
 test.describe('Drum Machine', () => {
@@ -70,6 +70,8 @@ test.describe('Drum Machine', () => {
 
 		await expect(page.getByLabel('Feel')).toHaveValue('shuffle');
 		await expect(page.getByLabel('Amount')).toHaveValue('65');
+
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await expect(page.getByLabel('Kick step 1', { exact: true })).toHaveAttribute(
 			'aria-pressed',
 			'true'
@@ -102,12 +104,13 @@ test.describe('Drum Machine', () => {
 		// disclosure itself is plain component state, though, so it collapses
 		// again and needs re-opening.
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
 
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('swing');
 		await expect(page.getByLabel('Amount')).toHaveValue('70');
 		await expect(page.getByLabel('Metronome BPM')).toHaveValue('110');
+
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await expect(page.getByLabel('Ride step 1', { exact: true })).toHaveAttribute(
 			'aria-pressed',
 			'true'
@@ -188,7 +191,7 @@ test.describe('Drum Machine: chord-progression backing', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 
 		await expect(page.getByLabel('Progression')).toHaveValue('major-ii-v-i');
 		await expect(page.getByLabel('Bars per chord')).toHaveValue('1');
@@ -217,7 +220,7 @@ test.describe('Drum Machine: chord-progression backing', () => {
 		// A fast tempo, one bar per chord, and no count-in keeps the wait for
 		// the first highlight change short and deterministic.
 		await page.getByLabel('Metronome BPM').fill('240');
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByLabel('Bars per chord').fill('1');
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
@@ -355,6 +358,8 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('shuffle');
 		await expect(page.getByLabel('Amount')).toHaveValue('65');
+
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		const expectedRoles = ['A', 'A', 'A', 'B', 'A', 'A', 'B', 'F', 'A', 'B', 'T', 'F'];
 		for (let bar = 0; bar < expectedRoles.length; bar++) {
 			await expect(page.getByLabel(`Bar ${bar + 1} pattern`)).toHaveValue(expectedRoles[bar]);
@@ -458,14 +463,20 @@ test.describe('Drum Machine: time signature', () => {
 		await page.getByLabel('Feel').selectOption('shuffle');
 		await expect(page.getByLabel('Amount')).toBeEnabled();
 
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByLabel('Time Signature').selectOption('12/8');
+
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Amount')).toBeDisabled();
 		await expect(page.getByLabel('Amount')).toHaveAttribute(
 			'title',
 			"12/8 already has its own compound feel -- swing doesn't apply"
 		);
 
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByLabel('Time Signature').selectOption('3/4');
+
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Amount')).toBeEnabled();
 	});
 
@@ -477,7 +488,7 @@ test.describe('Drum Machine: time signature', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 
 		await expect(page.getByLabel('Time Signature')).toHaveValue('5/4');
 		await expect(page.getByRole('group', { name: 'Kick steps' }).locator('.step')).toHaveCount(20);
@@ -508,10 +519,12 @@ test.describe('Drum Machine: time signature', () => {
 		page
 	}) => {
 		await openGrooveEditor(page);
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
 		await page.getByLabel('Metronome BPM').fill('240');
 		await page.keyboard.press('Tab');
 
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Play' }).click();
 		await expect(page.locator('.step.current').first()).toBeVisible({ timeout: 2000 });
 
@@ -542,7 +555,7 @@ test.describe('Drum Machine: time signature', () => {
 });
 
 test.describe('Drum Machine: compact Practice UI', () => {
-	test('the Groove Editor (arrangement/step grid/saved grooves) is collapsed by default, and toggles open/closed', async ({
+	test('the Groove Editor (arrangement/step grid/saved grooves) lives in its own Editor tab, not shown until selected', async ({
 		page
 	}) => {
 		await page.goto('/');
@@ -555,17 +568,18 @@ test.describe('Drum Machine: compact Practice UI', () => {
 		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 		await expect(page.getByLabel('Feel')).toBeVisible();
 		await expect(page.getByLabel('Intensity')).toBeVisible();
-		// Gated behind Edit Groove: the step grid, arrangement editor, time
+		// Gated behind the Editor tab: the step grid, arrangement editor, time
 		// signature, and saved grooves.
 		await expect(page.getByLabel('Time Signature')).not.toBeVisible();
 		await expect(page.getByLabel('Kick step 1', { exact: true })).not.toBeVisible();
 
-		const toggle = page.getByRole('button', { name: 'Edit Groove' });
-		await toggle.click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await expect(page.getByLabel('Time Signature')).toBeVisible();
 		await expect(page.getByLabel('Kick step 1', { exact: true })).toBeVisible();
 
-		await page.getByRole('button', { name: 'Hide Groove Editor' }).click();
+		// Switching back to Drums hides it again -- the Editor tab's content
+		// isn't a standing overlay, just this tab's own panel.
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Time Signature')).not.toBeVisible();
 	});
 

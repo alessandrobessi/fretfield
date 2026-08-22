@@ -14,7 +14,7 @@ async function openGeneratedLine(page: import('@playwright/test').Page): Promise
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 	await page.getByLabel('Scale Practice root').selectOption({ label: 'C' });
 	await page.getByLabel('Progression').selectOption({ label: 'Major ii–V–I' });
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 	await page.getByRole('button', { name: 'Generated', exact: true }).click();
 }
@@ -89,7 +89,7 @@ test.describe('Acid Bass Intelligence V4: LINE controls', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await expect(
 			page
@@ -105,7 +105,7 @@ test.describe('Acid Bass Intelligence V4: generation unavailable messaging', () 
 	}) => {
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await page.getByRole('button', { name: 'Generated', exact: true }).click();
 

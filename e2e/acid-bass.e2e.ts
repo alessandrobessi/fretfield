@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test';
 async function openBassStepsTab(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 }
 
@@ -171,11 +171,14 @@ test.describe('Acid Bass: step grid', () => {
 
 test.describe('Acid Bass: playback', () => {
 	test('playback advances through the Bass step grid while running', async ({ page }) => {
-		await openBassStepsTab(page);
+		await page.goto('/');
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: /^Bass (On|Off)$/ }).click();
 		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
 		await page.getByLabel('Metronome BPM').fill('240');
 		await page.keyboard.press('Tab');
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 
 		await page.getByRole('button', { name: 'Play' }).click();
 		await expect(page.locator('.step.current')).toBeVisible({ timeout: 3000 });
@@ -203,6 +206,7 @@ test.describe('Acid Bass: persistence', () => {
 			await drive.press('PageUp');
 		}
 
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await bassStep(page, 3).click();
 		await page.getByLabel('Active', { exact: true }).check();
@@ -225,7 +229,7 @@ test.describe('Acid Bass: persistence', () => {
 			'70'
 		);
 
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 		await expect(bassStep(page, 3)).toHaveAttribute('aria-pressed', 'true');
 	});

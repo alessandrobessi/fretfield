@@ -40,11 +40,11 @@ test.describe('Rebrand: reduced-motion playhead', () => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
 		await page.getByLabel('Count-in').selectOption({ label: 'Off' });
 		await page.getByLabel('Metronome BPM').fill('240');
 		await page.keyboard.press('Tab');
 
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Play' }).click();
 		const current = page.locator('.step.current').first();
 		await expect(current).toBeVisible({ timeout: 3000 });

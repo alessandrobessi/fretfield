@@ -34,8 +34,6 @@
 	import { savedGrooves } from '$lib/stores/saved-grooves.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
-	type StepGridTab = 'drums' | 'bass';
-	let stepGridTab = $state<StepGridTab>('drums');
 	/** Transient UI focus only -- which Bass step the step editor below is showing, not part of saved groove data. */
 	let selectedAcidStepIndex = $state<number | null>(null);
 
@@ -313,7 +311,7 @@
 	</div>
 {/snippet}
 
-<HardwarePanel class="groove-editor">
+<HardwarePanel title="Groove Editor" class="groove-editor">
 	<div class="controls-row">
 		<label class="field">
 			<span class="ff-label field-label">Time Signature</span>
@@ -396,22 +394,22 @@
 		<button
 			type="button"
 			class="step-grid-tab"
-			class:active={stepGridTab === 'drums'}
-			onclick={() => (stepGridTab = 'drums')}
+			class:active={scalePractice.selectedStepGridTab === 'drums'}
+			onclick={() => (scalePractice.selectedStepGridTab = 'drums')}
 		>
 			Drum Steps
 		</button>
 		<button
 			type="button"
 			class="step-grid-tab"
-			class:active={stepGridTab === 'bass'}
-			onclick={() => (stepGridTab = 'bass')}
+			class:active={scalePractice.selectedStepGridTab === 'bass'}
+			onclick={() => (scalePractice.selectedStepGridTab = 'bass')}
 		>
 			Bass Steps
 		</button>
 	</div>
 
-	{#if stepGridTab === 'drums'}
+	{#if scalePractice.selectedStepGridTab === 'drums'}
 		<div class="step-grid">
 			{#each DRUM_VOICES as voice (voice)}
 				<div class="voice-row" role="group" aria-label={`${VOICE_LABELS[voice]} steps`}>

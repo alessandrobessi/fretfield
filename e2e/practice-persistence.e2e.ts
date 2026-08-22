@@ -14,7 +14,7 @@ test.describe('Local Practice Persistence: Scale Practice resume', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		// Progression/Bars-per-chord live behind the Groove Editor disclosure,
 		// collapsed by default (see AGENTS.md's compact Practice UI).
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByLabel('Scale Practice root').selectOption({ label: 'D' });
 		// Chord 1 of I–IV–V is the tonic itself (D), so its default suggested
 		// scale (Major Pentatonic) is what's expected to still be showing after
@@ -28,7 +28,7 @@ test.describe('Local Practice Persistence: Scale Practice resume', () => {
 		await page.getByRole('tab', { name: 'Explore', exact: true }).click();
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Groove' }).click();
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 
 		// Root/zone are verified through the fretboard itself (the established
 		// convention in scale-practice.e2e.ts) rather than reading the root

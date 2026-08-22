@@ -17,7 +17,7 @@ async function openBassTab(page: import('@playwright/test').Page): Promise<void>
 async function openBassStepsTab(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 }
 

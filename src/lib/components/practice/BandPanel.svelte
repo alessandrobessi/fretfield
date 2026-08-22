@@ -2,7 +2,6 @@
 	import { TIME_SIGNATURES } from '$lib/groove/time-signature';
 	import type { CountIn } from '$lib/groove/transport';
 	import type { GrooveFeel } from '$lib/groove/types';
-	import HardwareButton from '$lib/components/hardware/HardwareButton.svelte';
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Led from '$lib/components/hardware/Led.svelte';
 	import AcidBassControls from '$lib/components/practice/AcidBassControls.svelte';
@@ -17,9 +16,8 @@
 	} from '$lib/music/scales';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
-	type BandTab = 'drums' | 'harmony' | 'bass';
+	type BandTab = 'drums' | 'harmony' | 'bass' | 'editor';
 	let activeTab = $state<BandTab>('drums');
-	let editorExpanded = $state(false);
 
 	/** Whichever pattern is currently sounding (while playing) or was last selected for editing (while stopped) -- the Drums tab's readout. */
 	const activePatternRole = $derived(
@@ -83,6 +81,14 @@
 			onclick={() => (activeTab = 'bass')}
 		>
 			Bass
+		</button>
+		<button
+			type="button"
+			class="band-tab"
+			class:active={activeTab === 'editor'}
+			onclick={() => (activeTab = 'editor')}
+		>
+			Editor
 		</button>
 	</div>
 
@@ -152,13 +158,6 @@
 							>· Bar {barPositionLabel}</span
 						>{/if}</span
 				>
-				<HardwareButton
-					variant="secondary"
-					ariaExpanded={editorExpanded}
-					onclick={() => (editorExpanded = !editorExpanded)}
-				>
-					{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
-				</HardwareButton>
 			</div>
 		</HardwarePanel>
 	{:else if activeTab === 'bass'}
@@ -176,18 +175,11 @@
 								>· Bar {barPositionLabel}</span
 							>{/if}</span
 					>
-					<HardwareButton
-						variant="secondary"
-						ariaExpanded={editorExpanded}
-						onclick={() => (editorExpanded = !editorExpanded)}
-					>
-						{editorExpanded ? 'Hide Groove Editor' : 'Edit Groove'}
-					</HardwareButton>
 				</div>
 				<AcidBassControls />
 			</div>
 		</HardwarePanel>
-	{:else}
+	{:else if activeTab === 'harmony'}
 		<ol class="chord-strip" aria-label="Chord backing playback position" aria-live="polite">
 			{#if scalePractice.resolvedProgression.length === 0}
 				<li class="empty">Choose a progression above to see the current form.</li>
@@ -241,9 +233,7 @@
 				</li>
 			{/each}
 		</ol>
-	{/if}
-
-	{#if editorExpanded}
+	{:else}
 		<GrooveEditor />
 	{/if}
 </div>

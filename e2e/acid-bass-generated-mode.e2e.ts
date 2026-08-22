@@ -13,7 +13,7 @@ import { expect, test } from '@playwright/test';
 async function openBassStepsTab(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 }
 
@@ -25,10 +25,12 @@ async function selectRootAndProgression(page: import('@playwright/test').Page): 
 /**
  * Root/progression + a fast, count-in-free transport, then opens Bass Steps
  * and switches to Generated mode and turns Bass on -- the common setup
- * every playback test below needs before pressing Play. Also switches the
- * Band panel to its own "Bass" tab, independent of Groove Editor's
- * open/closed state -- that's what makes the "Acid Bass" region (and its
- * "Playing" indicator) visible at all, so playback tests can observe it.
+ * every playback test below needs before pressing Play. Ends on the Band
+ * panel's own "Bass" tab (not the Editor tab the Bass Steps setup itself
+ * used) -- that's what makes the "Acid Bass" region (and its "Playing"
+ * indicator) visible at all, so playback tests can observe it. The Editor
+ * and Bass tabs are mutually exclusive now that the Groove Editor lives in
+ * its own tab, so a test needing both switches between them explicitly.
  */
 async function setUpGeneratedModeReadyToPlay(page: import('@playwright/test').Page): Promise<void> {
 	await page.goto('/');
@@ -38,10 +40,10 @@ async function setUpGeneratedModeReadyToPlay(page: import('@playwright/test').Pa
 	await page.getByLabel('Metronome BPM').fill('240');
 	await page.keyboard.press('Tab');
 
-	await page.getByRole('button', { name: 'Bass', exact: true }).click();
-	await page.getByRole('button', { name: 'Edit Groove' }).click();
+	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 	await page.getByRole('button', { name: 'Bass Steps', exact: true }).click();
 	await page.getByRole('button', { name: 'Generated', exact: true }).click();
+	await page.getByRole('button', { name: 'Bass', exact: true }).click();
 	const bassToggle = page.getByRole('button', { name: /^Bass (On|Off)$/ });
 	if ((await bassToggle.textContent())?.includes('Off')) {
 		await bassToggle.click();
@@ -106,11 +108,18 @@ test.describe('Acid Bass Intelligence V4: Generated mode playback', () => {
 		const bassPanel = page.getByRole('region', { name: 'Acid Bass', exact: true });
 		await expect(bassPanel.getByText('Playing', { exact: true })).toBeVisible({ timeout: 3000 });
 
+		// Manual/Generated live in the Groove Editor's own Bass Steps view, its
+		// own tab now -- switch there to flip the mode, then back to Bass to
+		// keep observing the Playing indicator.
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Manual', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 		await page.waitForTimeout(500);
 		await expect(bassPanel.getByText('Playing', { exact: true })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByRole('button', { name: 'Generated', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 		await page.waitForTimeout(500);
 		await expect(bassPanel.getByText('Playing', { exact: true })).toBeVisible();
 
@@ -125,10 +134,12 @@ test.describe('Acid Bass Intelligence V4: Generated mode playback', () => {
 		const bassPanel = page.getByRole('region', { name: 'Acid Bass', exact: true });
 		await expect(bassPanel.getByText('Playing', { exact: true })).toBeVisible({ timeout: 3000 });
 
-		// Groove Editor is already open (from setup) -- Time Signature lives
-		// in its controls row, visible regardless of which step-grid tab is
-		// active.
+		// Time Signature lives in the Groove Editor's own controls row, its
+		// own tab now -- switch there to change it mid-playback, then back to
+		// Bass to keep observing the Playing indicator.
+		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByLabel('Time Signature').selectOption('3/4');
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
 
 		await page.waitForTimeout(500);
 		await expect(bassPanel.getByText('Playing', { exact: true })).toBeVisible();
