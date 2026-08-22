@@ -82,7 +82,10 @@ import {
 	type StepVelocity
 } from '$lib/groove/types';
 import { midiToFrequency } from '$lib/audio/note-mapping';
-import { STANDARD_4_STRING_ABSOLUTE_TUNING } from '$lib/music/absolute-pitch';
+import {
+	findFretPositionsForMidi,
+	STANDARD_4_STRING_ABSOLUTE_TUNING
+} from '$lib/music/absolute-pitch';
 import { generateBassline } from '$lib/music/bassline/generate';
 import type {
 	BassHarmonyMode,
@@ -152,8 +155,16 @@ const VOICE_TRIGGERS: Record<DrumVoice, (ctx: AudioContext, time: number, gain?:
 
 export const STORAGE_KEY = 'fretfield-scale-practice';
 
-/** One generated note along the CURRENT/NEXT/UPCOMING path (Acid Bass Intelligence V4 §29) -- the exact MIDI pitch plus its physical realization, already resolved by `playability.ts` (M8). */
-export interface GeneratedTargetNote {
+/**
+ * One note along the fretboard's CURRENT/NEXT/UPCOMING bass-target path --
+ * originally Acid Bass Intelligence V4 §29's generated-only marker (the
+ * exact MIDI pitch plus its physical realization, resolved by
+ * `playability.ts`, M8); reused as-is for `manualTargetPath`'s own
+ * manually-authored equivalent (user-requested, 2026-08, not part of the
+ * V4 spec) since the shape -- a bar/step index, an exact MIDI pitch, and a
+ * physical realization -- is identical either way.
+ */
+export interface BassTargetNote {
 	barIndex: number;
 	stepIndex: number;
 	pitchClass: PitchClass;
@@ -162,10 +173,26 @@ export interface GeneratedTargetNote {
 	alternativePositions: FretPosition[];
 }
 
-export interface GeneratedTargetPath {
-	current: GeneratedTargetNote | null;
-	next: GeneratedTargetNote | null;
-	upcoming: GeneratedTargetNote | null;
+export interface BassTargetPath {
+	current: BassTargetNote | null;
+	next: BassTargetNote | null;
+	upcoming: BassTargetNote | null;
+}
+
+/**
+ * Manual-mode steps have no explicit register/zone generation setting to
+ * weigh (unlike Generated mode's own `playability.ts`/`realizeSequence`), so
+ * `manualTargetPath` picks a preferred physical position with a simple,
+ * deterministic rule instead: prefer a position inside the practice zone,
+ * then the lowest fret, then the lowest string -- a sensible default that
+ * never contradicts where the player is already looking.
+ */
+function preferPositionInZone(positions: FretPosition[], zone: PracticeZone): FretPosition {
+	const inZone = positions.filter((p) => p.fret >= zone.minFret && p.fret <= zone.maxFret);
+	const pool = inZone.length > 0 ? inZone : positions;
+	return pool.reduce((best, p) =>
+		p.fret < best.fret || (p.fret === best.fret && p.stringIndex < best.stringIndex) ? p : best
+	);
 }
 
 interface PersistedScalePracticeConfig {
@@ -402,13 +429,13 @@ export class ScalePracticeStore {
 	 * computed locally" pattern the existing scale/played-note layers use.
 	 * `null` in manual mode, or whenever there's no plan.
 	 */
-	readonly generatedTargetPath = $derived.by<GeneratedTargetPath>(() => {
-		const EMPTY: GeneratedTargetPath = { current: null, next: null, upcoming: null };
+	readonly generatedTargetPath = $derived.by<BassTargetPath>(() => {
+		const EMPTY: BassTargetPath = { current: null, next: null, upcoming: null };
 		if (this.groove.acidBass.mode !== 'generated') return EMPTY;
 		const plan = this.generatedBasslinePlan;
 		if (plan === null || plan.bars.length === 0) return EMPTY;
 
-		const flat: GeneratedTargetNote[] = [];
+		const flat: BassTargetNote[] = [];
 		for (const bar of plan.bars) {
 			for (const step of bar.steps) {
 				if (!step.active) continue;
@@ -459,6 +486,97 @@ export class ScalePracticeStore {
 			upcoming: flat[(currentIndex + 2) % flat.length]
 		};
 	});
+
+	/**
+	 * Manual-mode equivalent of `generatedTargetPath` above (user-requested,
+	 * 2026-08, not part of the V4 spec -- §29 only ever specified this marker
+	 * for Generated mode, but a manually-authored bassline is just as real an
+	 * answer to "where does the bassline go next" as a generated one).
+	 *
+	 * Walks the *whole* arrangement (not just `currentBarAcidPattern`, which
+	 * only covers the bar in progress) resolving each bar's own pattern/chord
+	 * root exactly like `handleBarStart` does, so the flattened list mirrors
+	 * one full trip through the arrangement's own repeating cycle -- the same
+	 * "one repeating cycle, wrap at the end" shape `generatedTargetPath` uses
+	 * for `generatedBasslinePlan.bars`. `EMPTY` outside manual mode, or
+	 * whenever no bar in the arrangement has both an active step and a
+	 * resolvable chord root (no root chosen yet).
+	 */
+	readonly manualTargetPath = $derived.by<BassTargetPath>(() => {
+		const EMPTY: BassTargetPath = { current: null, next: null, upcoming: null };
+		if (this.groove.acidBass.mode !== 'manual') return EMPTY;
+
+		const flat: BassTargetNote[] = [];
+		for (let barIndex = 0; barIndex < this.groove.arrangement.length; barIndex++) {
+			const chordRoot = this.resolveBarChordRoot(barIndex);
+			if (chordRoot === null) continue;
+			const pattern = this.activeAcidPatternForBar(barIndex);
+			for (let stepIndex = 0; stepIndex < pattern.length; stepIndex++) {
+				const step = pattern[stepIndex];
+				if (!step.active) continue;
+				const midi = resolveAcidStepMidi(chordRoot, step);
+				const positions = findFretPositionsForMidi(
+					STANDARD_4_STRING_ABSOLUTE_TUNING,
+					this.fretCount,
+					midi
+				);
+				if (positions.length === 0) continue;
+				const preferred = preferPositionInZone(positions, this.zone);
+				flat.push({
+					barIndex,
+					stepIndex,
+					pitchClass: preferred.pitchClass,
+					midi,
+					preferredPosition: preferred,
+					alternativePositions: positions.filter((p) => p !== preferred)
+				});
+			}
+		}
+		if (flat.length === 0) return EMPTY;
+
+		// Same "actually-sounding note while running, otherwise a preview of
+		// the cycle's own first note" rule as `generatedTargetPath`, keyed off
+		// `activeBarIndex` (wrapped to the arrangement) instead of
+		// `activeGeneratedBarIndex` (wrapped to the generated plan).
+		let currentIndex = 0;
+		if (this.running && this.activeBarIndex !== null && this.activeStepIndex !== null) {
+			const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
+			const globalStep = (n: { barIndex: number; stepIndex: number }) =>
+				n.barIndex * stepsPerBar + n.stepIndex;
+			const referenceStep = globalStep({
+				barIndex: this.activeBarIndex,
+				stepIndex: this.activeStepIndex
+			});
+			let bestIndex = -1;
+			let bestStep = -Infinity;
+			for (let i = 0; i < flat.length; i++) {
+				const s = globalStep(flat[i]);
+				if (s <= referenceStep && s > bestStep) {
+					bestStep = s;
+					bestIndex = i;
+				}
+			}
+			currentIndex = bestIndex === -1 ? flat.length - 1 : bestIndex;
+		}
+
+		return {
+			current: flat[currentIndex],
+			next: flat[(currentIndex + 1) % flat.length],
+			upcoming: flat[(currentIndex + 2) % flat.length]
+		};
+	});
+
+	/**
+	 * The fretboard's own single CURRENT/NEXT/UPCOMING marker layer
+	 * (`FretCell.svelte` reads only this, never `generatedTargetPath`/
+	 * `manualTargetPath` directly) -- whichever of the two matches the
+	 * current mode. The two are mutually exclusive by construction (each is
+	 * `EMPTY` outside its own mode), so this is just "pick the active one,"
+	 * not a merge.
+	 */
+	readonly bassTargetPath = $derived.by<BassTargetPath>(() =>
+		this.groove.acidBass.mode === 'generated' ? this.generatedTargetPath : this.manualTargetPath
+	);
 
 	/** Index-aligned with `groove.arrangement` -- the chord symbol sounding on each bar, `null` for "no chord backing on this bar," `undefined` entirely when there's no progression selected at all. Shared by the always-visible arrangement strip and the Groove Editor's own editable one, so they can never disagree. */
 	readonly barChordLabels = $derived.by<(string | null)[] | undefined>(() => {

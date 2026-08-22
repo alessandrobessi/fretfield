@@ -8,7 +8,7 @@ import { noteNameToPitchClass } from '$lib/music/pitch';
 
 import { liveInput } from '../live-input.svelte';
 import { ScalePracticeStore } from '../scale-practice.svelte';
-import type { GeneratedTargetNote } from '../scale-practice.svelte';
+import type { BassTargetNote } from '../scale-practice.svelte';
 
 /**
  * Acid Bass Intelligence V4 M12: `ScalePracticeStore.generatedTargetPath`,
@@ -52,7 +52,7 @@ describe('generatedTargetPath: exact-MIDI position mapping', () => {
 
 		for (const target of [path.current, path.next, path.upcoming]) {
 			expect(target).not.toBeNull();
-			const note = target as GeneratedTargetNote;
+			const note = target as BassTargetNote;
 			expect(note.preferredPosition).not.toBeNull();
 			const real = findFretPositionsForMidi(STANDARD_4_STRING_ABSOLUTE_TUNING, 20, note.midi);
 			expect(real).toContainEqual(note.preferredPosition);
@@ -74,9 +74,9 @@ describe('generatedTargetPath: current/next state', () => {
 			n.barIndex * stepsPerBar + n.stepIndex;
 
 		const { current, next, upcoming } = store.generatedTargetPath;
-		const c = current as GeneratedTargetNote;
-		const n = next as GeneratedTargetNote;
-		const u = upcoming as GeneratedTargetNote;
+		const c = current as BassTargetNote;
+		const n = next as BassTargetNote;
+		const u = upcoming as BassTargetNote;
 		expect(globalStep(n)).not.toBe(globalStep(c));
 		expect(globalStep(u)).not.toBe(globalStep(n));
 	});

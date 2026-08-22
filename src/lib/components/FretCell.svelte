@@ -102,33 +102,37 @@
 				: intervalCompoundLabel(scalePracticeInterval)
 	);
 
-	// Acid Bass Intelligence V4 §29: the generated-target path layer. Never
-	// confused with the scale field or Live Input above -- a separate marker
-	// vocabulary (ivory outline, not a fill or the scale's yellow tint),
-	// composing with them rather than replacing them. `generatedTargetPath`
-	// itself already returns every-field-null outside generated mode, so no
+	// Acid Bass Intelligence V4 §29's own generated-only marker, generalized
+	// (user-requested, 2026-08) to cover manually-authored steps too -- the
+	// same CURRENT/NEXT/UPCOMING marker vocabulary (ivory outline, not a fill
+	// or the scale's yellow tint) now shows in either Acid Bass mode, driven
+	// by `scalePractice.bassTargetPath` (whichever of `generatedTargetPath`/
+	// `manualTargetPath` matches the current mode). That field itself already
+	// returns every-field-null outside Scale Practice's own bass modes, so no
 	// extra gating is needed beyond `isScalePracticeMode` (Chord Field never
 	// shows it, matching every other Scale Practice layer's own convention).
-	const generatedPath = $derived(
+	const bassTargetPath = $derived(
 		isScalePracticeMode
-			? scalePractice.generatedTargetPath
+			? scalePractice.bassTargetPath
 			: { current: null, next: null, upcoming: null }
 	);
 	const matchesPreferredPosition = (pos: FretPosition | null | undefined): boolean =>
 		pos !== null && pos !== undefined && isSamePosition(pos);
-	const isGeneratedCurrent = $derived(
-		matchesPreferredPosition(generatedPath.current?.preferredPosition)
+	const isBassTargetCurrent = $derived(
+		matchesPreferredPosition(bassTargetPath.current?.preferredPosition)
 	);
-	const isGeneratedNext = $derived(matchesPreferredPosition(generatedPath.next?.preferredPosition));
-	const isGeneratedUpcoming = $derived(
-		matchesPreferredPosition(generatedPath.upcoming?.preferredPosition)
+	const isBassTargetNext = $derived(
+		matchesPreferredPosition(bassTargetPath.next?.preferredPosition)
+	);
+	const isBassTargetUpcoming = $derived(
+		matchesPreferredPosition(bassTargetPath.upcoming?.preferredPosition)
 	);
 	// Alternative exact-MIDI positions for the CURRENT target only -- showing
 	// them for next/upcoming too would clutter the board well past "a compact
 	// bar/step representation" (§28)'s own spirit.
-	const isGeneratedCurrentAlternative = $derived(
-		!isGeneratedCurrent &&
-			(generatedPath.current?.alternativePositions ?? []).some((alt) => isSamePosition(alt))
+	const isBassTargetCurrentAlternative = $derived(
+		!isBassTargetCurrent &&
+			(bassTargetPath.current?.alternativePositions ?? []).some((alt) => isSamePosition(alt))
 	);
 
 	// Scale Practice still honors the shared Intervals/Notes/Both toggle (the
@@ -163,11 +167,11 @@
 		else if (position.isLivePlayed) parts.push('possible played position');
 		if (isScalePracticeNote) parts.push('in the practiced scale');
 		if (isScalePracticeJustPlayed) parts.push('just played');
-		if (isGeneratedCurrent) parts.push('current generated target');
-		else if (isGeneratedNext) parts.push('next generated target');
-		else if (isGeneratedUpcoming) parts.push('upcoming generated target');
-		if (isGeneratedCurrentAlternative) {
-			parts.push('alternative position for the current generated target');
+		if (isBassTargetCurrent) parts.push('current bass target');
+		else if (isBassTargetNext) parts.push('next bass target');
+		else if (isBassTargetUpcoming) parts.push('upcoming bass target');
+		if (isBassTargetCurrentAlternative) {
+			parts.push('alternative position for the current bass target');
 		}
 		return parts.join(', ');
 	});
@@ -185,10 +189,10 @@
 	class:scale-practice-root={isScalePracticeRoot}
 	class:scale-practice-just-played={isScalePracticeJustPlayed}
 	class:scale-practice-zone-dimmed={isScalePracticeZoneDimmed}
-	class:generated-current={isGeneratedCurrent}
-	class:generated-next={isGeneratedNext}
-	class:generated-upcoming={isGeneratedUpcoming}
-	class:generated-alternative={isGeneratedCurrentAlternative}
+	class:bass-target-current={isBassTargetCurrent}
+	class:bass-target-next={isBassTargetNext}
+	class:bass-target-upcoming={isBassTargetUpcoming}
+	class:bass-target-alternative={isBassTargetCurrentAlternative}
 	data-testid={`fret-${stringName}-${position.fret}`}
 	aria-label={ariaLabel}
 	aria-pressed={position.isSelectedRootPosition}
@@ -449,7 +453,8 @@
 	}
 
 	/*
-	 * Generated-target path (Acid Bass Intelligence V4 §29): an independent
+	 * Bass-target path (Acid Bass Intelligence V4 §29, generalized 2026-08 to
+	 * cover Manual mode too, per `bassTargetPath` above): an independent
 	 * ::before layer (Live Input already owns ::after; selected-root/
 	 * scale-practice-just-played already own box-shadow), so all three can
 	 * compose on the same cell at once, per spec. Deliberately ivory, not
@@ -465,7 +470,7 @@
 	 * the later, stronger rule wins the cascade instead of the weakest one
 	 * silently overriding it.
 	 */
-	.fret-cell.generated-upcoming::before {
+	.fret-cell.bass-target-upcoming::before {
 		content: '';
 		position: absolute;
 		inset: 1px;
@@ -475,7 +480,7 @@
 		pointer-events: none;
 	}
 
-	.fret-cell.generated-next::before {
+	.fret-cell.bass-target-next::before {
 		content: '';
 		position: absolute;
 		inset: 1px;
@@ -485,7 +490,7 @@
 		pointer-events: none;
 	}
 
-	.fret-cell.generated-current::before {
+	.fret-cell.bass-target-current::before {
 		content: '';
 		position: absolute;
 		inset: 1px;
@@ -493,14 +498,14 @@
 		border: 3px solid var(--ff-ivory, #f1e6c5);
 		/* Explicit, not left to inherit -- `opacity` is a separate property
 		   from `border`, so without this a cell that also matches
-		   `.generated-next`/`.generated-upcoming` would keep their dimmer
+		   `.bass-target-next`/`.bass-target-upcoming` would keep their dimmer
 		   opacity even once this rule wins the border. */
 		opacity: 1;
 		pointer-events: none;
 	}
 
 	/* Alternative exact-MIDI positions for the current target -- a subtle secondary marker (§29), never as strong as the preferred position's own ring above. */
-	.fret-cell.generated-alternative {
+	.fret-cell.bass-target-alternative {
 		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ff-ivory, #f1e6c5) 45%, transparent);
 	}
 
