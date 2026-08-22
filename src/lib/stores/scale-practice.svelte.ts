@@ -29,6 +29,7 @@ import type {
 	AcidBassPattern,
 	AcidBassPatch,
 	AcidBassStep,
+	AcidDistortionCharacter,
 	AcidFilterModel,
 	AcidGlideCurve,
 	AcidLfoDestination,
@@ -978,6 +979,14 @@ export class ScalePracticeStore {
 				...patch.modulation,
 				[source]: { ...patch.modulation[source], depth: clampBipolarPercent(depth) }
 			}
+		}));
+	}
+
+	/** Shared transfer-curve character for both pre-filter Saturation and post-VCA Drive (M16) -- one shared control, not two independent pickers, per `AcidDistortionPatch`'s own doc comment. */
+	setAcidBassDistortionCharacter(character: AcidDistortionCharacter): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			distortion: { ...patch.distortion, character }
 		}));
 	}
 

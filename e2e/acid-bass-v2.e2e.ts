@@ -196,6 +196,38 @@ test.describe('Acid Bass Intelligence V4: auxiliary modulation (Envelope/Accent/
 	});
 });
 
+test.describe('Acid Bass Intelligence V4: distortion characters (M16)', () => {
+	test('the Character picker in OUTPUT selects Soft/Diode/Hard, and survives a reload', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const outputPanel = page.getByRole('region', { name: 'OUTPUT' });
+		const soft = outputPanel.getByRole('button', { name: 'Soft', exact: true });
+		const diode = outputPanel.getByRole('button', { name: 'Diode', exact: true });
+		const hard = outputPanel.getByRole('button', { name: 'Hard', exact: true });
+
+		// Soft is the default (every existing/migrated patch must sound the same).
+		await expect(soft).toHaveAttribute('aria-pressed', 'true');
+		await expect(diode).toHaveAttribute('aria-pressed', 'false');
+
+		await diode.click();
+		await expect(diode).toHaveAttribute('aria-pressed', 'true');
+		await expect(soft).toHaveAttribute('aria-pressed', 'false');
+
+		await hard.click();
+		await expect(hard).toHaveAttribute('aria-pressed', 'true');
+		await expect(diode).toHaveAttribute('aria-pressed', 'false');
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
+		await expect(
+			page.getByRole('region', { name: 'OUTPUT' }).getByRole('button', { name: 'Hard', exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
+	});
+});
+
 test.describe('Acid Bass V2: Osc 2', () => {
 	test('Osc 2 On/Off toggles (lighting its panel LED), its Wave picker selects, and its knobs update state', async ({
 		page

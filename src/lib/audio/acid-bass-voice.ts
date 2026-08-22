@@ -95,8 +95,16 @@
  * caller -- see `AcidBassTrigger`'s own doc comment) for the trigger's gate
  * duration. All three are skipped on a legato (slide-destination) trigger,
  * matching `retriggerFilterEnvelope`'s own "no fresh attack on legato" rule.
+ *
+ * Distortion characters (M16): `distortion.ts`'s `getDistortionCurve` now
+ * supplies both `WaveShaperNode`s' (Saturation, Drive) `.curve`, selected by
+ * `patch.distortion.character` and swapped in `setPatch()` rather than
+ * rebuilt -- `getDistortionCurve` itself caches one `Float32Array` per
+ * character, so a patch edit only ever reassigns which already-built curve
+ * each shaper points at.
  */
 
+import { getDistortionCurve } from '$lib/acid-bass/distortion';
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
 import {
 	accentAmountToMultipliers,
@@ -226,19 +234,6 @@ function biquadResonanceModel(model: AcidFilterModel): 'legacy' | 'svf12' {
 	return model === 'legacy' ? 'legacy' : 'svf12';
 }
 
-/** A fixed tanh-like soft-clip curve -- the *pregain* before this node (driven by Drive) is what actually varies per patch, not the curve itself (spec: "avoid rebuilding distortion curves on every step"). At pregain 1 (Drive 0), input samples stay small enough that tanh(x) ≈ x -- effectively clean; at higher pregain the same fixed curve saturates harder. */
-function createDriveCurve(): Float32Array<ArrayBuffer> {
-	const samples = 256;
-	const curve = new Float32Array(samples);
-	for (let i = 0; i < samples; i++) {
-		const x = (i / (samples - 1)) * 2 - 1;
-		curve[i] = Math.tanh(x * 1.5);
-	}
-	return curve;
-}
-
-const DRIVE_CURVE = createDriveCurve();
-
 /** `AcidWave` values that map directly onto a native `OscillatorType`, i.e. everything but Pulse (which has no native oscillator type and goes through `createPulseWave` instead). "Saw" is the one name that doesn't match its native type string verbatim. */
 function nativeOscType(wave: Exclude<AcidWave, 'pulse'>): OscillatorType {
 	return wave === 'saw' ? 'sawtooth' : wave;
@@ -367,7 +362,7 @@ export function createAcidBassVoice(
 		ctx.currentTime
 	);
 	const saturationShaper = ctx.createWaveShaper();
-	saturationShaper.curve = DRIVE_CURVE;
+	saturationShaper.curve = getDistortionCurve(currentPatch.distortion.character);
 	saturationShaper.oversample = '2x';
 
 	const filter = ctx.createBiquadFilter();
@@ -399,7 +394,7 @@ export function createAcidBassVoice(
 	const driveInput = ctx.createGain();
 	driveInput.gain.setValueAtTime(driveToPregain(currentPatch.output.drive), ctx.currentTime);
 	const shaper = ctx.createWaveShaper();
-	shaper.curve = DRIVE_CURVE;
+	shaper.curve = getDistortionCurve(currentPatch.distortion.character);
 	shaper.oversample = '2x';
 	const outputTrim = ctx.createGain();
 	outputTrim.gain.setValueAtTime(DRIVE_OUTPUT_TRIM, ctx.currentTime);
@@ -877,6 +872,12 @@ export function createAcidBassVoice(
 			// for Pulse, a regenerated static PeriodicWave), never a live-PWM
 			// worklet path (that stays Main-only, see the file header).
 			applyOsc2Wave(osc2Osc, ctx, patch.oscillator.osc2Wave, patch.oscillator.osc2PulseWidth);
+
+			// Distortion character (M16): both shapers just point at whichever
+			// already-built, cached curve the patch now names -- never a rebuild.
+			const distortionCurve = getDistortionCurve(patch.distortion.character);
+			saturationShaper.curve = distortionCurve;
+			shaper.curve = distortionCurve;
 
 			// Resonance/Drive/Volume/Saturation aren't enveloped per-note, so they
 			// can apply to the currently-sounding note immediately -- Cutoff/

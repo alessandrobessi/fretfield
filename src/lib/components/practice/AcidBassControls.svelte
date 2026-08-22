@@ -3,6 +3,7 @@
 	import { lfoRateHzClamp, lfoSyncFrequencyHz } from '$lib/acid-bass/resolve';
 	import type {
 		AcidAuxModulationPatch,
+		AcidDistortionCharacter,
 		AcidFilterModel,
 		AcidGlideCurve,
 		AcidLfoDestination,
@@ -46,6 +47,13 @@
 	const GLIDE_CURVES: { id: AcidGlideCurve; label: string }[] = [
 		{ id: 'linear', label: 'Linear' },
 		{ id: 'exponential', label: 'Exponential' }
+	];
+	// Shared by both Saturation (VCF) and Drive (OUTPUT) -- one character, not
+	// two independent pickers, see `AcidDistortionPatch`'s own doc comment.
+	const DISTORTION_CHARACTERS: { id: AcidDistortionCharacter; label: string }[] = [
+		{ id: 'soft', label: 'Soft' },
+		{ id: 'diode', label: 'Diode' },
+		{ id: 'hard', label: 'Hard' }
 	];
 	const LFO_SHAPES: { id: AcidLfoShape; label: string }[] = [
 		{ id: 'sine', label: 'Sine' },
@@ -416,6 +424,14 @@
 		</HardwarePanel>
 
 		<HardwarePanel title="OUTPUT" tone="carbon">
+			<div class="row">
+				{@render pickerField(
+					'Character',
+					DISTORTION_CHARACTERS,
+					patch.distortion.character,
+					(id) => scalePractice.setAcidBassDistortionCharacter(id as AcidDistortionCharacter)
+				)}
+			</div>
 			<div class="row">
 				{@render knobField('Drive', patch.output.drive, (v) => scalePractice.setAcidBassDrive(v))}
 				{@render knobField('Volume', patch.output.volume, (v) =>
