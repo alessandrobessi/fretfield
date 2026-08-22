@@ -149,6 +149,22 @@ const VOICE_TRIGGERS: Record<DrumVoice, (ctx: AudioContext, time: number, gain?:
 
 export const STORAGE_KEY = 'fretfield-scale-practice';
 
+/** One generated note along the CURRENT/NEXT/UPCOMING path (Acid Bass Intelligence V4 §29) -- the exact MIDI pitch plus its physical realization, already resolved by `playability.ts` (M8). */
+export interface GeneratedTargetNote {
+	barIndex: number;
+	stepIndex: number;
+	pitchClass: PitchClass;
+	midi: number;
+	preferredPosition: FretPosition | null;
+	alternativePositions: FretPosition[];
+}
+
+export interface GeneratedTargetPath {
+	current: GeneratedTargetNote | null;
+	next: GeneratedTargetNote | null;
+	upcoming: GeneratedTargetNote | null;
+}
+
 interface PersistedScalePracticeConfig {
 	root: PitchClass | null;
 	zone: PracticeZone;
@@ -266,6 +282,8 @@ export class ScalePracticeStore {
 	activeStepIndex = $state<number | null>(null);
 	/** Which bar of `groove.arrangement` is currently sounding -- drives the arrangement strip's playhead. `null` whenever the drum machine isn't running. Already wrapped to `arrangement.length`, unlike the transport's own ever-increasing bar counter. */
 	activeBarIndex = $state<number | null>(null);
+	/** Same idea as `activeBarIndex`, but wrapped to `generatedBasslinePlan.bars.length` instead of the arrangement -- the two cycle lengths differ whenever the plan's composite cycle (progression bars × arrangement bars via `lcm`) exceeds the arrangement alone. Drives the fretboard's generated-target CURRENT marker (§29). `null` whenever the drum machine isn't running, same as `activeBarIndex`. */
+	activeGeneratedBarIndex = $state<number | null>(null);
 	/** Which pattern role the 16-step grid is currently showing/editing -- set by clicking a bar in the arrangement strip, or the pattern-role picker directly. Session-only, like `activeChordIndex`. */
 	selectedPatternRole = $state<PatternRole>('A');
 	countIn = $state<CountIn>(this.persisted.countIn);
@@ -371,6 +389,72 @@ export class ScalePracticeStore {
 		if (context === null) return null;
 
 		return generateBassline(context);
+	});
+
+	/**
+	 * Acid Bass Intelligence V4 §29's CURRENT/NEXT/UPCOMING generated-target
+	 * path -- built here (not in `$lib/music/bassline/*`, which stays
+	 * theory-pure and has no notion of "what's the transport doing right
+	 * now") and consumed by `FretCell.svelte`, the same "independent store,
+	 * computed locally" pattern the existing scale/played-note layers use.
+	 * `null` in manual mode, or whenever there's no plan.
+	 */
+	readonly generatedTargetPath = $derived.by<GeneratedTargetPath>(() => {
+		const EMPTY: GeneratedTargetPath = { current: null, next: null, upcoming: null };
+		if (this.groove.acidBass.mode !== 'generated') return EMPTY;
+		const plan = this.generatedBasslinePlan;
+		if (plan === null || plan.bars.length === 0) return EMPTY;
+
+		const flat: GeneratedTargetNote[] = [];
+		for (const bar of plan.bars) {
+			for (const step of bar.steps) {
+				if (!step.active) continue;
+				flat.push({
+					barIndex: bar.barIndex,
+					stepIndex: step.stepIndex,
+					pitchClass: step.pitchClass,
+					midi: step.midi,
+					preferredPosition: step.preferredPosition,
+					alternativePositions: step.alternativePositions
+				});
+			}
+		}
+		if (flat.length === 0) return EMPTY;
+
+		// "At playback or preview" (§29): while running, the actually-sounding
+		// note; at rest, the cycle's own first generated note, so the player
+		// sees a preview of the line even before pressing Play.
+		let currentIndex = 0;
+		if (this.running && this.activeGeneratedBarIndex !== null && this.activeStepIndex !== null) {
+			const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
+			const globalStep = (n: { barIndex: number; stepIndex: number }) =>
+				n.barIndex * stepsPerBar + n.stepIndex;
+			const referenceStep = globalStep({
+				barIndex: this.activeGeneratedBarIndex,
+				stepIndex: this.activeStepIndex
+			});
+			// The nearest active generated note at-or-before the reference step
+			// -- the transport's own current step may itself be a bass rest.
+			let bestIndex = -1;
+			let bestStep = -Infinity;
+			for (let i = 0; i < flat.length; i++) {
+				const s = globalStep(flat[i]);
+				if (s <= referenceStep && s > bestStep) {
+					bestStep = s;
+					bestIndex = i;
+				}
+			}
+			// No note yet at-or-before the reference this cycle -- wrap to the
+			// previous cycle's own last note (matching chromaticism.ts's own
+			// wrap-aware "one repeating cycle" precedent).
+			currentIndex = bestIndex === -1 ? flat.length - 1 : bestIndex;
+		}
+
+		return {
+			current: flat[currentIndex],
+			next: flat[(currentIndex + 1) % flat.length],
+			upcoming: flat[(currentIndex + 2) % flat.length]
+		};
 	});
 
 	/** Index-aligned with `groove.arrangement` -- the chord symbol sounding on each bar, `null` for "no chord backing on this bar," `undefined` entirely when there's no progression selected at all. Shared by the always-visible arrangement strip and the Groove Editor's own editable one, so they can never disagree. */
@@ -1117,6 +1201,7 @@ export class ScalePracticeStore {
 		this.cancelPendingBarHighlights();
 		this.activeStepIndex = null;
 		this.activeBarIndex = null;
+		this.activeGeneratedBarIndex = null;
 	}
 
 	/** Fires once per bar of real playback (never during count-in) -- resolves which pattern the bar plays and triggers the chord pad. */
@@ -1133,6 +1218,9 @@ export class ScalePracticeStore {
 		const delayMs = Math.max(0, (gridTime - ctx.currentTime) * 1000);
 		const timeoutId = setTimeout(() => {
 			this.activeBarIndex = bar % this.groove.arrangement.length;
+			const plan = this.generatedBasslinePlan;
+			this.activeGeneratedBarIndex =
+				plan !== null && plan.bars.length > 0 ? bar % plan.bars.length : null;
 			this.barHighlightTimeouts = this.barHighlightTimeouts.filter((id) => id !== timeoutId);
 		}, delayMs);
 		this.barHighlightTimeouts = [...this.barHighlightTimeouts, timeoutId];
