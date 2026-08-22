@@ -43,9 +43,9 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 <tr>
 <td width="50%">
 
-**Acid Bass** — the 303-style synth bass: oscillators, filter, five modulation sources, three distortion characters, and a tempo-synced delay
+**Acid Bass** — the 303-style synth bass: dual oscillators plus sub, filter, five modulation sources, three distortion characters, and a tempo-synced delay
 
-<img src="./docs/screenshots/acid-bass.jpg" alt="The Acid Bass Engine's VCO, VCF, ENV, MOD, and OUTPUT panels laid out in a compact grid, with the LFO on and its rate indicator lit">
+<img src="./docs/screenshots/acid-bass.jpg" alt="The Acid Bass Engine's VCO, Sub, Osc 2, VCF, and ENV panels, with the Squelch filter model selected and the ENV panel's live envelope-shape scope visible, plus the LFO 1/LFO 2/Env Mod/Accent Mod/Random Mod panel row beneath">
 
 </td>
 <td width="50%">
