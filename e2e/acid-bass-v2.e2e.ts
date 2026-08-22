@@ -30,11 +30,12 @@ test.describe('Acid Bass V2: panel layout', () => {
 		await expect(page.getByRole('heading', { name: 'VCO' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'VCF' })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'ENV' })).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'MOD' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'LFO 1', exact: true })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'LFO 2', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'OUTPUT' })).toBeVisible();
 
-		await expect(page.getByRole('slider', { name: 'Tune' })).toBeVisible();
-		await expect(page.getByRole('slider', { name: 'Fine' })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Tune', exact: true })).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Fine', exact: true })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Key Tracking' })).toBeVisible();
 		await expect(page.getByRole('slider', { name: 'Attack' })).toBeVisible();
 	});
@@ -55,17 +56,73 @@ test.describe('Acid Bass V2: panel layout', () => {
 		await expect(acid24).toHaveAttribute('aria-pressed', 'false');
 	});
 
-	test('LFO On/Off toggles, and Destination picker selects', async ({ page }) => {
+	test('each LFO On/Off toggles independently, and each Destination picker selects independently', async ({
+		page
+	}) => {
 		await openBassTab(page);
 
-		const lfoToggle = page.getByRole('button', { name: 'LFO' });
-		await expect(lfoToggle).toHaveAttribute('aria-pressed', 'false');
-		await lfoToggle.click();
-		await expect(lfoToggle).toHaveAttribute('aria-pressed', 'true');
+		const lfo1Panel = page.getByRole('region', { name: 'LFO 1', exact: true });
+		const lfo2Panel = page.getByRole('region', { name: 'LFO 2', exact: true });
 
-		const pitch = page.getByRole('button', { name: 'Pitch', exact: true });
-		await pitch.click();
-		await expect(pitch).toHaveAttribute('aria-pressed', 'true');
+		const lfo1Toggle = lfo1Panel.getByRole('button', { name: 'LFO' });
+		await expect(lfo1Toggle).toHaveAttribute('aria-pressed', 'false');
+		await lfo1Toggle.click();
+		await expect(lfo1Toggle).toHaveAttribute('aria-pressed', 'true');
+
+		const lfo2Toggle = lfo2Panel.getByRole('button', { name: 'LFO' });
+		await expect(lfo2Toggle).toHaveAttribute('aria-pressed', 'false');
+
+		const lfo1Pitch = lfo1Panel.getByRole('button', { name: 'Pitch', exact: true });
+		await lfo1Pitch.click();
+		await expect(lfo1Pitch).toHaveAttribute('aria-pressed', 'true');
+
+		const lfo2Cutoff = lfo2Panel.getByRole('button', { name: 'Cutoff', exact: true });
+		await expect(lfo2Cutoff).toHaveAttribute('aria-pressed', 'true');
+		const lfo2Pitch = lfo2Panel.getByRole('button', { name: 'Pitch', exact: true });
+		await expect(lfo2Pitch).toHaveAttribute('aria-pressed', 'false');
+	});
+});
+
+test.describe('Acid Bass V2: Osc 2', () => {
+	test('Osc 2 On/Off toggles, its Wave picker selects, and its knobs update state', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const osc2Toggle = page.getByRole('button', { name: 'Osc 2', exact: true });
+		await expect(osc2Toggle).toHaveAttribute('aria-pressed', 'false');
+		await osc2Toggle.click();
+		await expect(osc2Toggle).toHaveAttribute('aria-pressed', 'true');
+
+		const osc2Square = page
+			.getByRole('group', { name: 'Osc 2 Wave', exact: true })
+			.getByRole('button', { name: 'Square', exact: true });
+		await osc2Square.click();
+		await expect(osc2Square).toHaveAttribute('aria-pressed', 'true');
+
+		const osc2Level = page.getByRole('slider', { name: 'Osc 2 Level' });
+		await osc2Level.focus();
+		await osc2Level.press('Home');
+		for (let i = 0; i < 6; i++) {
+			await osc2Level.press('PageUp');
+		}
+		await expect(osc2Level).toHaveAttribute('aria-valuenow', '60');
+	});
+
+	test('LFO 1 can target Osc 2 Level, independent of LFO 2', async ({ page }) => {
+		await openBassTab(page);
+
+		const lfo1Panel = page.getByRole('region', { name: 'LFO 1', exact: true });
+		const lfo2Panel = page.getByRole('region', { name: 'LFO 2', exact: true });
+
+		await lfo1Panel.getByRole('button', { name: 'Osc 2 Level', exact: true }).click();
+		await expect(
+			lfo1Panel.getByRole('button', { name: 'Osc 2 Level', exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
+		await expect(lfo2Panel.getByRole('button', { name: 'Cutoff', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
 	});
 });
 
@@ -75,17 +132,19 @@ test.describe('Acid Bass V2: factory patches', () => {
 	}) => {
 		await openBassTab(page);
 
-		await expect(page.getByRole('button', { name: 'Saw', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			page
+				.getByRole('group', { name: 'Wave', exact: true })
+				.getByRole('button', { name: 'Saw', exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 
 		await page.getByLabel('Patch', { exact: true }).selectOption('classic-acid');
 
-		await expect(page.getByRole('button', { name: 'Saw', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			page
+				.getByRole('group', { name: 'Wave', exact: true })
+				.getByRole('button', { name: 'Saw', exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByRole('button', { name: 'Acid 24', exact: true })).toHaveAttribute(
 			'aria-pressed',
 			'true'

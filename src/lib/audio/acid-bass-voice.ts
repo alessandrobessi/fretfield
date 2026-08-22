@@ -221,7 +221,12 @@ function nativeOscType(wave: Exclude<AcidWave, 'pulse'>): OscillatorType {
 }
 
 /** Sets Osc 2's wave the same way Sub's is set -- a direct type switch (or, for Pulse, a regenerated static `PeriodicWave`), not a 4-way crossfaded bank like Main's. A wave change here is an infrequent patch edit; see the file header. */
-function applyOsc2Wave(osc: OscillatorNode, ctx: AudioContext, wave: AcidWave, pulseWidth: number): void {
+function applyOsc2Wave(
+	osc: OscillatorNode,
+	ctx: AudioContext,
+	wave: AcidWave,
+	pulseWidth: number
+): void {
 	if (wave === 'pulse') {
 		osc.setPeriodicWave(createPulseWave(ctx, pulseWidth));
 	} else {
@@ -800,8 +805,16 @@ export function createAcidBassVoice(
 			applyLfoRate(1, patch);
 			applyLfoRate(2, patch);
 			for (const [lfoSlot, lfoPatch, allGains] of [
-				[1, patch.lfo1, [cutoffLfo1Gain, pitchLfo1Gain, subLevelLfo1Gain, osc2LevelLfo1Gain, pulseWidthLfo1Gain]],
-				[2, patch.lfo2, [cutoffLfo2Gain, pitchLfo2Gain, subLevelLfo2Gain, osc2LevelLfo2Gain, pulseWidthLfo2Gain]]
+				[
+					1,
+					patch.lfo1,
+					[cutoffLfo1Gain, pitchLfo1Gain, subLevelLfo1Gain, osc2LevelLfo1Gain, pulseWidthLfo1Gain]
+				],
+				[
+					2,
+					patch.lfo2,
+					[cutoffLfo2Gain, pitchLfo2Gain, subLevelLfo2Gain, osc2LevelLfo2Gain, pulseWidthLfo2Gain]
+				]
 			] as const) {
 				const activeGain = lfoTargetGain(lfoSlot, lfoPatch.destination);
 				const amount = lfoPatch.enabled

@@ -114,7 +114,9 @@
 		{@render pickerField('Destination', LFO_DESTINATIONS, lfoPatch.destination, (id) =>
 			scalePractice.setAcidBassLfoDestination(lfoSlot, id as AcidLfoDestination)
 		)}
-		{@render knobField('Depth', lfoPatch.depth, (v) => scalePractice.setAcidBassLfoDepth(lfoSlot, v))}
+		{@render knobField('Depth', lfoPatch.depth, (v) =>
+			scalePractice.setAcidBassLfoDepth(lfoSlot, v)
+		)}
 	</div>
 	<div class="row">
 		{@render pickerField('Shape', LFO_SHAPES, lfoPatch.shape, (id) =>

@@ -588,14 +588,20 @@ export class ScalePracticeStore {
 	setAcidBassOsc2Tune(osc2Tune: number): void {
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			oscillator: { ...patch.oscillator, osc2Tune: Math.min(12, Math.max(-12, Math.round(osc2Tune))) }
+			oscillator: {
+				...patch.oscillator,
+				osc2Tune: Math.min(12, Math.max(-12, Math.round(osc2Tune)))
+			}
 		}));
 	}
 
 	setAcidBassOsc2Fine(osc2Fine: number): void {
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
-			oscillator: { ...patch.oscillator, osc2Fine: Math.min(50, Math.max(-50, Math.round(osc2Fine))) }
+			oscillator: {
+				...patch.oscillator,
+				osc2Fine: Math.min(50, Math.max(-50, Math.round(osc2Fine)))
+			}
 		}));
 	}
 
