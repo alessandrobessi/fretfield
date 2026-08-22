@@ -29,6 +29,7 @@ import type {
 	AcidBassPattern,
 	AcidBassPatch,
 	AcidBassStep,
+	AcidDelayDivision,
 	AcidDistortionCharacter,
 	AcidFilterModel,
 	AcidGlideCurve,
@@ -987,6 +988,34 @@ export class ScalePracticeStore {
 		this.updateAcidBassPatch((patch) => ({
 			...patch,
 			distortion: { ...patch.distortion, character }
+		}));
+	}
+
+	setAcidBassDelayEnabled(enabled: boolean): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			delay: { ...patch.delay, enabled }
+		}));
+	}
+
+	setAcidBassDelayDivision(division: AcidDelayDivision): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			delay: { ...patch.delay, division }
+		}));
+	}
+
+	setAcidBassDelayFeedback(feedback: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			delay: { ...patch.delay, feedback: clampPercent(feedback) }
+		}));
+	}
+
+	setAcidBassDelayMix(mix: number): void {
+		this.updateAcidBassPatch((patch) => ({
+			...patch,
+			delay: { ...patch.delay, mix: clampPercent(mix) }
 		}));
 	}
 

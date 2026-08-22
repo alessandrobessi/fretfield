@@ -241,9 +241,9 @@ export type AcidDelayDivision = '1/4' | '1/8' | '1/8D' | '1/8T' | '1/16' | '1/16
 export interface AcidDelayPatch {
 	enabled: boolean;
 	division: AcidDelayDivision;
-	/** 0-100 UI value; internally capped well below unity feedback (see `resolve.ts`, a later milestone). */
+	/** 0-100 UI value; internally capped well below unity feedback (see `delay.ts`'s `delayFeedbackToGain`, M17). */
 	feedback: number;
-	/** 0-100 wet mix. */
+	/** 0-100 wet mix -- a send amount, not a dry/wet crossfade (see `delay.ts`'s `delayMixToSendGain`, M17): the dry signal always stays at full level. */
 	mix: number;
 }
 

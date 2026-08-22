@@ -228,6 +228,59 @@ test.describe('Acid Bass Intelligence V4: distortion characters (M16)', () => {
 	});
 });
 
+test.describe('Acid Bass Intelligence V4: tempo-synced delay (M17)', () => {
+	test('is off by default (dry at migration defaults), toggles on, and its Division/Feedback/Mix controls all update state', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const delayPanel = page.getByRole('region', { name: 'DELAY' });
+		const delayToggle = delayPanel.getByRole('button', { name: 'Delay' });
+		const delayLed = delayPanel.locator('.led');
+
+		await expect(delayToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(delayLed).not.toHaveClass(/active/);
+		await delayToggle.click();
+		await expect(delayToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(delayLed).toHaveClass(/active/);
+
+		const division = delayPanel.getByRole('combobox', { name: 'Delay Division' });
+		await division.selectOption('1/8T');
+		await expect(division).toHaveValue('1/8T');
+
+		const feedback = delayPanel.getByRole('slider', { name: 'Feedback' });
+		await feedback.focus();
+		await feedback.press('End');
+		await expect(feedback).toHaveAttribute('aria-valuenow', '100');
+
+		const mix = delayPanel.getByRole('slider', { name: 'Mix' });
+		await mix.focus();
+		await mix.press('End');
+		await expect(mix).toHaveAttribute('aria-valuenow', '100');
+	});
+
+	test('delay settings survive a reload', async ({ page }) => {
+		await openBassTab(page);
+
+		const delayPanel = page.getByRole('region', { name: 'DELAY' });
+		await delayPanel.getByRole('button', { name: 'Delay' }).click();
+		await delayPanel.getByRole('combobox', { name: 'Delay Division' }).selectOption('1/16D');
+
+		await page.reload();
+		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
+
+		const reloadedDelayPanel = page.getByRole('region', { name: 'DELAY' });
+		await expect(reloadedDelayPanel.getByRole('button', { name: 'Delay' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect(
+			reloadedDelayPanel.getByRole('combobox', { name: 'Delay Division' })
+		).toHaveValue('1/16D');
+	});
+});
+
 test.describe('Acid Bass V2: Osc 2', () => {
 	test('Osc 2 On/Off toggles (lighting its panel LED), its Wave picker selects, and its knobs update state', async ({
 		page

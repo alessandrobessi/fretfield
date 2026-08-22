@@ -3,6 +3,7 @@
 	import { lfoRateHzClamp, lfoSyncFrequencyHz } from '$lib/acid-bass/resolve';
 	import type {
 		AcidAuxModulationPatch,
+		AcidDelayDivision,
 		AcidDistortionCharacter,
 		AcidFilterModel,
 		AcidGlideCurve,
@@ -54,6 +55,15 @@
 		{ id: 'soft', label: 'Soft' },
 		{ id: 'diode', label: 'Diode' },
 		{ id: 'hard', label: 'Hard' }
+	];
+	const DELAY_DIVISIONS: AcidDelayDivision[] = [
+		'1/4',
+		'1/8',
+		'1/8D',
+		'1/8T',
+		'1/16',
+		'1/16D',
+		'1/16T'
 	];
 	const LFO_SHAPES: { id: AcidLfoShape; label: string }[] = [
 		{ id: 'sine', label: 'Sine' },
@@ -421,6 +431,43 @@
 
 		<HardwarePanel title="RANDOM MOD" tone="carbon">
 			{@render auxModPanelBody('random', 'Random Mod', patch.modulation.random)}
+		</HardwarePanel>
+
+		<HardwarePanel title="DELAY" tone="carbon">
+			{#snippet header()}
+				<Led state={patch.delay.enabled ? 'active' : 'off'} />
+			{/snippet}
+			<div class="row">
+				<HardwareButton
+					variant="secondary"
+					pressed={patch.delay.enabled}
+					ariaLabel="Delay"
+					onclick={() => scalePractice.setAcidBassDelayEnabled(!patch.delay.enabled)}
+				>
+					Delay {patch.delay.enabled ? 'On' : 'Off'}
+				</HardwareButton>
+				<label class="field">
+					<span class="ff-label field-label">Division</span>
+					<select
+						aria-label="Delay Division"
+						value={patch.delay.division}
+						onchange={(event) =>
+							scalePractice.setAcidBassDelayDivision(
+								(event.currentTarget as HTMLSelectElement).value as AcidDelayDivision
+							)}
+					>
+						{#each DELAY_DIVISIONS as division (division)}
+							<option value={division}>{division}</option>
+						{/each}
+					</select>
+				</label>
+			</div>
+			<div class="row">
+				{@render knobField('Feedback', patch.delay.feedback, (v) =>
+					scalePractice.setAcidBassDelayFeedback(v)
+				)}
+				{@render knobField('Mix', patch.delay.mix, (v) => scalePractice.setAcidBassDelayMix(v))}
+			</div>
 		</HardwarePanel>
 
 		<HardwarePanel title="OUTPUT" tone="carbon">

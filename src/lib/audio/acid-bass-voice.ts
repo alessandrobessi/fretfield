@@ -102,8 +102,18 @@
  * rebuilt -- `getDistortionCurve` itself caches one `Float32Array` per
  * character, so a patch edit only ever reassigns which already-built curve
  * each shaper points at.
+ *
+ * Tempo-synced delay (M17): one dedicated `DelayNode` with its own feedback
+ * loop, inserted as a parallel send after Drive/`outputTrim` and before
+ * master Output -- the dry path (`outputTrim -> master`) is untouched and
+ * always at full level, so `enabled: false`/`mix: 0` reproduces dry output
+ * exactly (spec's own migration-default acceptance criterion). Delay time
+ * re-derives from the transport's current BPM via the *existing* `setTempo()`
+ * hook (`delay.ts`'s `delayDivisionToSeconds`, the same pattern the LFOs'
+ * `applyLfoRate` already established) -- no second clock.
  */
 
+import { delayDivisionToSeconds, delayFeedbackToGain, delayMixToSendGain } from '$lib/acid-bass/delay';
 import { getDistortionCurve } from '$lib/acid-bass/distortion';
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
 import {
@@ -401,6 +411,21 @@ export function createAcidBassVoice(
 	const master = ctx.createGain();
 	master.gain.setValueAtTime(volumeToGain(currentPatch.output.volume), ctx.currentTime);
 
+	// Tempo-synced delay (M17) -- a parallel send off `outputTrim`, feeding
+	// back into `master` alongside the always-present dry signal. Max delay
+	// time generous enough for the slowest supported division at a slow tempo
+	// (1/4 note at 30bpm = 2s). `delaySend` starts at 0 -- silent, exactly dry
+	// -- until `setPatch()` resolves the real enabled/mix value; the initial
+	// delayTime is an arbitrary placeholder for the same reason (inaudible
+	// until then, and `setPatch()` corrects it immediately in practice).
+	const MAX_DELAY_SECONDS = 2.5;
+	const delaySend = ctx.createGain();
+	delaySend.gain.setValueAtTime(0, ctx.currentTime);
+	const delayNode = ctx.createDelay(MAX_DELAY_SECONDS);
+	delayNode.delayTime.setValueAtTime(0.3, ctx.currentTime);
+	const delayFeedback = ctx.createGain();
+	delayFeedback.gain.setValueAtTime(delayFeedbackToGain(currentPatch.delay.feedback), ctx.currentTime);
+
 	// Two independent LFOs, each routed to whichever single destination the
 	// patch names via its own parallel bank of depth-scaling gains -- the
 	// inactive ones always sit at 0 rather than being connected/disconnected
@@ -457,6 +482,17 @@ export function createAcidBassVoice(
 	shaper.connect(outputTrim);
 	outputTrim.connect(master);
 	master.connect(destination);
+
+	// Delay send/return (M17) -- outputTrim feeds the delay line through its
+	// own mix-scaled send gain; the delay's own output feeds back into itself
+	// (the feedback loop) and also straight into master (the wet return),
+	// entirely parallel to the always-present dry outputTrim -> master path
+	// above.
+	outputTrim.connect(delaySend);
+	delaySend.connect(delayNode);
+	delayNode.connect(delayFeedback);
+	delayFeedback.connect(delayNode);
+	delayNode.connect(master);
 
 	// Cutoff/pitch modulation add onto whatever's already scheduled there
 	// (AudioParams sum every connected signal with their own automation
@@ -736,6 +772,13 @@ export function createAcidBassVoice(
 		(lfoSlot === 1 ? lfo1 : lfo2).setRateHz(hz);
 	}
 
+	/** Re-derives the delay's own time from the transport's current BPM and the patch's division -- called from both `setPatch()` and `setTempo()`, the same "no new clock" pattern `applyLfoRate` already established for the LFOs' sync mode. */
+	function applyDelayTime(patch: AcidBassPatch): void {
+		const seconds = Math.min(MAX_DELAY_SECONDS, delayDivisionToSeconds(currentBpm, patch.delay.division));
+		delayNode.delayTime.cancelScheduledValues(ctx.currentTime);
+		delayNode.delayTime.setTargetAtTime(seconds, ctx.currentTime, PARAM_SMOOTH_TIME_CONSTANT);
+	}
+
 	function setFrequencyAtTime(frequencyHz: number, time: number, patch: AcidBassPatch): void {
 		const ratio = tuneFineToRatio(patch.oscillator.tune, patch.oscillator.fine);
 		const mainHz = frequencyHz * ratio;
@@ -937,6 +980,23 @@ export function createAcidBassVoice(
 			lfo2.setShape(patch.lfo2.shape);
 			applyLfoRate(1, patch);
 			applyLfoRate(2, patch);
+
+			// Tempo-synced delay (M17) -- disabled or zero-mix both resolve the
+			// send gain to exactly 0, reproducing dry output (spec's own
+			// migration-default acceptance criterion).
+			applyDelayTime(patch);
+			delayFeedback.gain.cancelScheduledValues(atTime);
+			delayFeedback.gain.setTargetAtTime(
+				delayFeedbackToGain(patch.delay.feedback),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			delaySend.gain.cancelScheduledValues(atTime);
+			delaySend.gain.setTargetAtTime(
+				patch.delay.enabled ? delayMixToSendGain(patch.delay.mix) : 0,
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
 			for (const [lfoSlot, lfoPatch, allGains] of [
 				[
 					1,
@@ -973,6 +1033,7 @@ export function createAcidBassVoice(
 			currentBpm = bpm;
 			applyLfoRate(1, currentPatch);
 			applyLfoRate(2, currentPatch);
+			applyDelayTime(currentPatch);
 		},
 
 		schedule(trigger) {
