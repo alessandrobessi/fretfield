@@ -34,6 +34,8 @@ export interface BasslineBeamState {
 	score: number;
 	previousPitchClass: PitchClass | null;
 	previousIntervalFromKey: IntervalId | null;
+	/** How many consecutive prior slots already repeated this same pitch class -- feeds the escalating repetition penalty below, so a beam can never lock onto "always repeat the single highest-scoring candidate" regardless of style. */
+	consecutiveRepeats: number;
 }
 
 /** One active slot's candidate pool, plus whether it is the first active slot of a newly-arrived chord (§17: "at a chord boundary, increase the importance of..."). */
@@ -103,6 +105,18 @@ const REPETITION_SCALE = 0.3;
 const MOVEMENT_SCALE = 0.3;
 /** §16.2: "repeated key-relative motifs are rewarded" -- a flat bonus for continuing the previous slot's `intervalFromKey`, independent of style. */
 const KEY_MODE_MOTIF_BONUS = 20;
+/**
+ * A style's own `repetitionPreference` sets how many consecutive repeats
+ * feel free before the cost kicks in (low-repetitionPreference styles like
+ * Melodic/Walking tolerate barely more than one; high-repetitionPreference
+ * styles like Rooted tolerate several) -- past that point, each further
+ * repeat gets markedly more expensive, so no style's raw harmonic dominance
+ * (root's harmonicScore is always the highest available candidate) can lock
+ * a beam onto repeating one pitch class forever.
+ */
+const REPETITION_TOLERANCE_BASE = 1;
+const REPETITION_TOLERANCE_PREFERENCE_WEIGHT = 40;
+const REPETITION_ESCALATION_PENALTY = 20;
 /** §17: chord-boundary slots weight root/structural/stable more heavily. */
 const CHORD_BOUNDARY_ROOT_BONUS = 16;
 const CHORD_BOUNDARY_STRUCTURAL_BONUS = 10;
@@ -157,7 +171,13 @@ function additionalLocalScore(
 
 	if (beam.previousPitchClass !== null) {
 		if (candidate.pitchClass === beam.previousPitchClass) {
-			score += options.style.repetitionPreference * REPETITION_SCALE;
+			const tolerance =
+				REPETITION_TOLERANCE_BASE +
+				options.style.repetitionPreference / REPETITION_TOLERANCE_PREFERENCE_WEIGHT;
+			const excessRepeats = Math.max(0, beam.consecutiveRepeats + 1 - tolerance);
+			score +=
+				options.style.repetitionPreference * REPETITION_SCALE -
+				excessRepeats * REPETITION_ESCALATION_PENALTY;
 		} else {
 			score += options.style.movementPreference * MOVEMENT_SCALE;
 		}
@@ -181,13 +201,21 @@ export function selectVoiceLeadingSequence(
 	const transitionWeight = TRANSITION_WEIGHT_BY_HARMONY_MODE[options.harmonyMode];
 
 	let beams: BasslineBeamState[] = [
-		{ selections: [], score: 0, previousPitchClass: null, previousIntervalFromKey: null }
+		{
+			selections: [],
+			score: 0,
+			previousPitchClass: null,
+			previousIntervalFromKey: null,
+			consecutiveRepeats: 0
+		}
 	];
 
 	for (const slot of slots) {
 		const nextBeams: BasslineBeamState[] = [];
 		for (const beam of beams) {
 			for (const candidate of slot.candidates) {
+				const isRepeat =
+					beam.previousPitchClass !== null && candidate.pitchClass === beam.previousPitchClass;
 				const transition =
 					beam.previousPitchClass === null
 						? 0
@@ -203,7 +231,8 @@ export function selectVoiceLeadingSequence(
 					selections: [...beam.selections, candidate],
 					score,
 					previousPitchClass: candidate.pitchClass,
-					previousIntervalFromKey: candidate.intervalFromKey
+					previousIntervalFromKey: candidate.intervalFromKey,
+					consecutiveRepeats: isRepeat ? beam.consecutiveRepeats + 1 : 0
 				});
 			}
 		}

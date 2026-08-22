@@ -7,7 +7,7 @@ import {
 import { noteNameToPitchClass, normalizePitchClass } from '$lib/music/pitch';
 
 import { buildBarContexts } from '../context';
-import { generateBasslineSkeleton } from '../generate';
+import { generateBassline, generateBasslineSkeleton } from '../generate';
 import { pitchClassDistance } from '../voice-leading';
 import type { BassHarmonyMode, BasslineChordContext, BasslineGenerationContext } from '../types';
 
@@ -143,5 +143,110 @@ describe('generateBasslineSkeleton: register and physical realization (M8)', () 
 				expect(note.preferredPosition.fret).toBeLessThanOrEqual(5);
 			}
 		}
+	});
+});
+
+function allActiveSteps(plan: ReturnType<typeof generateBassline>) {
+	return plan.bars.flatMap((bar) => bar.steps.filter((step) => step.active));
+}
+
+describe('generateBassline: shape and articulation (M9)', () => {
+	it('every bar has exactly meter.stepsPerBar steps, and every note has an explanation', () => {
+		const plan = generateBassline(context());
+		for (const bar of plan.bars) {
+			expect(bar.steps).toHaveLength(16);
+		}
+		const activeSteps = allActiveSteps(plan);
+		expect(activeSteps.length).toBeGreaterThan(0);
+		for (const step of activeSteps) {
+			expect(step.explanation.headline.length).toBeGreaterThan(0);
+			expect(step.explanation.detail.length).toBeGreaterThan(0);
+		}
+	});
+
+	it('every generated gate is within the legal 10-100 range', () => {
+		const plan = generateBassline(context());
+		for (const step of allActiveSteps(plan)) {
+			expect(step.gate).toBeGreaterThanOrEqual(10);
+			expect(step.gate).toBeLessThanOrEqual(100);
+		}
+	});
+
+	it('probability is always 100 and ratchet is always 1 -- generated V4 has no per-step randomness of its own', () => {
+		const plan = generateBassline(context());
+		for (const step of allActiveSteps(plan)) {
+			expect(step.probability).toBe(100);
+			expect(step.ratchet).toBe(1);
+		}
+	});
+
+	it('is deterministic -- the same seed produces an identical plan', () => {
+		const a = generateBassline(context({ seed: 77 }));
+		const b = generateBassline(context({ seed: 77 }));
+		expect(a).toEqual(b);
+	});
+
+	it('slide only ever points at an adjacent (semitone/whole-step) active event', () => {
+		for (let seed = 0; seed < 20; seed++) {
+			const plan = generateBassline(context({ style: 'acid', chromaticism: 60, seed }));
+			const activeSteps = allActiveSteps(plan);
+			activeSteps.forEach((step, index) => {
+				if (!step.slide) return;
+				const next = activeSteps[(index + 1) % activeSteps.length];
+				expect(pitchClassDistance(step.pitchClass, next.pitchClass)).toBeLessThanOrEqual(2);
+			});
+		}
+	});
+
+	it("a chromatic-approach/diatonic-approach/enclosure step's explanation headline names its target note", () => {
+		let sawTargetedExplanation = false;
+		for (let seed = 0; seed < 30; seed++) {
+			const plan = generateBassline(
+				context({ style: 'chromatic', harmonyMode: 'voice-leading', chromaticism: 100, seed })
+			);
+			for (const step of allActiveSteps(plan)) {
+				if (
+					step.function === 'chromatic-approach' ||
+					step.function === 'diatonic-approach' ||
+					step.function === 'enclosure-upper' ||
+					step.function === 'enclosure-lower'
+				) {
+					sawTargetedExplanation = true;
+					expect(step.explanation.targetMidi).toBeDefined();
+					expect(step.explanation.headline.length).toBeGreaterThan(0);
+				}
+			}
+		}
+		expect(sawTargetedExplanation).toBe(true);
+	});
+});
+
+function averageSlideRate(style: BasslineGenerationContext['style'], trials: number): number {
+	let slideCount = 0;
+	let activeCount = 0;
+	for (let seed = 0; seed < trials; seed++) {
+		const plan = generateBassline(
+			context({
+				style,
+				// A single sustained chord/scale gives every active step plenty of
+				// nearby scale/chord tones to potentially slide toward.
+				bars: buildBarContexts([{ phraseRole: 'main', chord: chord(C, 'major-7', 'ionian') }]),
+				density: 80,
+				seed
+			})
+		);
+		for (const step of allActiveSteps(plan)) {
+			activeCount++;
+			if (step.slide) slideCount++;
+		}
+	}
+	return activeCount === 0 ? 0 : slideCount / activeCount;
+}
+
+describe('generateBassline: Acid has more slide tendency than Walking (controlled fixture)', () => {
+	it("Acid's average slide rate exceeds Walking's under the same context, across many seeds", () => {
+		const acidRate = averageSlideRate('acid', 80);
+		const walkingRate = averageSlideRate('walking', 80);
+		expect(acidRate).toBeGreaterThan(walkingRate);
 	});
 });
