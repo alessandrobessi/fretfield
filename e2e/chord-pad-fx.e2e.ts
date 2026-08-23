@@ -147,6 +147,15 @@ test.describe('Chord Pad FX: Chorus', () => {
 		await rate.press('End');
 		await expect(rate).toHaveAttribute('aria-valuenow', '5');
 
+		// A single arrow-key press must move by Rate's own fine step (0.05), not
+		// a whole-Hz jump -- regression coverage for a real bug where every
+		// Chorus/Phaser/Flanger/Tremolo Rate knob silently used the Knob
+		// component's default step of 1, making a knob covering a sub-5Hz range
+		// feel broken (one press could jump a third of the whole range).
+		await rate.press('Home');
+		await rate.press('ArrowUp');
+		expect(Number(await rate.getAttribute('aria-valuenow'))).toBeCloseTo(0.15, 5);
+
 		for (const label of ['Depth', 'Mix']) {
 			const knob = chorusPanel.getByRole('slider', { name: label, exact: true });
 			await knob.focus();
@@ -177,6 +186,14 @@ test.describe('Chord Pad FX: Phaser', () => {
 		await rate.focus();
 		await rate.press('End');
 		await expect(rate).toHaveAttribute('aria-valuenow', '2');
+
+		// A single arrow-key press must move by Rate's own fine step (0.01), not
+		// a whole-Hz jump -- regression coverage for a real bug where this knob
+		// silently used the Knob component's default step of 1 (a third of this
+		// knob's entire 0.05-2 Hz range in one press).
+		await rate.press('Home');
+		await rate.press('ArrowUp');
+		expect(Number(await rate.getAttribute('aria-valuenow'))).toBeCloseTo(0.06, 5);
 
 		for (const label of ['Depth', 'Mix']) {
 			const knob = phaserPanel.getByRole('slider', { name: label, exact: true });
@@ -209,6 +226,12 @@ test.describe('Chord Pad FX: Flanger', () => {
 		await rate.press('End');
 		await expect(rate).toHaveAttribute('aria-valuenow', '3');
 
+		// A single arrow-key press must move by Rate's own fine step (0.01), not
+		// a whole-Hz jump -- same regression coverage as Chorus/Phaser above.
+		await rate.press('Home');
+		await rate.press('ArrowUp');
+		expect(Number(await rate.getAttribute('aria-valuenow'))).toBeCloseTo(0.06, 5);
+
 		for (const label of ['Depth', 'Feedback', 'Mix']) {
 			const knob = flangerPanel.getByRole('slider', { name: label, exact: true });
 			await knob.focus();
@@ -239,6 +262,12 @@ test.describe('Chord Pad FX: Tremolo', () => {
 		await rate.focus();
 		await rate.press('End');
 		await expect(rate).toHaveAttribute('aria-valuenow', '10');
+
+		// A single arrow-key press must move by Rate's own fine step (0.1), not
+		// a whole-Hz jump -- same regression coverage as Chorus/Phaser/Flanger.
+		await rate.press('Home');
+		await rate.press('ArrowUp');
+		expect(Number(await rate.getAttribute('aria-valuenow'))).toBeCloseTo(0.6, 5);
 
 		const depth = tremoloPanel.getByRole('slider', { name: 'Depth', exact: true });
 		await depth.focus();

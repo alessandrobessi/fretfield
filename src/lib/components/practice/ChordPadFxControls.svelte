@@ -24,11 +24,12 @@
 	value: number,
 	onChange: (v: number) => void,
 	min = 0,
-	max = 100
+	max = 100,
+	step = 1
 )}
 	<div class="field">
 		<span class="ff-label field-label">{label}</span>
-		<Knob {label} {value} {min} {max} {onChange} />
+		<Knob {label} {value} {min} {max} {step} {onChange} />
 	</div>
 {/snippet}
 
@@ -113,7 +114,8 @@
 				fx.chorus.rate,
 				(v) => scalePractice.setChordPadChorusRate(v),
 				0.1,
-				5
+				5,
+				0.05
 			)}
 			{@render knobField('Depth', fx.chorus.depth, (v) => scalePractice.setChordPadChorusDepth(v))}
 			{@render knobField('Mix', fx.chorus.mix, (v) => scalePractice.setChordPadChorusMix(v))}
@@ -140,7 +142,8 @@
 				fx.phaser.rate,
 				(v) => scalePractice.setChordPadPhaserRate(v),
 				0.05,
-				2
+				2,
+				0.01
 			)}
 			{@render knobField('Depth', fx.phaser.depth, (v) => scalePractice.setChordPadPhaserDepth(v))}
 			{@render knobField('Mix', fx.phaser.mix, (v) => scalePractice.setChordPadPhaserMix(v))}
@@ -167,7 +170,8 @@
 				fx.flanger.rate,
 				(v) => scalePractice.setChordPadFlangerRate(v),
 				0.05,
-				3
+				3,
+				0.01
 			)}
 			{@render knobField('Depth', fx.flanger.depth, (v) =>
 				scalePractice.setChordPadFlangerDepth(v)
@@ -199,7 +203,8 @@
 				fx.tremolo.rate,
 				(v) => scalePractice.setChordPadTremoloRate(v),
 				0.5,
-				10
+				10,
+				0.1
 			)}
 			{@render knobField('Depth', fx.tremolo.depth, (v) =>
 				scalePractice.setChordPadTremoloDepth(v)
