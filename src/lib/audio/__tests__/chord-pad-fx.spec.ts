@@ -45,6 +45,14 @@ describe('createChordPadFxBus: signal path', () => {
 		expect(fakeNode(bus.__test.chorusSend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.delaySend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.reverbSend).reaches(ctx.destination)).toBe(true);
+		expect(fakeNode(bus.__test.phaserSend).reaches(ctx.destination)).toBe(true);
+		expect(fakeNode(bus.__test.flangerSend).reaches(ctx.destination)).toBe(true);
+		expect(fakeNode(bus.__test.tremoloGain).reaches(ctx.destination)).toBe(true);
+	});
+
+	it("the flanger's own feedback loop reaches ctx.destination (the wet return)", () => {
+		const { ctx, bus } = makeBus();
+		expect(fakeNode(bus.__test.flangerDelay).reaches(ctx.destination)).toBe(true);
 	});
 
 	it("the delay node's own output reaches ctx.destination (the wet return, downstream of Reverb)", () => {
@@ -54,12 +62,15 @@ describe('createChordPadFxBus: signal path', () => {
 });
 
 describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exactly dry', () => {
-	it('every stage defaults off, so every wet-send gain resolves to 0', () => {
+	it('every stage defaults off, so every wet-send gain resolves to 0, and tremoloGain resolves to a constant 1 (exactly dry)', () => {
 		const { bus } = makeBus();
 		bus.setPatch(createDefaultChordPadFxState(), 0);
 		expect(fakeParam(bus.__test.chorusSend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.delaySend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.reverbSend.gain).value).toBe(0);
+		expect(fakeParam(bus.__test.phaserSend.gain).value).toBe(0);
+		expect(fakeParam(bus.__test.flangerSend.gain).value).toBe(0);
+		expect(fakeParam(bus.__test.tremoloGain.gain).value).toBe(1);
 	});
 
 	it("enabling a stage with mix 0 still resolves that stage's wet-send gain to 0", () => {
@@ -67,12 +78,16 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 		const state = stateWith({
 			reverb: { enabled: true, size: 80, damping: 20, mix: 0 },
 			delay: { enabled: true, division: '1/8', feedback: 50, mix: 0 },
-			chorus: { enabled: true, rate: 1, depth: 50, mix: 0 }
+			chorus: { enabled: true, rate: 1, depth: 50, mix: 0 },
+			phaser: { enabled: true, rate: 0.5, depth: 50, mix: 0 },
+			flanger: { enabled: true, rate: 0.5, depth: 50, feedback: 30, mix: 0 }
 		});
 		bus.setPatch(state, 0);
 		expect(fakeParam(bus.__test.chorusSend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.delaySend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.reverbSend.gain).value).toBe(0);
+		expect(fakeParam(bus.__test.phaserSend.gain).value).toBe(0);
+		expect(fakeParam(bus.__test.flangerSend.gain).value).toBe(0);
 	});
 
 	it('enabling a stage with a nonzero mix resolves a nonzero wet-send gain', () => {
@@ -80,12 +95,50 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 		const state = stateWith({
 			reverb: { enabled: true, size: 80, damping: 20, mix: 60 },
 			delay: { enabled: true, division: '1/8', feedback: 50, mix: 40 },
-			chorus: { enabled: true, rate: 1, depth: 50, mix: 35 }
+			chorus: { enabled: true, rate: 1, depth: 50, mix: 35 },
+			phaser: { enabled: true, rate: 0.5, depth: 50, mix: 30 },
+			flanger: { enabled: true, rate: 0.5, depth: 50, feedback: 30, mix: 25 }
 		});
 		bus.setPatch(state, 0);
 		expect(fakeParam(bus.__test.chorusSend.gain).value).toBeGreaterThan(0);
 		expect(fakeParam(bus.__test.delaySend.gain).value).toBeGreaterThan(0);
 		expect(fakeParam(bus.__test.reverbSend.gain).value).toBeGreaterThan(0);
+		expect(fakeParam(bus.__test.phaserSend.gain).value).toBeGreaterThan(0);
+		expect(fakeParam(bus.__test.flangerSend.gain).value).toBeGreaterThan(0);
+	});
+
+	it('disabling Tremolo, or enabling it with depth 0, both hold tremoloGain at a constant 1 (exactly dry)', () => {
+		const { bus } = makeBus();
+		bus.setPatch(stateWith({ tremolo: { enabled: false, rate: 4, depth: 80 } }), 0);
+		expect(fakeParam(bus.__test.tremoloGain.gain).value).toBe(1);
+
+		bus.setPatch(stateWith({ tremolo: { enabled: true, rate: 4, depth: 0 } }), 0);
+		expect(fakeParam(bus.__test.tremoloGain.gain).value).toBe(1);
+	});
+
+	it('enabling Tremolo with a nonzero depth pulls tremoloGain below 1', () => {
+		const { bus } = makeBus();
+		bus.setPatch(stateWith({ tremolo: { enabled: true, rate: 4, depth: 80 } }), 0);
+		expect(fakeParam(bus.__test.tremoloGain.gain).value).toBeLessThan(1);
+	});
+});
+
+describe('createChordPadFxBus: flanger feedback resolution', () => {
+	it('feedback 0 means no feedback gain, feedback 100 means high (but still sub-unity) feedback gain', () => {
+		const { bus } = makeBus();
+		bus.setPatch(
+			stateWith({ flanger: { enabled: true, rate: 0.5, depth: 50, feedback: 0, mix: 30 } }),
+			0
+		);
+		expect(fakeParam(bus.__test.flangerFeedback.gain).value).toBe(0);
+
+		bus.setPatch(
+			stateWith({ flanger: { enabled: true, rate: 0.5, depth: 50, feedback: 100, mix: 30 } }),
+			0
+		);
+		const feedback = fakeParam(bus.__test.flangerFeedback.gain).value;
+		expect(feedback).toBeGreaterThan(0);
+		expect(feedback).toBeLessThan(1);
 	});
 });
 

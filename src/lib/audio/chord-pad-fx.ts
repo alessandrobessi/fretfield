@@ -3,12 +3,16 @@
  * one persistent node graph built once per playback session (mirroring
  * `acid-bass-voice.ts`'s own "build once, live for the whole session"
  * shape), sitting between every `triggerChordPad` hit (`chord-voices.ts`)
- * and `ctx.destination`. Signal order: Chorus -> Delay -> Reverb ->
- * destination. Each stage is a genuine dry-signal-preserving insert (its own
- * always-on dry path plus a single mix-scaled send into that stage's own wet
- * processing, summed back together) -- disabled or `mix: 0` reproduces
- * exactly dry output for that stage, the same invariant Acid Bass's own
- * tempo-synced delay already established.
+ * and `ctx.destination`. Signal order: Chorus -> Phaser -> Flanger ->
+ * Tremolo -> Delay -> Reverb -> destination -- the four modulation effects
+ * grouped ahead of the two time-based ones, the standard pedalboard
+ * convention (built in two stages, 2026-08: Reverb/Delay/Chorus first, then
+ * Phaser/Flanger/Tremolo). Every stage except Tremolo is a genuine
+ * dry-signal-preserving insert (its own always-on dry path plus a single
+ * mix-scaled send into that stage's own wet processing, summed back
+ * together) -- disabled or `mix: 0` reproduces exactly dry output for that
+ * stage, the same invariant Acid Bass's own tempo-synced delay already
+ * established.
  *
  * Reverb is a small algorithmic (Freeverb/Schroeder-style) comb+allpass
  * network, not a convolution reverb -- this app has no external
@@ -25,6 +29,29 @@
  * reverbs use -- delay times themselves are fixed tuning constants, not
  * patch-controlled); "Damping" controls each comb's feedback-loop lowpass
  * cutoff.
+ *
+ * Phaser is an LFO-swept series of native `type: 'allpass'`
+ * `BiquadFilterNode`s (four in series, one shared LFO driving every stage's
+ * own `.frequency` together via a scaling gain, the same "LFO into a gain
+ * bank" idiom `acid-bass-voice.ts`/this file's own Chorus stage already use)
+ * -- the classic phaser topology, and the cheapest correct one given the
+ * allpass filter type Web Audio already provides natively, same reasoning
+ * the Reverb allpass diffusion stage above already established.
+ *
+ * Flanger reuses Chorus's exact "one modulated `DelayNode`" primitive, plus
+ * a feedback loop -- a shorter base delay (~3ms vs Chorus's 18ms) and that
+ * feedback are what give it its own resonant "jet" character instead of
+ * Chorus's smoother thickening.
+ *
+ * Tremolo is the one genuine exception to the dry/wet-insert shape every
+ * other stage uses -- it doesn't add a wet signal on top of dry, it directly
+ * modulates the amplitude of the one signal passing through: a single
+ * `GainNode` in series, whose own `.gain` an LFO drives between `1` and
+ * `1 - swing`. `enabled: false` or `depth: 0` both hold that gain at a
+ * constant `1` (the LFO's own depth-scaling gain resolves to `0`), the same
+ * "reproduces dry exactly" invariant every other stage keeps, just reached a
+ * different way -- no separate `mix` field exists for it (see
+ * `ChordPadTremoloPatch`'s own doc comment).
  */
 
 import {
@@ -34,9 +61,18 @@ import {
 	delayDivisionToSeconds,
 	delayFeedbackToGain,
 	delayMixToSendGain,
+	flangerDepthToSeconds,
+	flangerFeedbackToGain,
+	flangerMixToGain,
+	flangerRateHzClamp,
+	phaserDepthToHzRange,
+	phaserMixToGain,
+	phaserRateHzClamp,
 	reverbDampingToLowpassHz,
 	reverbMixToGain,
-	reverbSizeToFeedbackGain
+	reverbSizeToFeedbackGain,
+	tremoloDepthToGainSwing,
+	tremoloRateHzClamp
 } from '$lib/chord-pad-fx/resolve';
 import { createDefaultChordPadFxState } from '$lib/chord-pad-fx/pattern';
 import type { ChordPadFxState } from '$lib/chord-pad-fx/types';
@@ -60,6 +96,19 @@ const REVERB_COMB_DELAY_SECONDS: readonly number[] = [0.023, 0.029, 0.034];
 const REVERB_COMB_MAX_DELAY_SECONDS = 0.05;
 const REVERB_ALLPASS_HZ = 700;
 
+// Four stages is the classic phaser count -- fewer sounds thin, more is
+// diminishing returns for a pad effect that isn't the star of the app.
+const PHASER_STAGE_COUNT = 4;
+// Fixed center frequency each stage's own sweep moves around -- not
+// patch-controlled (only the sweep's own rate/range are, via Rate/Depth).
+const PHASER_CENTER_HZ = 800;
+
+const FLANGER_BASE_DELAY_SECONDS = 0.003;
+// Comfortably above base + the maximum depth swing (flangerDepthToSeconds's
+// own ceiling) so the modulated delay time never clips against the node's
+// own max.
+const FLANGER_MAX_DELAY_SECONDS = 0.02;
+
 export interface ChordPadFxBus {
 	/** Where a chord-pad hit (`chord-voices.ts`'s `triggerChordPad`) should connect instead of `ctx.destination` directly. */
 	readonly input: GainNode;
@@ -81,6 +130,13 @@ export interface ChordPadFxBus {
 		/** One representative comb filter's feedback/damping nodes -- every comb gets the identical treatment in `setPatch` (see `REVERB_COMB_DELAY_SECONDS`), so checking one confirms the pattern without exposing all three. */
 		readonly representativeCombFeedback: GainNode;
 		readonly representativeCombDamping: BiquadFilterNode;
+		readonly phaserSend: GainNode;
+		/** One representative allpass stage -- every stage gets the identical shared-LFO frequency sweep, so checking one confirms the pattern without exposing all four. */
+		readonly representativePhaserStage: BiquadFilterNode;
+		readonly flangerSend: GainNode;
+		readonly flangerDelay: DelayNode;
+		readonly flangerFeedback: GainNode;
+		readonly tremoloGain: GainNode;
 	};
 }
 
@@ -135,6 +191,77 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 	chorusDry.connect(chorusOutput);
 	chorusDelay.connect(chorusOutput);
 
+	// --- Phaser: an LFO-swept series of allpass filters --------------------
+	const phaserDry = ctx.createGain();
+	const phaserSend = ctx.createGain();
+	phaserSend.gain.setValueAtTime(0, ctx.currentTime);
+	const phaserStages: BiquadFilterNode[] = Array.from({ length: PHASER_STAGE_COUNT }, () => {
+		const stage = ctx.createBiquadFilter();
+		stage.type = 'allpass';
+		stage.frequency.setValueAtTime(PHASER_CENTER_HZ, ctx.currentTime);
+		return stage;
+	});
+	let phaserChainNode: AudioNode = phaserSend;
+	for (const stage of phaserStages) {
+		phaserChainNode.connect(stage);
+		phaserChainNode = stage;
+	}
+	const phaserLfo = ctx.createOscillator();
+	phaserLfo.type = 'sine';
+	phaserLfo.frequency.setValueAtTime(currentState.phaser.rate, ctx.currentTime);
+	const phaserLfoDepth = ctx.createGain();
+	phaserLfoDepth.gain.setValueAtTime(0, ctx.currentTime);
+	phaserLfo.connect(phaserLfoDepth);
+	for (const stage of phaserStages) phaserLfoDepth.connect(stage.frequency);
+	phaserLfo.start(ctx.currentTime);
+	const phaserOutput = ctx.createGain();
+
+	chorusOutput.connect(phaserDry);
+	chorusOutput.connect(phaserSend);
+	phaserDry.connect(phaserOutput);
+	phaserChainNode.connect(phaserOutput);
+
+	// --- Flanger: Chorus's own modulated delay, plus a feedback loop -------
+	const flangerDry = ctx.createGain();
+	const flangerSend = ctx.createGain();
+	flangerSend.gain.setValueAtTime(0, ctx.currentTime);
+	const flangerDelay = ctx.createDelay(FLANGER_MAX_DELAY_SECONDS);
+	flangerDelay.delayTime.setValueAtTime(FLANGER_BASE_DELAY_SECONDS, ctx.currentTime);
+	const flangerLfo = ctx.createOscillator();
+	flangerLfo.type = 'sine';
+	flangerLfo.frequency.setValueAtTime(currentState.flanger.rate, ctx.currentTime);
+	const flangerLfoDepth = ctx.createGain();
+	flangerLfoDepth.gain.setValueAtTime(0, ctx.currentTime);
+	flangerLfo.connect(flangerLfoDepth);
+	flangerLfoDepth.connect(flangerDelay.delayTime);
+	flangerLfo.start(ctx.currentTime);
+	const flangerFeedback = ctx.createGain();
+	flangerFeedback.gain.setValueAtTime(0, ctx.currentTime);
+	const flangerOutput = ctx.createGain();
+
+	phaserOutput.connect(flangerDry);
+	phaserOutput.connect(flangerSend);
+	flangerSend.connect(flangerDelay);
+	flangerDelay.connect(flangerFeedback);
+	flangerFeedback.connect(flangerDelay);
+	flangerDry.connect(flangerOutput);
+	flangerDelay.connect(flangerOutput);
+
+	// --- Tremolo: a single in-series amplitude-modulating gain, no dry/wet
+	// split (see file header) ------------------------------------------------
+	const tremoloGain = ctx.createGain();
+	tremoloGain.gain.setValueAtTime(1, ctx.currentTime);
+	const tremoloLfo = ctx.createOscillator();
+	tremoloLfo.type = 'sine';
+	tremoloLfo.frequency.setValueAtTime(currentState.tremolo.rate, ctx.currentTime);
+	const tremoloLfoDepth = ctx.createGain();
+	tremoloLfoDepth.gain.setValueAtTime(0, ctx.currentTime);
+	tremoloLfo.connect(tremoloLfoDepth);
+	tremoloLfoDepth.connect(tremoloGain.gain);
+	tremoloLfo.start(ctx.currentTime);
+
+	flangerOutput.connect(tremoloGain);
+
 	// --- Delay: one tempo-synced delay with feedback -----------------------
 	const delayDry = ctx.createGain();
 	const delaySend = ctx.createGain();
@@ -145,8 +272,8 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 	delayFeedback.gain.setValueAtTime(0, ctx.currentTime);
 	const delayOutput = ctx.createGain();
 
-	chorusOutput.connect(delayDry);
-	chorusOutput.connect(delaySend);
+	tremoloGain.connect(delayDry);
+	tremoloGain.connect(delaySend);
 	delaySend.connect(delayNode);
 	delayNode.connect(delayFeedback);
 	delayFeedback.connect(delayNode);
@@ -206,6 +333,66 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 				PARAM_SMOOTH_TIME_CONSTANT
 			);
 
+			phaserLfo.frequency.cancelScheduledValues(atTime);
+			phaserLfo.frequency.setTargetAtTime(
+				phaserRateHzClamp(state.phaser.rate),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			phaserLfoDepth.gain.cancelScheduledValues(atTime);
+			phaserLfoDepth.gain.setTargetAtTime(
+				phaserDepthToHzRange(state.phaser.depth),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			phaserSend.gain.cancelScheduledValues(atTime);
+			phaserSend.gain.setTargetAtTime(
+				state.phaser.enabled ? phaserMixToGain(state.phaser.mix) : 0,
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+
+			flangerLfo.frequency.cancelScheduledValues(atTime);
+			flangerLfo.frequency.setTargetAtTime(
+				flangerRateHzClamp(state.flanger.rate),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			flangerLfoDepth.gain.cancelScheduledValues(atTime);
+			flangerLfoDepth.gain.setTargetAtTime(
+				flangerDepthToSeconds(state.flanger.depth),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			flangerFeedback.gain.cancelScheduledValues(atTime);
+			flangerFeedback.gain.setTargetAtTime(
+				flangerFeedbackToGain(state.flanger.feedback),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			flangerSend.gain.cancelScheduledValues(atTime);
+			flangerSend.gain.setTargetAtTime(
+				state.flanger.enabled ? flangerMixToGain(state.flanger.mix) : 0,
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+
+			tremoloLfo.frequency.cancelScheduledValues(atTime);
+			tremoloLfo.frequency.setTargetAtTime(
+				tremoloRateHzClamp(state.tremolo.rate),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			// See file header: the LFO's own depth-scaling gain swings ±half the
+			// total range around a base value that's also half the range below
+			// unity, so the sum ranges over exactly [1 - swing, 1] -- at swing 0
+			// (disabled/depth 0) both resolve to a constant 1, exactly dry.
+			const tremoloSwing = state.tremolo.enabled ? tremoloDepthToGainSwing(state.tremolo.depth) : 0;
+			tremoloLfoDepth.gain.cancelScheduledValues(atTime);
+			tremoloLfoDepth.gain.setTargetAtTime(tremoloSwing / 2, atTime, PARAM_SMOOTH_TIME_CONSTANT);
+			tremoloGain.gain.cancelScheduledValues(atTime);
+			tremoloGain.gain.setTargetAtTime(1 - tremoloSwing / 2, atTime, PARAM_SMOOTH_TIME_CONSTANT);
+
 			applyDelayTime(atTime);
 			delayFeedback.gain.cancelScheduledValues(atTime);
 			delayFeedback.gain.setTargetAtTime(
@@ -247,7 +434,13 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 			delayNode,
 			reverbSend,
 			representativeCombFeedback: combStages[0].feedback,
-			representativeCombDamping: combStages[0].damping
+			representativeCombDamping: combStages[0].damping,
+			phaserSend,
+			representativePhaserStage: phaserStages[0],
+			flangerSend,
+			flangerDelay,
+			flangerFeedback,
+			tremoloGain
 		}
 	};
 }
