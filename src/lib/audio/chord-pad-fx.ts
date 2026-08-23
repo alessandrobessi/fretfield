@@ -3,16 +3,27 @@
  * one persistent node graph built once per playback session (mirroring
  * `acid-bass-voice.ts`'s own "build once, live for the whole session"
  * shape), sitting between every `triggerChordPad` hit (`chord-voices.ts`)
- * and `ctx.destination`. Signal order: Chorus -> Phaser -> Flanger ->
- * Tremolo -> Delay -> Reverb -> destination -- the four modulation effects
- * grouped ahead of the two time-based ones, the standard pedalboard
- * convention (built in two stages, 2026-08: Reverb/Delay/Chorus first, then
- * Phaser/Flanger/Tremolo). Every stage except Tremolo is a genuine
+ * and `ctx.destination`. Signal order: Fuzz -> Chorus -> Phaser -> Flanger ->
+ * Tremolo -> Delay -> Reverb -> destination -- Fuzz first (the standard
+ * pedalboard convention: distortion ahead of modulation and time-based
+ * effects, so everything downstream processes the already-fuzzed signal),
+ * then the four modulation effects grouped ahead of the two time-based ones
+ * (built in three stages, 2026-08: Reverb/Delay/Chorus first, then Phaser/
+ * Flanger/Tremolo, then Fuzz). Every stage except Tremolo is a genuine
  * dry-signal-preserving insert (its own always-on dry path plus a single
  * mix-scaled send into that stage's own wet processing, summed back
  * together) -- disabled or `mix: 0` reproduces exactly dry output for that
  * stage, the same invariant Acid Bass's own tempo-synced delay already
  * established.
+ *
+ * Fuzz is a single fixed hard-clip `WaveShaperNode` curve (a steep `tanh`,
+ * generated once, never regenerated per patch edit) -- Drive is only ever
+ * the pre-gain feeding into that fixed curve, the same "one curve, a
+ * pre-gain controls how hard it clips" idiom Acid Bass's own
+ * `driveToPregain`/`saturationToPregain` already established, not a
+ * per-character curve set (this rack has no character picker, unlike Acid
+ * Bass's Soft/Diode/Hard distortion -- one fuzz character is proportionate
+ * to what was asked).
  *
  * Reverb is a small algorithmic (Freeverb/Schroeder-style) comb+allpass
  * network, not a convolution reverb -- this app has no external
@@ -65,6 +76,8 @@ import {
 	flangerFeedbackToGain,
 	flangerMixToGain,
 	flangerRateHzClamp,
+	fuzzDriveToPregain,
+	fuzzMixToGain,
 	phaserDepthToHzRange,
 	phaserMixToGain,
 	phaserRateHzClamp,
@@ -109,6 +122,24 @@ const FLANGER_BASE_DELAY_SECONDS = 0.003;
 // own max.
 const FLANGER_MAX_DELAY_SECONDS = 0.02;
 
+// Steeper than chord-voices.ts's own WARMTH_CURVE (a gentle `x - x^3/3`) --
+// this is meant to clip hard, not just round off peaks. Drive's own pre-gain
+// (fuzzDriveToPregain) is what actually pushes a loud signal past this
+// curve's own domain into a fully hard-clipped, squared-off "fuzz" tone.
+const FUZZ_CURVE_SAMPLES = 256;
+const FUZZ_CURVE_STEEPNESS = 6;
+
+function createFuzzCurve(): Float32Array<ArrayBuffer> {
+	const curve = new Float32Array(FUZZ_CURVE_SAMPLES);
+	for (let i = 0; i < FUZZ_CURVE_SAMPLES; i++) {
+		const x = (i / (FUZZ_CURVE_SAMPLES - 1)) * 2 - 1;
+		curve[i] = Math.tanh(x * FUZZ_CURVE_STEEPNESS);
+	}
+	return curve;
+}
+
+const FUZZ_CURVE = createFuzzCurve();
+
 export interface ChordPadFxBus {
 	/** Where a chord-pad hit (`chord-voices.ts`'s `triggerChordPad`) should connect instead of `ctx.destination` directly. */
 	readonly input: GainNode;
@@ -123,6 +154,8 @@ export interface ChordPadFxBus {
 	 * `__test` hook.
 	 */
 	readonly __test: {
+		readonly fuzzSend: GainNode;
+		readonly fuzzPregain: GainNode;
 		readonly chorusSend: GainNode;
 		readonly delaySend: GainNode;
 		readonly delayNode: DelayNode;
@@ -169,6 +202,25 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 
 	const input = ctx.createGain();
 
+	// --- Fuzz: a fixed hard-clip curve, Drive is only ever the pre-gain
+	// feeding into it (see file header) --------------------------------------
+	const fuzzDry = ctx.createGain();
+	const fuzzSend = ctx.createGain();
+	fuzzSend.gain.setValueAtTime(0, ctx.currentTime);
+	const fuzzPregain = ctx.createGain();
+	fuzzPregain.gain.setValueAtTime(1, ctx.currentTime);
+	const fuzzShaper = ctx.createWaveShaper();
+	fuzzShaper.curve = FUZZ_CURVE;
+	fuzzShaper.oversample = '4x';
+	const fuzzOutput = ctx.createGain();
+
+	input.connect(fuzzDry);
+	input.connect(fuzzSend);
+	fuzzSend.connect(fuzzPregain);
+	fuzzPregain.connect(fuzzShaper);
+	fuzzDry.connect(fuzzOutput);
+	fuzzShaper.connect(fuzzOutput);
+
 	// --- Chorus: one modulated short delay, no feedback -------------------
 	const chorusDry = ctx.createGain();
 	const chorusSend = ctx.createGain();
@@ -182,8 +234,8 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 	chorusLfoDepth.gain.setValueAtTime(0, ctx.currentTime);
 	const chorusOutput = ctx.createGain();
 
-	input.connect(chorusDry);
-	input.connect(chorusSend);
+	fuzzOutput.connect(chorusDry);
+	fuzzOutput.connect(chorusSend);
 	chorusSend.connect(chorusDelay);
 	chorusLfo.connect(chorusLfoDepth);
 	chorusLfoDepth.connect(chorusDelay.delayTime);
@@ -314,6 +366,19 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 		setPatch(state, atTime = ctx.currentTime) {
 			currentState = state;
 
+			fuzzPregain.gain.cancelScheduledValues(atTime);
+			fuzzPregain.gain.setTargetAtTime(
+				fuzzDriveToPregain(state.fuzz.drive),
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+			fuzzSend.gain.cancelScheduledValues(atTime);
+			fuzzSend.gain.setTargetAtTime(
+				state.fuzz.enabled ? fuzzMixToGain(state.fuzz.mix) : 0,
+				atTime,
+				PARAM_SMOOTH_TIME_CONSTANT
+			);
+
 			chorusLfo.frequency.cancelScheduledValues(atTime);
 			chorusLfo.frequency.setTargetAtTime(
 				chorusRateHzClamp(state.chorus.rate),
@@ -429,6 +494,8 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 		},
 
 		__test: {
+			fuzzSend,
+			fuzzPregain,
 			chorusSend,
 			delaySend,
 			delayNode,

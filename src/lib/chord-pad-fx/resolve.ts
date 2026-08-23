@@ -12,6 +12,27 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Fuzz -- a fixed clipping curve (audio/chord-pad-fx.ts), Drive is only ever
+// the pre-gain feeding into it, the same idiom Acid Bass's own
+// `driveToPregain`/`saturationToPregain` already established.
+// ---------------------------------------------------------------------------
+
+// Much more aggressive than Acid Bass's own MAX_DRIVE_PREGAIN (10) -- a fuzz
+// is characteristically harder-clipped than a mild output drive stage.
+const MAX_FUZZ_PREGAIN = 20;
+
+/** 0-100 Drive -> the gain applied before the fixed fuzz `WaveShaperNode` -- 1x (effectively clean) at 0, up to 20x (hard-clipped) at 100. */
+export function fuzzDriveToPregain(drive: number): number {
+	const t = clamp(drive, 0, 100) / 100;
+	return 1 + t * (MAX_FUZZ_PREGAIN - 1);
+}
+
+/** 0-100 wet mix -> linear gain. */
+export function fuzzMixToGain(mix: number): number {
+	return clamp(mix, 0, 100) / 100;
+}
+
+// ---------------------------------------------------------------------------
 // Reverb -- a small comb+allpass network (see audio/chord-pad-fx.ts's own doc
 // comment for why this is algorithmic, not convolution). Each comb filter's
 // own delay time is a fixed tuning constant (audio/chord-pad-fx.ts), spread

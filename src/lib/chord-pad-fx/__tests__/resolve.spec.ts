@@ -11,6 +11,8 @@ import {
 	flangerFeedbackToGain,
 	flangerMixToGain,
 	flangerRateHzClamp,
+	fuzzDriveToPregain,
+	fuzzMixToGain,
 	phaserDepthToHzRange,
 	phaserMixToGain,
 	phaserRateHzClamp,
@@ -20,6 +22,31 @@ import {
 	tremoloDepthToGainSwing,
 	tremoloRateHzClamp
 } from '../resolve';
+
+describe('fuzz macros', () => {
+	it('drive 0 is unity (clean) pregain, drive 100 is the documented max', () => {
+		expect(fuzzDriveToPregain(0)).toBe(1);
+		expect(fuzzDriveToPregain(100)).toBe(20);
+	});
+
+	it('pregain is monotonically increasing with drive', () => {
+		const values = [0, 25, 50, 75, 100].map(fuzzDriveToPregain);
+		for (let i = 1; i < values.length; i++) expect(values[i]).toBeGreaterThan(values[i - 1]);
+	});
+
+	it('mix maps 0-100 to a 0-1 linear gain', () => {
+		expect(fuzzMixToGain(0)).toBe(0);
+		expect(fuzzMixToGain(100)).toBe(1);
+		expect(fuzzMixToGain(50)).toBeCloseTo(0.5);
+	});
+
+	it('every macro clamps out-of-range input', () => {
+		expect(fuzzDriveToPregain(-50)).toBe(fuzzDriveToPregain(0));
+		expect(fuzzDriveToPregain(150)).toBe(fuzzDriveToPregain(100));
+		expect(fuzzMixToGain(-10)).toBe(0);
+		expect(fuzzMixToGain(110)).toBe(1);
+	});
+});
 
 describe('reverb macros', () => {
 	it('size 0 and 100 land at the documented feedback-gain floor/ceiling', () => {

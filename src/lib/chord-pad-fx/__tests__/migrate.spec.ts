@@ -13,16 +13,17 @@ describe('coerceChordPadFxState: nothing at all (pre-chord-pad-fx groove)', () =
 	});
 
 	it('also handles null and unrecognizable garbage the same way', () => {
-		expect(coerceChordPadFxState(null).version).toBe(2);
-		expect(coerceChordPadFxState('not an object').version).toBe(2);
-		expect(coerceChordPadFxState(42).version).toBe(2);
+		expect(coerceChordPadFxState(null).version).toBe(3);
+		expect(coerceChordPadFxState('not an object').version).toBe(3);
+		expect(coerceChordPadFxState(42).version).toBe(3);
 	});
 });
 
-describe('coerceChordPadFxState: an already-current (version 2), well-formed state', () => {
+describe('coerceChordPadFxState: an already-current (version 3), well-formed state', () => {
 	it('round-trips every field unchanged', () => {
 		const current = {
-			version: 2 as const,
+			version: 3 as const,
+			fuzz: { enabled: true, drive: 65, mix: 40 },
 			reverb: { enabled: true, size: 70, damping: 20, mix: 55 },
 			delay: { enabled: true, division: '1/16T' as const, feedback: 60, mix: 40 },
 			chorus: { enabled: true, rate: 2.5, depth: 80, mix: 45 },
@@ -34,8 +35,8 @@ describe('coerceChordPadFxState: an already-current (version 2), well-formed sta
 	});
 });
 
-describe('coerceChordPadFxState: version 1 -> 2 migration (Reverb/Delay/Chorus only)', () => {
-	it('keeps reverb/delay/chorus exactly as persisted, defaults phaser/flanger/tremolo off/neutral, and stamps version 2', () => {
+describe('coerceChordPadFxState: version 1 -> 3 migration (Reverb/Delay/Chorus only)', () => {
+	it('keeps reverb/delay/chorus exactly as persisted, defaults phaser/flanger/tremolo/fuzz off/neutral, and stamps version 3', () => {
 		const v1 = {
 			version: 1 as const,
 			reverb: { enabled: true, size: 70, damping: 20, mix: 55 },
@@ -45,16 +46,18 @@ describe('coerceChordPadFxState: version 1 -> 2 migration (Reverb/Delay/Chorus o
 		const state = coerceChordPadFxState(v1);
 		const defaults = createDefaultChordPadFxState();
 
-		expect(state.version).toBe(2);
+		expect(state.version).toBe(3);
 		expect(state.reverb).toEqual(v1.reverb);
 		expect(state.delay).toEqual(v1.delay);
 		expect(state.chorus).toEqual(v1.chorus);
 		expect(state.phaser).toEqual(defaults.phaser);
 		expect(state.flanger).toEqual(defaults.flanger);
 		expect(state.tremolo).toEqual(defaults.tremolo);
+		expect(state.fuzz).toEqual(defaults.fuzz);
 		expect(state.phaser.enabled).toBe(false);
 		expect(state.flanger.enabled).toBe(false);
 		expect(state.tremolo.enabled).toBe(false);
+		expect(state.fuzz.enabled).toBe(false);
 	});
 
 	it('a version-1 groove with malformed reverb/delay/chorus still coerces those fields defensively', () => {
@@ -65,11 +68,38 @@ describe('coerceChordPadFxState: version 1 -> 2 migration (Reverb/Delay/Chorus o
 		});
 		const defaults = createDefaultChordPadFxState();
 
-		expect(state.version).toBe(2);
+		expect(state.version).toBe(3);
 		expect(state.reverb.enabled).toBe(true);
 		expect(state.reverb.size).toBe(defaults.reverb.size);
 		expect(state.delay.division).toBe(defaults.delay.division);
 		expect(state.phaser).toEqual(defaults.phaser);
+		expect(state.fuzz).toEqual(defaults.fuzz);
+	});
+});
+
+describe('coerceChordPadFxState: version 2 -> 3 migration (Reverb/Delay/Chorus/Phaser/Flanger/Tremolo only)', () => {
+	it('keeps all six existing effects exactly as persisted, defaults fuzz off/neutral, and stamps version 3', () => {
+		const v2 = {
+			version: 2 as const,
+			reverb: { enabled: true, size: 70, damping: 20, mix: 55 },
+			delay: { enabled: true, division: '1/16T' as const, feedback: 60, mix: 40 },
+			chorus: { enabled: true, rate: 2.5, depth: 80, mix: 45 },
+			phaser: { enabled: true, rate: 0.5, depth: 60, mix: 25 },
+			flanger: { enabled: true, rate: 0.4, depth: 70, feedback: 50, mix: 30 },
+			tremolo: { enabled: true, rate: 6, depth: 65 }
+		};
+		const state = coerceChordPadFxState(v2);
+		const defaults = createDefaultChordPadFxState();
+
+		expect(state.version).toBe(3);
+		expect(state.reverb).toEqual(v2.reverb);
+		expect(state.delay).toEqual(v2.delay);
+		expect(state.chorus).toEqual(v2.chorus);
+		expect(state.phaser).toEqual(v2.phaser);
+		expect(state.flanger).toEqual(v2.flanger);
+		expect(state.tremolo).toEqual(v2.tremolo);
+		expect(state.fuzz).toEqual(defaults.fuzz);
+		expect(state.fuzz.enabled).toBe(false);
 	});
 });
 
@@ -126,5 +156,16 @@ describe('coerceChordPadFxState: malformed/partial persisted data', () => {
 		expect(state.phaser.rate).toBeLessThanOrEqual(2);
 		expect(state.flanger.rate).toBeLessThanOrEqual(3);
 		expect(state.tremolo.rate).toBeLessThanOrEqual(10);
+	});
+
+	it('falls back to defaults field-by-field for malformed fuzz data too', () => {
+		const state = coerceChordPadFxState({
+			fuzz: { enabled: true, drive: 'not a number', mix: 999 }
+		});
+		const defaults = createDefaultChordPadFxState();
+
+		expect(state.fuzz.enabled).toBe(true);
+		expect(state.fuzz.drive).toBe(defaults.fuzz.drive);
+		expect(state.fuzz.mix).toBe(100); // clamped, not rejected
 	});
 });

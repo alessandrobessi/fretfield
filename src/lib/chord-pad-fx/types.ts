@@ -7,11 +7,21 @@
  * chord the progression names, see `audio/chord-voices.ts`), so this is
  * FX-only state, not a full instrument patch.
  *
- * Built in two user-requested stages (2026-08): Reverb, Delay, Chorus first,
- * then Phaser, Flanger, and Tremolo -- see ROADMAP.md for both entries.
+ * Built in three user-requested stages (2026-08): Reverb, Delay, Chorus
+ * first, then Phaser, Flanger, and Tremolo, then Fuzz -- see ROADMAP.md for
+ * all three entries.
  */
 
 export type ChordPadDelayDivision = '1/4' | '1/8' | '1/8D' | '1/8T' | '1/16' | '1/16D' | '1/16T';
+
+/** A single fixed distortion character (a `WaveShaperNode` with a hard, tanh-based clipping curve) -- `drive` is a pre-gain feeding into that fixed curve, the same "one curve, Drive controls how hard it clips" idiom Acid Bass's own `driveToPregain` already established, not a regenerated-per-value curve. First in the signal chain (see `audio/chord-pad-fx.ts`'s own doc comment for why), so everything downstream (Chorus onward) processes the already-fuzzed signal. `enabled: false` or `mix: 0` must reproduce dry output exactly. */
+export interface ChordPadFuzzPatch {
+	enabled: boolean;
+	/** 0-100: pre-gain into the fixed clipping curve -- see `resolve.ts`'s `fuzzDriveToPregain`. */
+	drive: number;
+	/** 0-100 wet mix. */
+	mix: number;
+}
 
 /** A small algorithmic (comb+allpass) reverb, not a convolution reverb -- see `audio/chord-pad-fx.ts`'s own doc comment for why. `enabled: false` or `mix: 0` must reproduce dry output exactly. */
 export interface ChordPadReverbPatch {
@@ -88,8 +98,9 @@ export interface ChordPadTremoloPatch {
 }
 
 export interface ChordPadFxState {
-	/** The runtime discriminant `migrate.ts` uses -- `1` was the original Reverb/Delay/Chorus-only shape; `2` (current) adds `phaser`/`flanger`/`tremolo`. */
-	version: 2;
+	/** The runtime discriminant `migrate.ts` uses -- `1` was the original Reverb/Delay/Chorus-only shape, `2` added `phaser`/`flanger`/`tremolo`, `3` (current) adds `fuzz`. */
+	version: 3;
+	fuzz: ChordPadFuzzPatch;
 	reverb: ChordPadReverbPatch;
 	delay: ChordPadDelayPatch;
 	chorus: ChordPadChorusPatch;

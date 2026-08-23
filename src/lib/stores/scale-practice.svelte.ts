@@ -1195,6 +1195,24 @@ export class ScalePracticeStore {
 		this.persist();
 	}
 
+	setChordPadFuzzEnabled(enabled: boolean): void {
+		this.updateChordPadFx((state) => ({ ...state, fuzz: { ...state.fuzz, enabled } }));
+	}
+
+	setChordPadFuzzDrive(drive: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			fuzz: { ...state.fuzz, drive: clampPercent(drive) }
+		}));
+	}
+
+	setChordPadFuzzMix(mix: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			fuzz: { ...state.fuzz, mix: clampPercent(mix) }
+		}));
+	}
+
 	setChordPadReverbEnabled(enabled: boolean): void {
 		this.updateChordPadFx((state) => ({ ...state, reverb: { ...state.reverb, enabled } }));
 	}

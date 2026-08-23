@@ -4,6 +4,7 @@ import type {
 	ChordPadDelayDivision,
 	ChordPadDelayPatch,
 	ChordPadFlangerPatch,
+	ChordPadFuzzPatch,
 	ChordPadFxState,
 	ChordPadPhaserPatch,
 	ChordPadReverbPatch,
@@ -102,12 +103,23 @@ function coerceTremolo(raw: unknown, defaults: ChordPadTremoloPatch): ChordPadTr
 	};
 }
 
+function coerceFuzz(raw: unknown, defaults: ChordPadFuzzPatch): ChordPadFuzzPatch {
+	const v = isRecord(raw) ? raw : {};
+	return {
+		enabled: coerceBoolean(v.enabled, defaults.enabled),
+		drive: coerceNumber(v.drive, defaults.drive, 0, 100),
+		mix: coerceNumber(v.mix, defaults.mix, 0, 100)
+	};
+}
+
 /**
  * Reads any prior shape from storage and always returns a current
  * `ChordPadFxState`. `version: 1` (Reverb/Delay/Chorus only) migrates by
  * keeping those three exactly as persisted and defaulting `phaser`/
- * `flanger`/`tremolo` off/neutral, mirroring `acid-bass/migrate.ts`'s own
- * version-branch precedent -- everything else (current `version: 2`, or
+ * `flanger`/`tremolo`/`fuzz` off/neutral; `version: 2` (adds `phaser`/
+ * `flanger`/`tremolo`) keeps all six of those exactly as persisted and
+ * defaults only `fuzz` off/neutral -- mirroring `acid-bass/migrate.ts`'s own
+ * version-branch precedent. Everything else (current `version: 3`, or
  * missing/garbage data) runs every field through full defensive coercion,
  * since persisted JSON is untrusted regardless of its own claimed version.
  */
@@ -115,8 +127,10 @@ export function coerceChordPadFxState(raw: unknown): ChordPadFxState {
 	const defaults = createDefaultChordPadFxState();
 	const v = isRecord(raw) ? raw : {};
 	const isV1 = v.version === 1;
+	const isPreFuzz = isV1 || v.version === 2;
 	return {
-		version: 2,
+		version: 3,
+		fuzz: coerceFuzz(isPreFuzz ? undefined : v.fuzz, defaults.fuzz),
 		reverb: coerceReverb(v.reverb, defaults.reverb),
 		delay: coerceDelay(v.delay, defaults.delay),
 		chorus: coerceChorus(v.chorus, defaults.chorus),

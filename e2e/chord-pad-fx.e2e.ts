@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * The Chord Pad's FX rack -- Reverb/Delay/Chorus (stage 1) plus Phaser/
- * Flanger/Tremolo (stage 2), both user-requested, 2026-08 -- six
- * HardwarePanels under the Harmony tab, matching Acid Bass's own panel
+ * The Chord Pad's FX rack -- Reverb/Delay/Chorus (stage 1), Phaser/Flanger/
+ * Tremolo (stage 2), then Fuzz (stage 3), all user-requested, 2026-08 --
+ * seven HardwarePanels under the Harmony tab, matching Acid Bass's own panel
  * language exactly (see AcidBassControls.svelte's own conventions,
  * `AGENTS.md`). No real-audio assertions, matching this app's existing
  * testing boundary (see acid-bass.e2e.ts) -- only UI/state, plus a playback
@@ -20,17 +20,23 @@ async function openHarmonyTab(page: import('@playwright/test').Page): Promise<vo
 }
 
 test.describe('Chord Pad FX: panel layout', () => {
-	test('REVERB/DELAY/CHORUS/PHASER/FLANGER/TREMOLO sections, and every control, are all visible at once', async ({
+	test('FUZZ/REVERB/DELAY/CHORUS/PHASER/FLANGER/TREMOLO sections, and every control, are all visible at once', async ({
 		page
 	}) => {
 		await openHarmonyTab(page);
 
+		await expect(page.getByRole('heading', { name: 'FUZZ', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'REVERB', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'DELAY', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'CHORUS', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'PHASER', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'FLANGER', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'TREMOLO', exact: true })).toBeVisible();
+
+		const fuzzPanel = page.getByRole('region', { name: 'FUZZ', exact: true });
+		await expect(fuzzPanel.getByRole('button', { name: 'Fuzz', exact: true })).toBeVisible();
+		await expect(fuzzPanel.getByRole('slider', { name: 'Drive', exact: true })).toBeVisible();
+		await expect(fuzzPanel.getByRole('slider', { name: 'Mix', exact: true })).toBeVisible();
 
 		const reverbPanel = page.getByRole('region', { name: 'REVERB', exact: true });
 		await expect(reverbPanel.getByRole('button', { name: 'Reverb', exact: true })).toBeVisible();
@@ -68,6 +74,31 @@ test.describe('Chord Pad FX: panel layout', () => {
 		await expect(tremoloPanel.getByRole('slider', { name: 'Rate', exact: true })).toBeVisible();
 		await expect(tremoloPanel.getByRole('slider', { name: 'Depth', exact: true })).toBeVisible();
 		await expect(tremoloPanel.getByRole('slider', { name: 'Mix', exact: true })).not.toBeVisible();
+	});
+});
+
+test.describe('Chord Pad FX: Fuzz', () => {
+	test('is off by default, toggles on (lighting its LED), and its Drive/Mix knobs both update state', async ({
+		page
+	}) => {
+		await openHarmonyTab(page);
+
+		const fuzzPanel = page.getByRole('region', { name: 'FUZZ', exact: true });
+		const toggle = fuzzPanel.getByRole('button', { name: 'Fuzz', exact: true });
+		const led = fuzzPanel.locator('.led');
+
+		await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(led).not.toHaveClass(/active/);
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(led).toHaveClass(/active/);
+
+		for (const label of ['Drive', 'Mix']) {
+			const knob = fuzzPanel.getByRole('slider', { name: label, exact: true });
+			await knob.focus();
+			await knob.press('End');
+			await expect(knob).toHaveAttribute('aria-valuenow', '100');
+		}
 	});
 });
 
@@ -281,6 +312,10 @@ test.describe('Chord Pad FX: persistence', () => {
 		await openHarmonyTab(page);
 
 		await page
+			.getByRole('region', { name: 'FUZZ', exact: true })
+			.getByRole('button', { name: 'Fuzz', exact: true })
+			.click();
+		await page
 			.getByRole('region', { name: 'REVERB', exact: true })
 			.getByRole('button', { name: 'Reverb', exact: true })
 			.click();
@@ -313,6 +348,11 @@ test.describe('Chord Pad FX: persistence', () => {
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Harmony', exact: true }).click();
 
+		await expect(
+			page
+				.getByRole('region', { name: 'FUZZ', exact: true })
+				.getByRole('button', { name: 'Fuzz', exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await expect(
 			page
 				.getByRole('region', { name: 'REVERB', exact: true })
@@ -355,6 +395,7 @@ test.describe('Chord Pad FX: live playback', () => {
 		await openHarmonyTab(page);
 
 		for (const [panel, button] of [
+			['FUZZ', 'Fuzz'],
 			['REVERB', 'Reverb'],
 			['DELAY', 'Delay'],
 			['CHORUS', 'Chorus'],
@@ -372,6 +413,7 @@ test.describe('Chord Pad FX: live playback', () => {
 
 		await page.getByRole('button', { name: 'Play' }).click();
 		await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'FUZZ', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'REVERB', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'DELAY', exact: true })).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'CHORUS', exact: true })).toBeVisible();

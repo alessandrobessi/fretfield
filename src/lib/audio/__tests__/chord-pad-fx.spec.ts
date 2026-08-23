@@ -42,12 +42,18 @@ describe('createChordPadFxBus: signal path', () => {
 
 	it("each stage's wet send genuinely reaches ctx.destination, not a dead-end branch", () => {
 		const { ctx, bus } = makeBus();
+		expect(fakeNode(bus.__test.fuzzSend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.chorusSend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.delaySend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.reverbSend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.phaserSend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.flangerSend).reaches(ctx.destination)).toBe(true);
 		expect(fakeNode(bus.__test.tremoloGain).reaches(ctx.destination)).toBe(true);
+	});
+
+	it('input reaches the fuzz send (Fuzz is genuinely first in the chain)', () => {
+		const { bus } = makeBus();
+		expect(fakeNode(bus.input).reaches(fakeNode(bus.__test.fuzzSend))).toBe(true);
 	});
 
 	it("the flanger's own feedback loop reaches ctx.destination (the wet return)", () => {
@@ -65,6 +71,7 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 	it('every stage defaults off, so every wet-send gain resolves to 0, and tremoloGain resolves to a constant 1 (exactly dry)', () => {
 		const { bus } = makeBus();
 		bus.setPatch(createDefaultChordPadFxState(), 0);
+		expect(fakeParam(bus.__test.fuzzSend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.chorusSend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.delaySend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.reverbSend.gain).value).toBe(0);
@@ -76,6 +83,7 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 	it("enabling a stage with mix 0 still resolves that stage's wet-send gain to 0", () => {
 		const { bus } = makeBus();
 		const state = stateWith({
+			fuzz: { enabled: true, drive: 50, mix: 0 },
 			reverb: { enabled: true, size: 80, damping: 20, mix: 0 },
 			delay: { enabled: true, division: '1/8', feedback: 50, mix: 0 },
 			chorus: { enabled: true, rate: 1, depth: 50, mix: 0 },
@@ -83,6 +91,7 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 			flanger: { enabled: true, rate: 0.5, depth: 50, feedback: 30, mix: 0 }
 		});
 		bus.setPatch(state, 0);
+		expect(fakeParam(bus.__test.fuzzSend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.chorusSend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.delaySend.gain).value).toBe(0);
 		expect(fakeParam(bus.__test.reverbSend.gain).value).toBe(0);
@@ -93,6 +102,7 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 	it('enabling a stage with a nonzero mix resolves a nonzero wet-send gain', () => {
 		const { bus } = makeBus();
 		const state = stateWith({
+			fuzz: { enabled: true, drive: 50, mix: 45 },
 			reverb: { enabled: true, size: 80, damping: 20, mix: 60 },
 			delay: { enabled: true, division: '1/8', feedback: 50, mix: 40 },
 			chorus: { enabled: true, rate: 1, depth: 50, mix: 35 },
@@ -100,6 +110,7 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 			flanger: { enabled: true, rate: 0.5, depth: 50, feedback: 30, mix: 25 }
 		});
 		bus.setPatch(state, 0);
+		expect(fakeParam(bus.__test.fuzzSend.gain).value).toBeGreaterThan(0);
 		expect(fakeParam(bus.__test.chorusSend.gain).value).toBeGreaterThan(0);
 		expect(fakeParam(bus.__test.delaySend.gain).value).toBeGreaterThan(0);
 		expect(fakeParam(bus.__test.reverbSend.gain).value).toBeGreaterThan(0);
@@ -120,6 +131,17 @@ describe('createChordPadFxBus: setPatch resolves disabled/zero-mix stages to exa
 		const { bus } = makeBus();
 		bus.setPatch(stateWith({ tremolo: { enabled: true, rate: 4, depth: 80 } }), 0);
 		expect(fakeParam(bus.__test.tremoloGain.gain).value).toBeLessThan(1);
+	});
+});
+
+describe('createChordPadFxBus: fuzz drive resolution', () => {
+	it('drive 0 means unity (clean) pregain, drive 100 means a much higher pregain', () => {
+		const { bus } = makeBus();
+		bus.setPatch(stateWith({ fuzz: { enabled: true, drive: 0, mix: 30 } }), 0);
+		expect(fakeParam(bus.__test.fuzzPregain.gain).value).toBe(1);
+
+		bus.setPatch(stateWith({ fuzz: { enabled: true, drive: 100, mix: 30 } }), 0);
+		expect(fakeParam(bus.__test.fuzzPregain.gain).value).toBeGreaterThan(1);
 	});
 });
 

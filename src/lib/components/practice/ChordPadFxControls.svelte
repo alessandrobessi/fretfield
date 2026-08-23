@@ -34,6 +34,26 @@
 {/snippet}
 
 <div class="chord-pad-fx-controls panel-grid">
+	<HardwarePanel title="FUZZ" tone="carbon">
+		{#snippet header()}
+			<Led state={fx.fuzz.enabled ? 'active' : 'off'} />
+		{/snippet}
+		<div class="row">
+			<HardwareButton
+				variant="secondary"
+				pressed={fx.fuzz.enabled}
+				ariaLabel="Fuzz"
+				onclick={() => scalePractice.setChordPadFuzzEnabled(!fx.fuzz.enabled)}
+			>
+				Fuzz {fx.fuzz.enabled ? 'On' : 'Off'}
+			</HardwareButton>
+		</div>
+		<div class="row">
+			{@render knobField('Drive', fx.fuzz.drive, (v) => scalePractice.setChordPadFuzzDrive(v))}
+			{@render knobField('Mix', fx.fuzz.mix, (v) => scalePractice.setChordPadFuzzMix(v))}
+		</div>
+	</HardwarePanel>
+
 	<HardwarePanel title="REVERB" tone="carbon">
 		{#snippet header()}
 			<Led state={fx.reverb.enabled ? 'active' : 'off'} />
