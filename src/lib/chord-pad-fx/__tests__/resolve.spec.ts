@@ -7,9 +7,18 @@ import {
 	delayDivisionToSeconds,
 	delayFeedbackToGain,
 	delayMixToSendGain,
+	flangerDepthToSeconds,
+	flangerFeedbackToGain,
+	flangerMixToGain,
+	flangerRateHzClamp,
+	phaserDepthToHzRange,
+	phaserMixToGain,
+	phaserRateHzClamp,
 	reverbDampingToLowpassHz,
 	reverbMixToGain,
-	reverbSizeToFeedbackGain
+	reverbSizeToFeedbackGain,
+	tremoloDepthToGainSwing,
+	tremoloRateHzClamp
 } from '../resolve';
 
 describe('reverb macros', () => {
@@ -84,5 +93,59 @@ describe('chorus macros', () => {
 	it('mix maps 0-100 to a 0-1 linear gain', () => {
 		expect(chorusMixToGain(0)).toBe(0);
 		expect(chorusMixToGain(100)).toBe(1);
+	});
+});
+
+describe('phaser macros', () => {
+	it('rate clamps to a slow, musically useful phaser range, slower than chorus', () => {
+		expect(phaserRateHzClamp(0)).toBeGreaterThan(0);
+		expect(phaserRateHzClamp(1000)).toBeLessThanOrEqual(2);
+	});
+
+	it('depth 0 means no sweep range at all', () => {
+		expect(phaserDepthToHzRange(0)).toBe(0);
+		expect(phaserDepthToHzRange(100)).toBeGreaterThan(0);
+	});
+
+	it('mix maps 0-100 to a 0-1 linear gain', () => {
+		expect(phaserMixToGain(0)).toBe(0);
+		expect(phaserMixToGain(100)).toBe(1);
+	});
+});
+
+describe('flanger macros', () => {
+	it('rate clamps to a slow range, and depth swing is shorter than chorus', () => {
+		expect(flangerRateHzClamp(0)).toBeGreaterThan(0);
+		expect(flangerRateHzClamp(1000)).toBeLessThanOrEqual(3);
+		expect(flangerDepthToSeconds(100)).toBeLessThan(chorusDepthToSeconds(100));
+	});
+
+	it('depth 0 means no delay-time swing at all', () => {
+		expect(flangerDepthToSeconds(0)).toBe(0);
+		expect(flangerDepthToSeconds(100)).toBeGreaterThan(0);
+	});
+
+	it('feedback gain never reaches unity, even at the maximum UI value', () => {
+		expect(flangerFeedbackToGain(100)).toBeLessThan(1);
+		expect(flangerFeedbackToGain(100)).toBeGreaterThan(0);
+		expect(flangerFeedbackToGain(0)).toBe(0);
+	});
+
+	it('mix maps 0-100 to a 0-1 linear gain', () => {
+		expect(flangerMixToGain(0)).toBe(0);
+		expect(flangerMixToGain(100)).toBe(1);
+	});
+});
+
+describe('tremolo macros', () => {
+	it('rate clamps to a faster range than the other modulation effects', () => {
+		expect(tremoloRateHzClamp(0)).toBeGreaterThanOrEqual(0.5);
+		expect(tremoloRateHzClamp(1000)).toBeLessThanOrEqual(10);
+	});
+
+	it('depth 0 means no amplitude swing at all, depth 100 means a full 0-1 swing', () => {
+		expect(tremoloDepthToGainSwing(0)).toBe(0);
+		expect(tremoloDepthToGainSwing(100)).toBe(1);
+		expect(tremoloDepthToGainSwing(50)).toBeCloseTo(0.5);
 	});
 });

@@ -7,9 +7,8 @@
  * chord the progression names, see `audio/chord-voices.ts`), so this is
  * FX-only state, not a full instrument patch.
  *
- * Stage 1 of 2 (user-requested, 2026-08): Reverb, Delay, Chorus. Phaser,
- * Flanger, and Tremolo are a deliberate, explicitly out-of-scope follow-up --
- * see ROADMAP.md.
+ * Built in two user-requested stages (2026-08): Reverb, Delay, Chorus first,
+ * then Phaser, Flanger, and Tremolo -- see ROADMAP.md for both entries.
  */
 
 export type ChordPadDelayDivision = '1/4' | '1/8' | '1/8D' | '1/8T' | '1/16' | '1/16D' | '1/16T';
@@ -46,10 +45,55 @@ export interface ChordPadChorusPatch {
 	mix: number;
 }
 
+/** An LFO-swept series of allpass filters (see `audio/chord-pad-fx.ts`'s own doc comment for the exact topology). `enabled: false` or `mix: 0` must reproduce dry output exactly. */
+export interface ChordPadPhaserPatch {
+	enabled: boolean;
+	/** Real Hz, not a 0-100 macro -- same convention as `ChordPadChorusPatch.rate`; see `resolve.ts`'s `phaserRateHzClamp` for the valid range. */
+	rate: number;
+	/** 0-100: how far the shared sweep swings each filter stage's own frequency (see `resolve.ts`'s `phaserDepthToHzRange`). */
+	depth: number;
+	/** 0-100 wet mix. */
+	mix: number;
+}
+
+/** Chorus's exact "one modulated `DelayNode`" primitive plus a feedback loop -- a shorter base delay and that feedback are what give this its own resonant "jet" character instead of Chorus's smoother thickening (see `ChordPadChorusPatch`'s own doc comment). `enabled: false` or `mix: 0` must reproduce dry output exactly. */
+export interface ChordPadFlangerPatch {
+	enabled: boolean;
+	/** Real Hz -- see `resolve.ts`'s `flangerRateHzClamp` for the valid range. */
+	rate: number;
+	/** 0-100: how far the delay time swings around its own fixed (shorter than Chorus's) base value (see `resolve.ts`'s `flangerDepthToSeconds`). */
+	depth: number;
+	/** 0-100 UI value; internally capped well below unity feedback (see `resolve.ts`'s `flangerFeedbackToGain`). */
+	feedback: number;
+	/** 0-100 wet mix. */
+	mix: number;
+}
+
+/**
+ * A genuine exception to every other stage's "dry path + mix-scaled wet
+ * send" shape -- tremolo doesn't add a wet signal on top of dry, it directly
+ * modulates the amplitude of the one signal passing through (a true serial
+ * insert, see `audio/chord-pad-fx.ts`'s own doc comment). No separate `mix`
+ * field: `depth` alone controls how deep the modulation swings, and
+ * `enabled: false` or `depth: 0` both hold that gain at a constant `1`,
+ * reproducing dry output exactly -- the same invariant every other stage
+ * keeps, just reached a different way.
+ */
+export interface ChordPadTremoloPatch {
+	enabled: boolean;
+	/** Real Hz -- see `resolve.ts`'s `tremoloRateHzClamp` for the valid range. */
+	rate: number;
+	/** 0-100: how deep the amplitude modulation swings (see `resolve.ts`'s `tremoloDepthToGainSwing`). */
+	depth: number;
+}
+
 export interface ChordPadFxState {
-	/** The runtime discriminant `migrate.ts` uses -- `1` for as long as this is the only shape that has ever existed. */
-	version: 1;
+	/** The runtime discriminant `migrate.ts` uses -- `1` was the original Reverb/Delay/Chorus-only shape; `2` (current) adds `phaser`/`flanger`/`tremolo`. */
+	version: 2;
 	reverb: ChordPadReverbPatch;
 	delay: ChordPadDelayPatch;
 	chorus: ChordPadChorusPatch;
+	phaser: ChordPadPhaserPatch;
+	flanger: ChordPadFlangerPatch;
+	tremolo: ChordPadTremoloPatch;
 }

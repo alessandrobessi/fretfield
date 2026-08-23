@@ -13,21 +13,63 @@ describe('coerceChordPadFxState: nothing at all (pre-chord-pad-fx groove)', () =
 	});
 
 	it('also handles null and unrecognizable garbage the same way', () => {
-		expect(coerceChordPadFxState(null).version).toBe(1);
-		expect(coerceChordPadFxState('not an object').version).toBe(1);
-		expect(coerceChordPadFxState(42).version).toBe(1);
+		expect(coerceChordPadFxState(null).version).toBe(2);
+		expect(coerceChordPadFxState('not an object').version).toBe(2);
+		expect(coerceChordPadFxState(42).version).toBe(2);
 	});
 });
 
-describe('coerceChordPadFxState: an already-current, well-formed state', () => {
+describe('coerceChordPadFxState: an already-current (version 2), well-formed state', () => {
 	it('round-trips every field unchanged', () => {
 		const current = {
+			version: 2 as const,
+			reverb: { enabled: true, size: 70, damping: 20, mix: 55 },
+			delay: { enabled: true, division: '1/16T' as const, feedback: 60, mix: 40 },
+			chorus: { enabled: true, rate: 2.5, depth: 80, mix: 45 },
+			phaser: { enabled: true, rate: 0.5, depth: 60, mix: 25 },
+			flanger: { enabled: true, rate: 0.4, depth: 70, feedback: 50, mix: 30 },
+			tremolo: { enabled: true, rate: 6, depth: 65 }
+		};
+		expect(coerceChordPadFxState(current)).toEqual(current);
+	});
+});
+
+describe('coerceChordPadFxState: version 1 -> 2 migration (Reverb/Delay/Chorus only)', () => {
+	it('keeps reverb/delay/chorus exactly as persisted, defaults phaser/flanger/tremolo off/neutral, and stamps version 2', () => {
+		const v1 = {
 			version: 1 as const,
 			reverb: { enabled: true, size: 70, damping: 20, mix: 55 },
 			delay: { enabled: true, division: '1/16T' as const, feedback: 60, mix: 40 },
 			chorus: { enabled: true, rate: 2.5, depth: 80, mix: 45 }
 		};
-		expect(coerceChordPadFxState(current)).toEqual(current);
+		const state = coerceChordPadFxState(v1);
+		const defaults = createDefaultChordPadFxState();
+
+		expect(state.version).toBe(2);
+		expect(state.reverb).toEqual(v1.reverb);
+		expect(state.delay).toEqual(v1.delay);
+		expect(state.chorus).toEqual(v1.chorus);
+		expect(state.phaser).toEqual(defaults.phaser);
+		expect(state.flanger).toEqual(defaults.flanger);
+		expect(state.tremolo).toEqual(defaults.tremolo);
+		expect(state.phaser.enabled).toBe(false);
+		expect(state.flanger.enabled).toBe(false);
+		expect(state.tremolo.enabled).toBe(false);
+	});
+
+	it('a version-1 groove with malformed reverb/delay/chorus still coerces those fields defensively', () => {
+		const state = coerceChordPadFxState({
+			version: 1,
+			reverb: { enabled: true, size: 'not a number' },
+			delay: { division: 'garbage' }
+		});
+		const defaults = createDefaultChordPadFxState();
+
+		expect(state.version).toBe(2);
+		expect(state.reverb.enabled).toBe(true);
+		expect(state.reverb.size).toBe(defaults.reverb.size);
+		expect(state.delay.division).toBe(defaults.delay.division);
+		expect(state.phaser).toEqual(defaults.phaser);
 	});
 });
 
@@ -55,5 +97,34 @@ describe('coerceChordPadFxState: malformed/partial persisted data', () => {
 		const state = coerceChordPadFxState({ chorus: { enabled: true, rate: 999 } });
 		expect(state.chorus.rate).toBeLessThan(10);
 		expect(state.chorus.rate).toBeGreaterThan(0);
+	});
+
+	it('falls back to defaults field-by-field for malformed phaser/flanger/tremolo data too', () => {
+		const state = coerceChordPadFxState({
+			phaser: { enabled: true, rate: 'not a number', mix: 999 },
+			flanger: { enabled: true, feedback: -50 },
+			tremolo: null
+		});
+		const defaults = createDefaultChordPadFxState();
+
+		expect(state.phaser.enabled).toBe(true);
+		expect(state.phaser.rate).toBe(defaults.phaser.rate);
+		expect(state.phaser.mix).toBe(100); // clamped, not rejected
+
+		expect(state.flanger.enabled).toBe(true);
+		expect(state.flanger.feedback).toBe(0); // clamped, not rejected
+
+		expect(state.tremolo).toEqual(defaults.tremolo);
+	});
+
+	it('clamps out-of-range phaser/flanger/tremolo rates rather than accepting inaudible/absurd Hz values', () => {
+		const state = coerceChordPadFxState({
+			phaser: { enabled: true, rate: 999 },
+			flanger: { enabled: true, rate: 999 },
+			tremolo: { enabled: true, rate: 999 }
+		});
+		expect(state.phaser.rate).toBeLessThanOrEqual(2);
+		expect(state.flanger.rate).toBeLessThanOrEqual(3);
+		expect(state.tremolo.rate).toBeLessThanOrEqual(10);
 	});
 });

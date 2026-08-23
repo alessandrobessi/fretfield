@@ -105,3 +105,89 @@ export function chorusDepthToSeconds(depth: number): number {
 export function chorusMixToGain(mix: number): number {
 	return clamp(mix, 0, 100) / 100;
 }
+
+// ---------------------------------------------------------------------------
+// Phaser -- an LFO-swept series of native allpass BiquadFilterNodes (see
+// audio/chord-pad-fx.ts's own doc comment for the exact topology).
+// ---------------------------------------------------------------------------
+
+// Slower than Chorus's own range -- a phaser's characteristic sweep reads
+// best well under 2Hz, faster starts to sound like a chorus/vibrato instead.
+const MIN_PHASER_RATE_HZ = 0.05;
+const MAX_PHASER_RATE_HZ = 2;
+
+/** Same "clamp an already-Hz value" shape as `chorusRateHzClamp`. */
+export function phaserRateHzClamp(value: number): number {
+	return clamp(value, MIN_PHASER_RATE_HZ, MAX_PHASER_RATE_HZ);
+}
+
+const MAX_PHASER_DEPTH_HZ = 1600;
+
+/** 0-100 Depth -> how far the shared sweep swings each allpass stage's own frequency around its fixed center (audio/chord-pad-fx.ts). */
+export function phaserDepthToHzRange(depth: number): number {
+	return (clamp(depth, 0, 100) / 100) * MAX_PHASER_DEPTH_HZ;
+}
+
+/** 0-100 wet mix -> linear gain. */
+export function phaserMixToGain(mix: number): number {
+	return clamp(mix, 0, 100) / 100;
+}
+
+// ---------------------------------------------------------------------------
+// Flanger -- Chorus's own modulated-delay primitive plus a feedback loop
+// (see `ChordPadFlangerPatch`'s own doc comment for why that's the whole
+// difference between the two).
+// ---------------------------------------------------------------------------
+
+const MIN_FLANGER_RATE_HZ = 0.05;
+const MAX_FLANGER_RATE_HZ = 3;
+
+/** Same "clamp an already-Hz value" shape as `chorusRateHzClamp`. */
+export function flangerRateHzClamp(value: number): number {
+	return clamp(value, MIN_FLANGER_RATE_HZ, MAX_FLANGER_RATE_HZ);
+}
+
+// Shorter than Chorus's own swing range -- a flanger's characteristic
+// short-delay comb-filter "jet" sound needs a much smaller base delay than
+// Chorus's thickening effect does.
+const MAX_FLANGER_DEPTH_SECONDS = 0.003;
+
+/** 0-100 Depth -> how far the delay time swings around its own fixed (shorter than Chorus's) base value (audio/chord-pad-fx.ts). */
+export function flangerDepthToSeconds(depth: number): number {
+	return (clamp(depth, 0, 100) / 100) * MAX_FLANGER_DEPTH_SECONDS;
+}
+
+// Held below unity, same feedback-safety doctrine as the Delay stage's own
+// MAX_DELAY_FEEDBACK -- a flanger's resonant character needs more feedback
+// headroom than a plain delay to sound right, so this cap sits higher.
+const MAX_FLANGER_FEEDBACK = 0.9;
+
+/** 0-100 UI value -> the actual feedback gain applied inside the flanger's own feedback loop, capped well below unity. */
+export function flangerFeedbackToGain(value: number): number {
+	return (clamp(value, 0, 100) / 100) * MAX_FLANGER_FEEDBACK;
+}
+
+/** 0-100 wet mix -> linear gain. */
+export function flangerMixToGain(mix: number): number {
+	return clamp(mix, 0, 100) / 100;
+}
+
+// ---------------------------------------------------------------------------
+// Tremolo -- a genuine in-series amplitude modulation, not a dry/wet insert
+// (see `ChordPadTremoloPatch`'s own doc comment for why it has no `mix`).
+// ---------------------------------------------------------------------------
+
+// Faster than the other modulation effects -- a musically useful tremolo
+// throb sits well above a phaser/chorus's own slow sweep range.
+const MIN_TREMOLO_RATE_HZ = 0.5;
+const MAX_TREMOLO_RATE_HZ = 10;
+
+/** Same "clamp an already-Hz value" shape as `chorusRateHzClamp`. */
+export function tremoloRateHzClamp(value: number): number {
+	return clamp(value, MIN_TREMOLO_RATE_HZ, MAX_TREMOLO_RATE_HZ);
+}
+
+/** 0-100 Depth -> a 0-1 amplitude-swing amount (the in-series gain oscillates between `1` and `1 - swing`, see audio/chord-pad-fx.ts). */
+export function tremoloDepthToGainSwing(depth: number): number {
+	return clamp(depth, 0, 100) / 100;
+}

@@ -3,8 +3,11 @@ import type {
 	ChordPadChorusPatch,
 	ChordPadDelayDivision,
 	ChordPadDelayPatch,
+	ChordPadFlangerPatch,
 	ChordPadFxState,
-	ChordPadReverbPatch
+	ChordPadPhaserPatch,
+	ChordPadReverbPatch,
+	ChordPadTremoloPatch
 } from './types';
 
 function clamp(value: number, min: number, max: number): number {
@@ -69,20 +72,56 @@ function coerceChorus(raw: unknown, defaults: ChordPadChorusPatch): ChordPadChor
 	};
 }
 
+function coercePhaser(raw: unknown, defaults: ChordPadPhaserPatch): ChordPadPhaserPatch {
+	const v = isRecord(raw) ? raw : {};
+	return {
+		enabled: coerceBoolean(v.enabled, defaults.enabled),
+		rate: coerceNumber(v.rate, defaults.rate, 0.05, 2),
+		depth: coerceNumber(v.depth, defaults.depth, 0, 100),
+		mix: coerceNumber(v.mix, defaults.mix, 0, 100)
+	};
+}
+
+function coerceFlanger(raw: unknown, defaults: ChordPadFlangerPatch): ChordPadFlangerPatch {
+	const v = isRecord(raw) ? raw : {};
+	return {
+		enabled: coerceBoolean(v.enabled, defaults.enabled),
+		rate: coerceNumber(v.rate, defaults.rate, 0.05, 3),
+		depth: coerceNumber(v.depth, defaults.depth, 0, 100),
+		feedback: coerceNumber(v.feedback, defaults.feedback, 0, 100),
+		mix: coerceNumber(v.mix, defaults.mix, 0, 100)
+	};
+}
+
+function coerceTremolo(raw: unknown, defaults: ChordPadTremoloPatch): ChordPadTremoloPatch {
+	const v = isRecord(raw) ? raw : {};
+	return {
+		enabled: coerceBoolean(v.enabled, defaults.enabled),
+		rate: coerceNumber(v.rate, defaults.rate, 0.5, 10),
+		depth: coerceNumber(v.depth, defaults.depth, 0, 100)
+	};
+}
+
 /**
  * Reads any prior shape from storage and always returns a current
- * `ChordPadFxState`. `version: 1` is the only shape that has ever existed --
- * no version-branch migration needed yet (unlike `acid-bass/migrate.ts`,
- * which has several) -- but every field is still defensively coerced, since
- * persisted JSON is untrusted regardless of its own claimed version.
+ * `ChordPadFxState`. `version: 1` (Reverb/Delay/Chorus only) migrates by
+ * keeping those three exactly as persisted and defaulting `phaser`/
+ * `flanger`/`tremolo` off/neutral, mirroring `acid-bass/migrate.ts`'s own
+ * version-branch precedent -- everything else (current `version: 2`, or
+ * missing/garbage data) runs every field through full defensive coercion,
+ * since persisted JSON is untrusted regardless of its own claimed version.
  */
 export function coerceChordPadFxState(raw: unknown): ChordPadFxState {
 	const defaults = createDefaultChordPadFxState();
 	const v = isRecord(raw) ? raw : {};
+	const isV1 = v.version === 1;
 	return {
-		version: 1,
+		version: 2,
 		reverb: coerceReverb(v.reverb, defaults.reverb),
 		delay: coerceDelay(v.delay, defaults.delay),
-		chorus: coerceChorus(v.chorus, defaults.chorus)
+		chorus: coerceChorus(v.chorus, defaults.chorus),
+		phaser: coercePhaser(isV1 ? undefined : v.phaser, defaults.phaser),
+		flanger: coerceFlanger(isV1 ? undefined : v.flanger, defaults.flanger),
+		tremolo: coerceTremolo(isV1 ? undefined : v.tremolo, defaults.tremolo)
 	};
 }
