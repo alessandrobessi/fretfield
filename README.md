@@ -13,7 +13,7 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 |                 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 🔎 **Explore**  | **Chord Field** — click any fret to set a root, pick a chord, and see the full 12-tone Harmonic Field light up around it: root, structural, stable, extension, color, tension, alteration, chromatic-approach, avoid.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| 🎯 **Practice** | **Scale Practice** — pick a root/scale/fret-zone (or a chord progression instead), every note of the scale lights up at once, whatever you actually play is highlighted live, and a synthesized band — a multi-voice drum machine, an optional chord pad, and an optional 303-style Acid Bass synth — keeps time alongside it. Acid Bass can also generate its own harmonically-aware basslines: pick a style (Rooted/Funk/Acid/Chromatic/Melodic/Walking, with context-sensitive recommendations from the current progression), and each generated note maps back onto real, playable fretboard positions, with a plain-language explanation of why it's there. |
+| 🎯 **Practice** | **Scale Practice** — pick a root/scale/fret-zone (or a chord progression instead), every note of the scale lights up at once, whatever you actually play is highlighted live, and a synthesized band — a multi-voice drum machine, an optional chord pad (with its own seven-effect Fuzz/Reverb/Delay/Chorus/Phaser/Flanger/Tremolo rack), and an optional 303-style Acid Bass synth — keeps time alongside it. Acid Bass can also generate its own harmonically-aware basslines: pick a style (Rooted/Funk/Acid/Chromatic/Melodic/Walking, with context-sensitive recommendations from the current progression), and each generated note maps back onto real, playable fretboard positions, with a plain-language explanation of why it's there. |
 
 **Live Input** (an optional layer over both destinations) turns on your bass's actual pitch: play through a USB interface or mic and FretField highlights the real note, live, in Chord Field's harmonic-role colors or Scale Practice's scale tint. Audio is analyzed locally in your browser and never recorded or uploaded.
 
@@ -43,12 +43,21 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 <tr>
 <td width="50%">
 
-**Acid Bass** — the 303-style synth bass: dual oscillators plus sub, filter, five modulation sources, three distortion characters, and a tempo-synced delay
+**Acid Bass** — the 303-style synth bass: dual oscillators plus sub, filter, and envelope, with five modulation sources beneath
 
-<img src="./docs/screenshots/acid-bass.jpg" alt="The Acid Bass Engine's VCO, Sub, Osc 2, VCF, and ENV panels, with the Squelch filter model selected and the ENV panel's live envelope-shape scope visible, plus the LFO 1/LFO 2/Env Mod/Accent Mod/Random Mod panel row beneath">
+<img src="./docs/screenshots/acid-bass.jpg" alt="The Acid Bass Engine's VCO, Sub, Osc 2, VCF, and ENV panels, with the Squelch filter model selected, plus the start of the LFO 1/LFO 2/Env Mod/Accent Mod/Random Mod panel row beneath">
 
 </td>
 <td width="50%">
+
+**Chord Pad FX** — the chord pad's own seven-effect rack
+
+<img src="./docs/screenshots/chord-pad-fx.jpg" alt="The chord pad's Fuzz, Reverb, Delay, Chorus, Phaser, Flanger, and Tremolo panels, each with an On/Off toggle and its own knobs">
+
+</td>
+</tr>
+<tr>
+<td colspan="2">
 
 **Groove Editor** — the multi-bar arrangement and step grid
 
@@ -75,7 +84,10 @@ src/lib/music/
 ├── progressions.ts            declarative progression templates (Scale Practice's chord backing)
 ├── absolute-pitch.ts          MIDI-based fretboard mapping for Live Input
 ├── live-position.ts           ambiguous-position ranking for Live Input
-└── scales.ts                  scale definitions + family-aware suggestions
+├── scales.ts                  scale definitions + family-aware suggestions
+└── bassline/                  the algorithmic bassline generator, zero Svelte/DOM/audio imports:
+    rhythm → harmonic candidates → voice-leading (bounded beam search) → chromaticism →
+    register/playability realization → articulation → a plain-language explanation per note
 
 src/lib/audio/
 ├── types.ts                    DetectedNote, LiveNoteState, the LiveAudioSource abstraction
@@ -86,8 +98,10 @@ src/lib/audio/
 ├── fake-audio-source.ts        deterministic capture double, used by tests
 ├── drum-voices.ts              the Groove Engine's six synthesized drum voices
 ├── chord-voices.ts             the optional chord-progression backing pad
+├── chord-pad-fx.ts             the chord pad's seven-effect Fuzz/Reverb/Delay/Chorus/
+│                                Phaser/Flanger/Tremolo rack
 ├── acid-bass-voice.ts          the Acid Bass synth's persistent monophonic voice
-├── acid-bass-lfo.ts            its one free-running, tempo-syncable LFO
+├── acid-bass-lfo.ts            its two free-running, tempo-syncable LFOs
 └── acid-worklet-node.ts        loads the acid24 filter + Pulse-oscillator AudioWorklets
 
 src/lib/groove/
@@ -102,12 +116,24 @@ src/lib/groove/
 src/lib/acid-bass/
 ├── types.ts / pattern.ts        AcidBassPatch/Step data model + pure mutators
 ├── resolve.ts                    every patch-macro-to-DSP-parameter mapping
-├── migrate.ts                    V1→V2 migration + untrusted-persisted-data validation
+├── migrate.ts                    V1→V4 migration + untrusted-persisted-data validation
 ├── sequencer.ts                  deterministic probability, ratchet, parameter locks
-├── factory-patches.ts            eight curated patches
+├── delay.ts                      the tempo-synced delay's division/feedback/mix math
+├── distortion.ts                 the Soft/Diode/Hard shared drive-and-saturation curves
+├── generation-context.ts         bridges Scale Practice/Groove state into the bassline generator
+├── generated-playback.ts         the common audio-ready shape both manual and generated steps resolve to
+├── intelligence.ts               maps a generated note's own context onto expression (accent/gate/…)
+├── glossary.ts                   plain-language reference text for every knob on the panel
+├── factory-patches.ts            fourteen curated patches
 ├── transforms.ts                 basic pattern-wide transforms (rotate/simplify/densify/…)
 ├── acid24-ladder.ts              the acid24 filter's DSP, as a tested pure function
 └── pulse-oscillator.ts           the live-PWM Pulse oscillator's DSP, as a tested pure function
+
+src/lib/chord-pad-fx/
+├── types.ts                    ChordPadFxState — one enabled+macros sub-patch per effect
+├── resolve.ts                    every effect's own macro-to-DSP-parameter mapping
+├── pattern.ts                    default state (everything off)
+└── migrate.ts                    version-branch migration as the effect set has grown
 
 src/lib/scale-practice/
 ├── types.ts                    PracticeZone
@@ -116,12 +142,14 @@ src/lib/scale-practice/
 src/lib/components/hardware/
 └── Led.svelte, HardwarePanel.svelte, HardwareButton.svelte, Knob.svelte
     the 2026 visual rebrand's reusable primitives — a real rotary Knob with full
-    keyboard support, used across Acid Bass's two dozen-plus patch macros
+    keyboard support, used across both Acid Bass's and the Chord Pad FX rack's patch macros
 ```
 
 `src/lib/audio/` only ever knows about acoustic pitch, plain Hz frequencies, and MIDI numbers — it has no concept of a chord, a key, or a scale. Harmonic meaning is layered on afterward: `src/lib/stores/live-input.svelte.ts` combines a detected note with whatever `src/lib/music/` analysis is already on screen, and `src/lib/stores/scale-practice.svelte.ts` resolves each Groove/Acid Bass step's interval into a frequency (via `resolveAcidStepMidi`/`midiToFrequency`) right before calling into the voice — never a second harmony engine living inside the audio layer itself.
 
 The Groove Engine and Acid Bass Engine share one `GrooveTransport` clock and one `AudioContext` — drums, the chord pad, and the bass line can never drift apart onto separate timers. Acid Bass's `acid24` filter and its Pulse oscillator's live width modulation both run on dedicated `AudioWorkletNode`s, each with a hand-authored, dependency-free processor under `static/` and a pure, independently unit-tested TypeScript twin of the same DSP math (`AudioWorkletProcessor` can't run inside the test environment) — and each falls back silently to a non-worklet approximation if the worklet never loads, logged to the console only, never a user-facing error.
+
+The chord pad's FX rack (`src/lib/chord-pad-fx/`, driving `chord-pad-fx.ts`) is a separate self-contained domain from Acid Bass, even though both sit inside the Groove Engine — every effect but Tremolo is a dry-signal-preserving insert (its own always-on dry path plus a single mix-scaled send into that effect's own wet processing), so disabling any of them, or setting its mix to zero, reproduces exactly dry output. Reverb, and Phaser's shared-LFO allpass sweep, are both built entirely from plain `DelayNode`/`GainNode`/`BiquadFilterNode` primitives rather than a convolution reverb or a custom filter — this app has no external audio assets anywhere.
 
 Every non-trivial harmonic claim in the engine is checked against a concrete example from the product spec rather than "the tests pass" alone — e.g. the full Harmonic Field over C7 is asserted against `BLUEPRINT.md`'s own worked table.
 
