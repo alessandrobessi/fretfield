@@ -129,6 +129,40 @@ test.describe('Acid Bass Intelligence V4: generated bar selector and step inspec
 		expect(after).not.toBe(before);
 	});
 
+	test('accented and sliding steps show an explicit "A"/"→" marker, not just a subtle border change (user-reported: accent alone was effectively invisible)', async ({
+		page
+	}) => {
+		await openGeneratedLine(page);
+		// Acid style explicitly features "repeated motifs, chromatic
+		// approaches, slides and accents" (styles.ts's own description) --
+		// picking it makes both markers reliably present.
+		await page
+			.getByRole('group', { name: 'Style', exact: true })
+			.getByRole('button', { name: 'Acid', exact: true })
+			.click();
+
+		// Not every bar has both a slide and an accent -- scan the whole
+		// arrangement rather than assuming bar 1 specifically does.
+		const barButtons = page.getByRole('group', { name: 'Generated bar' }).getByRole('button');
+		const barCount = await barButtons.count();
+		let sawAccent = false;
+		let sawSlide = false;
+		for (let i = 0; i < barCount && !(sawAccent && sawSlide); i++) {
+			await barButtons.nth(i).click();
+			const stepGrid = page.getByRole('group', { name: /^Bar \d+ steps$/ });
+			if (!sawAccent && (await stepGrid.locator('.generated-step.accent').count()) > 0) {
+				await expect(stepGrid.locator('.generated-step.accent').first()).toContainText('A');
+				sawAccent = true;
+			}
+			if (!sawSlide && (await stepGrid.locator('.generated-step.slide').count()) > 0) {
+				await expect(stepGrid.locator('.generated-step.slide').first()).toContainText('→');
+				sawSlide = true;
+			}
+		}
+		expect(sawAccent).toBe(true);
+		expect(sawSlide).toBe(true);
+	});
+
 	test('the bar strip switches which bar the step grid and inspector show', async ({ page }) => {
 		await openGeneratedLine(page);
 

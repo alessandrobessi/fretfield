@@ -631,7 +631,15 @@
 								disabled={!step.active}
 								onclick={() => (selectedGeneratedStepIndex = index)}
 							>
-								{step.active ? intervalLabel(step.intervalFromChord) : ''}
+								{#if step.active}
+									<span class="generated-step-interval"
+										>{intervalLabel(step.intervalFromChord)}</span
+									>
+									<span class="generated-step-markers">
+										{#if step.accent}<span aria-hidden="true">A</span>{/if}
+										{#if step.slide}<span aria-hidden="true">→</span>{/if}
+									</span>
+								{/if}
 							</button>
 						{/each}
 					</div>
@@ -1030,9 +1038,14 @@
 	}
 
 	.generated-step {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
 		font: inherit;
 		font-weight: 700;
 		font-size: 0.7rem;
+		line-height: 1;
 		aspect-ratio: 1;
 		background: var(--ff-black, #151411);
 		color: var(--ff-ivory, #f1e6c5);
@@ -1048,12 +1061,40 @@
 		border-color: var(--ff-yellow-dark, #c9910d);
 	}
 
+	/* Border weight/style alone (2px, dashed) reads as barely-perceptible at
+	   this size -- explicit "A"/"→" glyphs (.generated-step-markers below,
+	   the same convention AcidBassStepGrid.svelte's manual grid already
+	   established) are the real signal; these stay as reinforcing secondary
+	   cues, not the only one (user-reported, 2026-08: accent in particular
+	   was effectively invisible with only the border-width change). */
 	.generated-step.active.accent {
 		border-width: 2px;
 	}
 
 	.generated-step.active.slide {
 		border-style: dashed;
+	}
+
+	.generated-step-interval {
+		white-space: nowrap;
+	}
+
+	/* Same small-glyph-row convention as AcidBassStepGrid.svelte's own
+	   `.markers` -- "A"/"→" read reliably at this size where a border-width
+	   difference alone does not. Reserves a fixed height even when empty so
+	   an accented step's own row doesn't shift every other step in the grid. */
+	.generated-step-markers {
+		display: flex;
+		gap: 0.1rem;
+		font-size: 0.5rem;
+		font-weight: 700;
+		color: var(--ff-yellow, #e3ac18);
+		opacity: 0.85;
+		min-height: 0.6rem;
+	}
+
+	.generated-step.selected .generated-step-markers {
+		color: var(--ff-black, #151411);
 	}
 
 	.generated-step.selected {
