@@ -1372,6 +1372,11 @@ export class ScalePracticeStore {
 		return plan.bars[bar % plan.bars.length];
 	}
 
+	/** The live voice itself, whose `outputAnalyser`/`delayAnalyser` feed `AcidBassAudioScope.svelte` (user-requested, 2026-08) -- `null` whenever nothing is playing, same lifecycle as `acidBassVoice` itself. A plain getter, not `$state`, since the voice reference only ever changes at the same moments `running` does (`start()`/`stop()`) -- callers derive off `running` for reactivity and re-read this getter when it flips. */
+	getAcidBassVoice(): AcidBassVoice | null {
+		return this.acidBassVoice;
+	}
+
 	/** Starts (or stops) only the drum machine — has no effect on which notes are highlighted. */
 	start(): void {
 		if (this.running) return;

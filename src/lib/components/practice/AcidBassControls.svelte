@@ -22,6 +22,7 @@
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Knob from '$lib/components/hardware/Knob.svelte';
 	import Led from '$lib/components/hardware/Led.svelte';
+	import AcidBassAudioScope from './AcidBassAudioScope.svelte';
 	import AcidBassAuxModScope from './AcidBassAuxModScope.svelte';
 	import AcidBassEnvelopeScope from './AcidBassEnvelopeScope.svelte';
 	import AcidBassLfoScope from './AcidBassLfoScope.svelte';
@@ -112,6 +113,8 @@
 	];
 
 	const patch = $derived(scalePractice.groove.acidBass.patch);
+	/** `null` whenever nothing is playing -- both live-tap scopes (OUTPUT, DELAY) key off this the same way. */
+	const activeVoice = $derived(scalePractice.running ? scalePractice.getAcidBassVoice() : null);
 
 	/** Transient UI focus only -- whether the knob glossary reference is open, not part of saved groove data. */
 	let showGlossary = $state(false);
@@ -516,6 +519,10 @@
 				)}
 				{@render knobField('Mix', patch.delay.mix, (v) => scalePractice.setAcidBassDelayMix(v))}
 			</div>
+			<AcidBassAudioScope
+				analyser={activeVoice?.delayAnalyser ?? null}
+				idleLabel="Play to see the delay"
+			/>
 		</HardwarePanel>
 
 		<HardwarePanel title="OUTPUT" tone="carbon">
@@ -530,6 +537,7 @@
 					scalePractice.setAcidBassVolume(v)
 				)}
 			</div>
+			<AcidBassAudioScope analyser={activeVoice?.outputAnalyser ?? null} />
 		</HardwarePanel>
 	</div>
 </div>

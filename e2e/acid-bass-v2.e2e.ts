@@ -384,6 +384,40 @@ test.describe('Acid Bass: ENV Sustain', () => {
 	});
 });
 
+test.describe('Acid Bass: live audio-tap scopes (OUTPUT, DELAY)', () => {
+	test('both the OUTPUT and DELAY panels render their own scope, idle before playback and still present once playing', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		const outputScope = page.getByRole('region', { name: 'OUTPUT', exact: true }).locator('canvas');
+		const delayScope = page.getByRole('region', { name: 'DELAY', exact: true }).locator('canvas');
+		for (const scope of [outputScope, delayScope]) {
+			await expect(scope).toBeVisible();
+			const box = await scope.boundingBox();
+			expect(box?.width).toBeGreaterThan(0);
+			expect(box?.height).toBeGreaterThan(0);
+		}
+
+		// Real taps on the actual voice's own signal graph (see
+		// AcidBassAudioScope.svelte's own doc comment) -- idle before playback,
+		// since there's no voice yet.
+		await expect(page.getByRole('button', { name: /^Bass (On|Off)$/ })).toHaveText('Bass Off');
+
+		await page.getByRole('button', { name: /^Bass (On|Off)$/ }).click();
+		await page.getByRole('button', { name: 'Play' }).click();
+		await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+
+		// No real-audio assertions here, matching this app's existing testing
+		// boundary -- just confirming both scopes survive the transition into a
+		// real voice existing, rather than erroring or disappearing.
+		await expect(outputScope).toBeVisible();
+		await expect(delayScope).toBeVisible();
+
+		await page.getByRole('button', { name: 'Stop' }).click();
+	});
+});
+
 test.describe('Acid Bass V2: Osc 2', () => {
 	test('Osc 2 On/Off toggles (lighting its panel LED), its Wave picker selects, and its knobs update state', async ({
 		page

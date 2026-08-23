@@ -187,6 +187,30 @@ export interface AcidBassVoice {
 	setTempo(bpm: number): void;
 	silence(atTime?: number): void;
 	dispose(): void;
+	/**
+	 * A live `AnalyserNode` already connected to this voice's own real final
+	 * output (post-oscillators/filter/envelope/modulation/distortion/delay --
+	 * everything, exactly what reaches `destination`), for a genuine
+	 * oscilloscope/spectrum display (user-requested, 2026-08) rather than the
+	 * client-rendered re-creations `AcidBassLfoScope`/`AcidBassEnvelopeScope`/
+	 * `AcidBassAuxModScope` use elsewhere -- this is the one place in the app
+	 * that actually threads an `AnalyserNode` up from the real audio graph,
+	 * which those three components' own doc comments note as the reason they
+	 * don't. A tap, not a redirect: connecting an analyser never affects what
+	 * the voice itself sounds like. Never explicitly disconnected -- it goes
+	 * out of scope together with the rest of this voice's graph on `dispose()`.
+	 */
+	readonly outputAnalyser: AnalyserNode;
+	/**
+	 * A second live tap, this one on `delayNode`'s own output only -- the
+	 * wet/echo signal alone, before it's summed with the always-present dry
+	 * path into `master` (see the delay send/return wiring comment above
+	 * `delayNode`'s own declaration). Silent (flat) whenever delay is
+	 * disabled or its mix is 0, exactly reflecting `delaySend.gain` resolving
+	 * to 0 in that case -- the same "reads as waiting/off, not broken" intent
+	 * as `outputAnalyser` (user-requested, 2026-08).
+	 */
+	readonly delayAnalyser: AnalyserNode;
 }
 
 /**
@@ -212,6 +236,7 @@ export interface AcidBassVoiceTestHooks {
 		readonly subGain: GainNode;
 		readonly osc2Gain: GainNode;
 		readonly driveInput: GainNode;
+		readonly delayNode: DelayNode;
 		/** One representative pitch-modulation target -- every main-wave oscillator, Sub, and Osc 2 all get the identical connection (see the file's own `pitchModulatedOscillators` array), so checking one confirms the pattern without exposing all six. */
 		readonly representativeOscillatorDetune: AudioParam;
 		readonly acid24Node: () => AudioWorkletNode | null;
@@ -538,6 +563,22 @@ export function createAcidBassVoice(
 	delayNode.connect(delayFeedback);
 	delayFeedback.connect(delayNode);
 	delayNode.connect(master);
+
+	// A live tap on the real final signal (dry + delay's wet return, both
+	// already summed into `master` above) -- see `outputAnalyser`'s own doc
+	// comment on the `AcidBassVoice` interface for why this exists. A tap,
+	// not a redirect: connecting an analyser is silent and non-destructive,
+	// `master` still reaches `destination` exactly as it always did.
+	const outputAnalyser = ctx.createAnalyser();
+	outputAnalyser.fftSize = 2048;
+	master.connect(outputAnalyser);
+
+	// A second tap, on `delayNode`'s own output -- see `delayAnalyser`'s own
+	// doc comment on the `AcidBassVoice` interface for why this exists
+	// alongside `outputAnalyser` rather than reusing it.
+	const delayAnalyser = ctx.createAnalyser();
+	delayAnalyser.fftSize = 2048;
+	delayNode.connect(delayAnalyser);
 
 	// Cutoff/pitch modulation add onto whatever's already scheduled there
 	// (AudioParams sum every connected signal with their own automation
@@ -1348,12 +1389,16 @@ export function createAcidBassVoice(
 			pulseWorkletNode?.disconnect();
 		},
 
+		outputAnalyser,
+		delayAnalyser,
+
 		__test: {
 			filter,
 			vca,
 			subGain,
 			osc2Gain,
 			driveInput,
+			delayNode,
 			representativeOscillatorDetune: sawOsc.detune,
 			acid24Node: () => acid24Node,
 			pulseWorkletNode: () => pulseWorkletNode,

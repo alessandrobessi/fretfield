@@ -68,6 +68,24 @@ describe('createAcidBassVoice: signal path smoke test', () => {
 		expect(acid24Node).not.toBeNull();
 		expect(fakeNode(acid24Node).reaches(ctx.destination)).toBe(true);
 	});
+
+	it('outputAnalyser is a real tap fed by the same signal that reaches destination, not a separate/disconnected node', () => {
+		const { voice } = makeVoice();
+		// driveInput is downstream of the filter/VCA and upstream of
+		// shaper/outputTrim/master -- if it reaches outputAnalyser, the
+		// analyser is genuinely tapping the real final-output chain.
+		expect(fakeNode(voice.__test.driveInput).reaches(fakeNode(voice.outputAnalyser))).toBe(true);
+	});
+
+	it("delayAnalyser is directly connected to delayNode's own output, distinct from outputAnalyser", () => {
+		const { voice } = makeVoice();
+		expect(fakeNode(voice.__test.delayNode).isConnectedTo(fakeNode(voice.delayAnalyser))).toBe(
+			true
+		);
+		expect(fakeNode(voice.__test.delayNode).isConnectedTo(fakeNode(voice.outputAnalyser))).toBe(
+			false
+		);
+	});
 });
 
 describe('createAcidBassVoice: acid24 worklet availability', () => {

@@ -145,6 +145,29 @@ export class FakeDelayNode extends FakeAudioNode {
 	readonly delayTime = new FakeAudioParam(0);
 }
 
+/** Enough of `AnalyserNode` for `AcidBassAudioScope.svelte`'s own read calls (`getByteFrequencyData`/`getByteTimeDomainData`) to have somewhere real to write -- returns silence (0/128, matching a real idle analyser's output), not meaningful signal data; this fake has no actual DSP/FFT behind it. */
+export class FakeAnalyserNode extends FakeAudioNode {
+	fftSize = 2048;
+	readonly context: { sampleRate: number };
+
+	constructor(context: { sampleRate: number }) {
+		super();
+		this.context = context;
+	}
+
+	get frequencyBinCount(): number {
+		return this.fftSize / 2;
+	}
+
+	getByteFrequencyData(array: Uint8Array): void {
+		array.fill(0);
+	}
+
+	getByteTimeDomainData(array: Uint8Array): void {
+		array.fill(128);
+	}
+}
+
 /**
  * Processor name -> its own AudioParam names, mirroring the real
  * `static/acid-*-processor.js` files' own `parameterDescriptors` -- kept in
@@ -197,6 +220,9 @@ export class FakeAudioContext {
 	}
 	createConstantSource(): FakeConstantSourceNode {
 		return new FakeConstantSourceNode();
+	}
+	createAnalyser(): FakeAnalyserNode {
+		return new FakeAnalyserNode(this);
 	}
 	createDelay(_maxDelayTime?: number): FakeDelayNode {
 		return new FakeDelayNode();
