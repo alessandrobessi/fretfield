@@ -45,6 +45,7 @@ import type {
 	AcidWave
 } from '$lib/acid-bass/types';
 import { createAcidBassVoice, type AcidBassVoice } from '$lib/audio/acid-bass-voice';
+import { createChordPadFxBus, type ChordPadFxBus } from '$lib/audio/chord-pad-fx';
 import { triggerChordPad } from '$lib/audio/chord-voices';
 import {
 	resolveAudioContextConstructor,
@@ -349,6 +350,8 @@ export class ScalePracticeStore {
 	private pendingCrossBarLegato = false;
 	/** The persistent monophonic synth voice -- created in `start()`, disposed in `stop()`, alongside `audioContext`'s own lifecycle (never a second `AudioContext`). */
 	private acidBassVoice: AcidBassVoice | null = null;
+	/** The chord pad's own FX rack (Reverb/Delay/Chorus) -- created in `start()` alongside `audioContext`, nulled in `stop()`. No explicit teardown needed (no worklets/intervals inside it, unlike `acidBassVoice`) -- `audioContext.close()` already tears down the whole graph. */
+	private chordPadFxBus: ChordPadFxBus | null = null;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
 	// (the transport's own clock), but the *highlight* has to flip at the same
 	// wall-clock moment the chord/step actually starts sounding, which a
@@ -656,6 +659,8 @@ export class ScalePracticeStore {
 		// that (a patch edit already goes through `setPatch`, which re-derives it
 		// too).
 		this.acidBassVoice?.setTempo(this.bpm);
+		// Same reasoning for the chord pad's own tempo-synced delay.
+		this.chordPadFxBus?.setTempo(this.bpm);
 		this.persist();
 	}
 
@@ -1387,6 +1392,9 @@ export class ScalePracticeStore {
 		this.acidBassVoice = createAcidBassVoice(this.audioContext);
 		this.acidBassVoice.setPatch(this.groove.acidBass.patch);
 		this.acidBassVoice.setTempo(this.bpm);
+		this.chordPadFxBus = createChordPadFxBus(this.audioContext);
+		this.chordPadFxBus.setPatch(this.groove.chordPadFx);
+		this.chordPadFxBus.setTempo(this.bpm);
 		this.running = true;
 		this.isCountingIn = this.countIn !== 'off';
 		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
@@ -1399,6 +1407,7 @@ export class ScalePracticeStore {
 		this.transport.stop();
 		this.acidBassVoice?.dispose();
 		this.acidBassVoice = null;
+		this.chordPadFxBus = null;
 		this.pendingCrossBarLegato = false;
 		void this.audioContext?.close();
 		this.audioContext = null;
@@ -1672,7 +1681,8 @@ export class ScalePracticeStore {
 		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
 		const barDurationSeconds = (60 / this.bpm / 4) * stepsPerBar;
 		const durationSeconds = barDurationSeconds * this.barsPerChord;
-		triggerChordPad(ctx, gridTime, frequenciesHz, durationSeconds, CHORD_PAD_GAIN);
+		const destinationNode = this.chordPadFxBus?.input ?? ctx.destination;
+		triggerChordPad(ctx, destinationNode, gridTime, frequenciesHz, durationSeconds, CHORD_PAD_GAIN);
 
 		const delayMs = Math.max(0, (gridTime - ctx.currentTime) * 1000);
 		const timeoutId = setTimeout(() => {

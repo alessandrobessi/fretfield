@@ -50,6 +50,7 @@ const WARMTH_CURVE = warmthCurve();
 
 function playPadTone(
 	ctx: AudioContext,
+	destinationNode: AudioNode,
 	time: number,
 	frequencyHz: number,
 	durationSeconds: number,
@@ -94,7 +95,7 @@ function playPadTone(
 	envelope.gain.setValueAtTime(peakGain, time + durationSeconds - release);
 	envelope.gain.exponentialRampToValueAtTime(0.0001, time + durationSeconds);
 	shaper.connect(envelope);
-	envelope.connect(ctx.destination);
+	envelope.connect(destinationNode);
 	filter.connect(shaper);
 
 	for (const layer of LAYERS) {
@@ -135,11 +136,15 @@ function playPadTone(
 
 /**
  * Plays every tone of a chord together as a sustained pad, held for
- * `durationSeconds`. `gain` scales the whole chord's overall level (each
- * individual tone gets a smaller share so a 4-note chord doesn't clip).
+ * `durationSeconds`, routed entirely into `destinationNode` -- the FX bus's
+ * own input (`audio/chord-pad-fx.ts`), not necessarily `ctx.destination`
+ * directly, so the pad's Reverb/Delay/Chorus rack can sit downstream of every
+ * hit. `gain` scales the whole chord's overall level (each individual tone
+ * gets a smaller share so a 4-note chord doesn't clip).
  */
 export function triggerChordPad(
 	ctx: AudioContext,
+	destinationNode: AudioNode,
 	time: number,
 	frequenciesHz: readonly number[],
 	durationSeconds: number,
@@ -151,6 +156,7 @@ export function triggerChordPad(
 	for (const frequencyHz of frequenciesHz) {
 		playPadTone(
 			ctx,
+			destinationNode,
 			time,
 			frequencyHz,
 			durationSeconds,
