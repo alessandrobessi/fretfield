@@ -119,6 +119,93 @@
 			{@render knobField('Mix', fx.chorus.mix, (v) => scalePractice.setChordPadChorusMix(v))}
 		</div>
 	</HardwarePanel>
+
+	<HardwarePanel title="PHASER" tone="carbon">
+		{#snippet header()}
+			<Led state={fx.phaser.enabled ? 'active' : 'off'} />
+		{/snippet}
+		<div class="row">
+			<HardwareButton
+				variant="secondary"
+				pressed={fx.phaser.enabled}
+				ariaLabel="Phaser"
+				onclick={() => scalePractice.setChordPadPhaserEnabled(!fx.phaser.enabled)}
+			>
+				Phaser {fx.phaser.enabled ? 'On' : 'Off'}
+			</HardwareButton>
+		</div>
+		<div class="row">
+			{@render knobField(
+				'Rate',
+				fx.phaser.rate,
+				(v) => scalePractice.setChordPadPhaserRate(v),
+				0.05,
+				2
+			)}
+			{@render knobField('Depth', fx.phaser.depth, (v) => scalePractice.setChordPadPhaserDepth(v))}
+			{@render knobField('Mix', fx.phaser.mix, (v) => scalePractice.setChordPadPhaserMix(v))}
+		</div>
+	</HardwarePanel>
+
+	<HardwarePanel title="FLANGER" tone="carbon">
+		{#snippet header()}
+			<Led state={fx.flanger.enabled ? 'active' : 'off'} />
+		{/snippet}
+		<div class="row">
+			<HardwareButton
+				variant="secondary"
+				pressed={fx.flanger.enabled}
+				ariaLabel="Flanger"
+				onclick={() => scalePractice.setChordPadFlangerEnabled(!fx.flanger.enabled)}
+			>
+				Flanger {fx.flanger.enabled ? 'On' : 'Off'}
+			</HardwareButton>
+		</div>
+		<div class="row">
+			{@render knobField(
+				'Rate',
+				fx.flanger.rate,
+				(v) => scalePractice.setChordPadFlangerRate(v),
+				0.05,
+				3
+			)}
+			{@render knobField('Depth', fx.flanger.depth, (v) =>
+				scalePractice.setChordPadFlangerDepth(v)
+			)}
+			{@render knobField('Feedback', fx.flanger.feedback, (v) =>
+				scalePractice.setChordPadFlangerFeedback(v)
+			)}
+			{@render knobField('Mix', fx.flanger.mix, (v) => scalePractice.setChordPadFlangerMix(v))}
+		</div>
+	</HardwarePanel>
+
+	<HardwarePanel title="TREMOLO" tone="carbon">
+		{#snippet header()}
+			<Led state={fx.tremolo.enabled ? 'active' : 'off'} />
+		{/snippet}
+		<div class="row">
+			<HardwareButton
+				variant="secondary"
+				pressed={fx.tremolo.enabled}
+				ariaLabel="Tremolo"
+				onclick={() => scalePractice.setChordPadTremoloEnabled(!fx.tremolo.enabled)}
+			>
+				Tremolo {fx.tremolo.enabled ? 'On' : 'Off'}
+			</HardwareButton>
+		</div>
+		<div class="row">
+			{@render knobField(
+				'Rate',
+				fx.tremolo.rate,
+				(v) => scalePractice.setChordPadTremoloRate(v),
+				0.5,
+				10
+			)}
+			{@render knobField('Depth', fx.tremolo.depth, (v) =>
+				scalePractice.setChordPadTremoloDepth(v)
+			)}
+		</div>
+	</HardwarePanel>
 </div>
 
 <style>

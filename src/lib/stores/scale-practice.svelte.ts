@@ -15,7 +15,12 @@ import { generatedStepToPlaybackStep } from '$lib/acid-bass/generated-playback';
 import { buildAcidBassGenerationContext } from '$lib/acid-bass/generation-context';
 import { lfoRateHzClamp, pulseWidthClamp, resolveAcidStepMidi } from '$lib/acid-bass/resolve';
 import { ratchetOffsetsSeconds, stepShouldTrigger } from '$lib/acid-bass/sequencer';
-import { chorusRateHzClamp } from '$lib/chord-pad-fx/resolve';
+import {
+	chorusRateHzClamp,
+	flangerRateHzClamp,
+	phaserRateHzClamp,
+	tremoloRateHzClamp
+} from '$lib/chord-pad-fx/resolve';
 import {
 	clearPatternLocks as clearAcidPatternLocks,
 	densifyPattern as densifyAcidPattern,
@@ -1259,6 +1264,81 @@ export class ScalePracticeStore {
 		this.updateChordPadFx((state) => ({
 			...state,
 			chorus: { ...state.chorus, mix: clampPercent(mix) }
+		}));
+	}
+
+	setChordPadPhaserEnabled(enabled: boolean): void {
+		this.updateChordPadFx((state) => ({ ...state, phaser: { ...state.phaser, enabled } }));
+	}
+
+	setChordPadPhaserRate(rateHz: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			phaser: { ...state.phaser, rate: phaserRateHzClamp(rateHz) }
+		}));
+	}
+
+	setChordPadPhaserDepth(depth: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			phaser: { ...state.phaser, depth: clampPercent(depth) }
+		}));
+	}
+
+	setChordPadPhaserMix(mix: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			phaser: { ...state.phaser, mix: clampPercent(mix) }
+		}));
+	}
+
+	setChordPadFlangerEnabled(enabled: boolean): void {
+		this.updateChordPadFx((state) => ({ ...state, flanger: { ...state.flanger, enabled } }));
+	}
+
+	setChordPadFlangerRate(rateHz: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			flanger: { ...state.flanger, rate: flangerRateHzClamp(rateHz) }
+		}));
+	}
+
+	setChordPadFlangerDepth(depth: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			flanger: { ...state.flanger, depth: clampPercent(depth) }
+		}));
+	}
+
+	setChordPadFlangerFeedback(feedback: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			flanger: { ...state.flanger, feedback: clampPercent(feedback) }
+		}));
+	}
+
+	setChordPadFlangerMix(mix: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			flanger: { ...state.flanger, mix: clampPercent(mix) }
+		}));
+	}
+
+	setChordPadTremoloEnabled(enabled: boolean): void {
+		this.updateChordPadFx((state) => ({ ...state, tremolo: { ...state.tremolo, enabled } }));
+	}
+
+	setChordPadTremoloRate(rateHz: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			tremolo: { ...state.tremolo, rate: tremoloRateHzClamp(rateHz) }
+		}));
+	}
+
+	setChordPadTremoloDepth(depth: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			tremolo: { ...state.tremolo, depth: clampPercent(depth) }
 		}));
 	}
 
