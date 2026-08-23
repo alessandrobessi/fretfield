@@ -15,6 +15,7 @@ import { generatedStepToPlaybackStep } from '$lib/acid-bass/generated-playback';
 import { buildAcidBassGenerationContext } from '$lib/acid-bass/generation-context';
 import { lfoRateHzClamp, pulseWidthClamp, resolveAcidStepMidi } from '$lib/acid-bass/resolve';
 import { ratchetOffsetsSeconds, stepShouldTrigger } from '$lib/acid-bass/sequencer';
+import { chorusRateHzClamp } from '$lib/chord-pad-fx/resolve';
 import {
 	clearPatternLocks as clearAcidPatternLocks,
 	densifyPattern as densifyAcidPattern,
@@ -47,6 +48,7 @@ import type {
 import { createAcidBassVoice, type AcidBassVoice } from '$lib/audio/acid-bass-voice';
 import { createChordPadFxBus, type ChordPadFxBus } from '$lib/audio/chord-pad-fx';
 import { triggerChordPad } from '$lib/audio/chord-voices';
+import type { ChordPadDelayDivision, ChordPadFxState } from '$lib/chord-pad-fx/types';
 import {
 	resolveAudioContextConstructor,
 	triggerClosedHat,
@@ -1178,6 +1180,86 @@ export class ScalePracticeStore {
 		this.groove = { ...this.groove, acidBass: { ...this.groove.acidBass, patch: nextPatch } };
 		this.acidBassVoice?.setPatch(nextPatch);
 		this.persist();
+	}
+
+	/** Same "apply immediately to the running bus, without restarting the transport" shape as `updateAcidBassPatch`. */
+	private updateChordPadFx(mutate: (state: ChordPadFxState) => ChordPadFxState): void {
+		const nextState = mutate(this.groove.chordPadFx);
+		this.groove = { ...this.groove, chordPadFx: nextState };
+		this.chordPadFxBus?.setPatch(nextState);
+		this.persist();
+	}
+
+	setChordPadReverbEnabled(enabled: boolean): void {
+		this.updateChordPadFx((state) => ({ ...state, reverb: { ...state.reverb, enabled } }));
+	}
+
+	setChordPadReverbSize(size: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			reverb: { ...state.reverb, size: clampPercent(size) }
+		}));
+	}
+
+	setChordPadReverbDamping(damping: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			reverb: { ...state.reverb, damping: clampPercent(damping) }
+		}));
+	}
+
+	setChordPadReverbMix(mix: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			reverb: { ...state.reverb, mix: clampPercent(mix) }
+		}));
+	}
+
+	setChordPadDelayEnabled(enabled: boolean): void {
+		this.updateChordPadFx((state) => ({ ...state, delay: { ...state.delay, enabled } }));
+	}
+
+	setChordPadDelayDivision(division: ChordPadDelayDivision): void {
+		this.updateChordPadFx((state) => ({ ...state, delay: { ...state.delay, division } }));
+	}
+
+	setChordPadDelayFeedback(feedback: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			delay: { ...state.delay, feedback: clampPercent(feedback) }
+		}));
+	}
+
+	setChordPadDelayMix(mix: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			delay: { ...state.delay, mix: clampPercent(mix) }
+		}));
+	}
+
+	setChordPadChorusEnabled(enabled: boolean): void {
+		this.updateChordPadFx((state) => ({ ...state, chorus: { ...state.chorus, enabled } }));
+	}
+
+	setChordPadChorusRate(rateHz: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			chorus: { ...state.chorus, rate: chorusRateHzClamp(rateHz) }
+		}));
+	}
+
+	setChordPadChorusDepth(depth: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			chorus: { ...state.chorus, depth: clampPercent(depth) }
+		}));
+	}
+
+	setChordPadChorusMix(mix: number): void {
+		this.updateChordPadFx((state) => ({
+			...state,
+			chorus: { ...state.chorus, mix: clampPercent(mix) }
+		}));
 	}
 
 	/** Editing an Acid Bass step always targets `selectedPatternRole`'s own pattern -- the same role selection the drum step grid uses (spec §12: no independent bass pattern-role selection). */

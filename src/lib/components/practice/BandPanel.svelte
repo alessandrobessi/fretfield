@@ -5,6 +5,7 @@
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
 	import Led from '$lib/components/hardware/Led.svelte';
 	import AcidBassControls from '$lib/components/practice/AcidBassControls.svelte';
+	import ChordPadFxControls from '$lib/components/practice/ChordPadFxControls.svelte';
 	import GrooveEditor from '$lib/components/practice/GrooveEditor.svelte';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
@@ -233,6 +234,7 @@
 				</li>
 			{/each}
 		</ol>
+		<ChordPadFxControls />
 	{:else}
 		<GrooveEditor />
 	{/if}
