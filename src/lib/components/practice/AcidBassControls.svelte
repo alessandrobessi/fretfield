@@ -25,6 +25,7 @@
 	import AcidBassAuxModScope from './AcidBassAuxModScope.svelte';
 	import AcidBassEnvelopeScope from './AcidBassEnvelopeScope.svelte';
 	import AcidBassLfoScope from './AcidBassLfoScope.svelte';
+	import GlossaryPanel from './GlossaryPanel.svelte';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
 	const FACTORY_PATCHES = listAcidBassFactoryPatches();
@@ -277,24 +278,10 @@
 	</div>
 
 	{#if showGlossary}
-		<HardwarePanel title="GLOSSARY" tone="carbon">
-			<p class="glossary-intro">What each control on this synth does, briefly.</p>
-			<div class="glossary-sections">
-				{#each ACID_BASS_GLOSSARY as section (section.title)}
-					<div class="glossary-section">
-						<h3 class="ff-label glossary-section-title">{section.title}</h3>
-						<dl class="glossary-list">
-							{#each section.entries as entry (entry.term)}
-								<div>
-									<dt>{entry.term}</dt>
-									<dd>{entry.description}</dd>
-								</div>
-							{/each}
-						</dl>
-					</div>
-				{/each}
-			</div>
-		</HardwarePanel>
+		<GlossaryPanel
+			intro="What each control on this synth does, briefly."
+			sections={ACID_BASS_GLOSSARY}
+		/>
 	{/if}
 
 	<div class="panel-grid">
@@ -559,42 +546,6 @@
 		align-items: flex-end;
 		gap: 0.7rem;
 		flex-wrap: wrap;
-	}
-
-	.glossary-intro {
-		margin: 0 0 0.6rem;
-		font-size: 0.8rem;
-		opacity: 0.85;
-	}
-
-	.glossary-sections {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-		gap: 0.9rem;
-		align-items: start;
-	}
-
-	.glossary-section-title {
-		margin: 0 0 0.4rem;
-		font-size: 0.75rem;
-	}
-
-	.glossary-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-		margin: 0;
-		font-size: 0.78rem;
-	}
-
-	.glossary-list dt {
-		font-weight: 700;
-	}
-
-	.glossary-list dd {
-		margin: 0;
-		opacity: 0.85;
-		line-height: 1.35;
 	}
 
 	/* Five panels side by side wherever there's room, wrapping down to fewer

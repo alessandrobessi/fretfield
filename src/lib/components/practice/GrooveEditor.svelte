@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { GENERATED_BASSLINE_GLOSSARY } from '$lib/acid-bass/glossary';
 	import type {
 		AcidBassMode,
 		AcidBassStep,
@@ -25,6 +26,7 @@
 	import Knob from '$lib/components/hardware/Knob.svelte';
 	import AcidBassStepEditor from '$lib/components/practice/AcidBassStepEditor.svelte';
 	import AcidBassStepGrid from '$lib/components/practice/AcidBassStepGrid.svelte';
+	import GlossaryPanel from '$lib/components/practice/GlossaryPanel.svelte';
 	import GrooveArrangementStrip from '$lib/components/GrooveArrangementStrip.svelte';
 	import { recommendBasslineStyles } from '$lib/music/bassline/recommendations';
 	import { listBasslineStyleProfiles } from '$lib/music/bassline/styles';
@@ -36,6 +38,8 @@
 
 	/** Transient UI focus only -- which Bass step the step editor below is showing, not part of saved groove data. */
 	let selectedAcidStepIndex = $state<number | null>(null);
+	/** Transient UI focus only, like `selectedAcidStepIndex` -- whether the Generated-mode glossary reference is open. */
+	let showGeneratedGlossary = $state(false);
 
 	// Acid Bass Intelligence V4: Manual/Generated mode and the generation
 	// controls live here, co-located with "Bass Steps" -- whichever mode is
@@ -520,6 +524,22 @@
 				onClearLocks={handleClearAcidStepLocks}
 			/>
 		{:else}
+			<HardwareButton
+				variant="secondary"
+				pressed={showGeneratedGlossary}
+				ariaLabel="Generated bassline glossary"
+				onclick={() => (showGeneratedGlossary = !showGeneratedGlossary)}
+			>
+				{showGeneratedGlossary ? 'Hide' : 'Show'} Glossary
+			</HardwareButton>
+
+			{#if showGeneratedGlossary}
+				<GlossaryPanel
+					intro="What each Generated-mode control does, briefly."
+					sections={GENERATED_BASSLINE_GLOSSARY}
+				/>
+			{/if}
+
 			{#if styleRecommendations.length > 0}
 				<p class="style-recommendation">
 					Recommended:

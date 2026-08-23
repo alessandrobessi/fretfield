@@ -10,6 +10,15 @@
  * do the three auxiliary modulation sources (ENV MOD/ACCENT MOD/RANDOM
  * MOD) -- their shared controls are listed once, with each source's own
  * distinct *behavior* called out separately.
+ *
+ * `GENERATED_BASSLINE_GLOSSARY` below is this file's second, independent
+ * glossary (user-requested, 2026-08) -- the Mode picker and Generated
+ * mode's own controls in `GrooveEditor.svelte`'s "Bass Steps" tab, a
+ * genuinely different vocabulary (bassline generation, not synth sound
+ * design) that happens to live in the same `AcidBassGenerationSettings`
+ * neighborhood. Kept in this file rather than a second one so glossary
+ * content stays in one reviewable place; rendered via the same shared
+ * `GlossaryPanel.svelte` component `AcidBassControls.svelte` uses.
  */
 
 export interface GlossaryEntry {
@@ -212,6 +221,89 @@ export const ACID_BASS_GLOSSARY: GlossarySection[] = [
 				description: 'Post-filter saturation on the way to the output -- adds grit and edge.'
 			},
 			{ term: 'Volume', description: 'The patch’s overall output level.' }
+		]
+	}
+];
+
+export const GENERATED_BASSLINE_GLOSSARY: GlossarySection[] = [
+	{
+		title: 'MODE',
+		entries: [
+			{
+				term: 'Manual / Generated',
+				description:
+					'Manual: program each step by hand, note by note. Generated: FretField writes a full bassline from the current chord/scale context instead, and the step grid becomes a read-only view of what it wrote.'
+			}
+		]
+	},
+	{
+		title: 'GENERATION',
+		entries: [
+			{
+				term: 'Style',
+				description:
+					'Rooted is a foundational, stable part. Funk is syncopated root/octave/chord-tone language with short articulations. Acid is repeated motifs with chromatic approaches, slides and accents. Chromatic is target-driven chromatic movement, never random outside notes. Melodic is connected, lyrical motion through chord and scale tones. Walking is beat-oriented, connected lines that strongly target chord changes.'
+			},
+			{
+				term: 'Harmony',
+				description:
+					'Chord picks each note relative to whatever chord is sounding right now -- the classic root/chord-tone-forward bass approach. Key picks notes relative to the overall key instead, so a melodic idea can repeat as a motif even as the chord underneath it changes. Voice Lead favors the smoothest possible move from one note to the next -- common tones and small steps over big jumps, even across a chord change.'
+			},
+			{
+				term: 'Register',
+				description:
+					'Where on the neck the line prefers to sit. Low/Mid/High are soft pitch-center preferences. Zone strongly prefers positions inside the fretboard zone set above, only falling back to the nearest playable position when nothing exists inside it.'
+			},
+			{
+				term: 'Density',
+				description:
+					'How many of the available rhythmic slots actually get a note -- low is sparse, high is busy.'
+			},
+			{
+				term: 'Chromatic',
+				description:
+					'How often a weak, unimportant note gets pulled into a chromatic approach toward the next strong target, instead of staying diatonic.'
+			},
+			{
+				term: 'Movement',
+				description:
+					'Preference for melodic motion over repetition -- low tends to repeat or anchor on the root, high moves around more.'
+			},
+			{
+				term: 'Playability',
+				description:
+					'How strongly the generator avoids awkward physical jumps on the neck -- 0 ignores playability entirely, 100 favors smooth, nearby fret positions.'
+			},
+			{
+				term: 'Intelligence',
+				description:
+					"How much the generated line's articulation (accent, gate, slide) responds to each note's musical role -- 0 still generates real notes, just without that extra expressive shaping."
+			},
+			{
+				term: 'New Variation',
+				description:
+					'Reseeds the generator for a fresh take on the current settings -- the plan changes, but Style/Harmony/Register and the knobs above stay exactly as set.'
+			}
+		]
+	},
+	{
+		title: 'STEP INSPECTOR',
+		entries: [
+			{ term: 'Note', description: 'The pitch actually sounding at this step.' },
+			{
+				term: 'Interval',
+				description: "This note's interval relative to the chord sounding at this step."
+			},
+			{
+				term: 'Function',
+				description:
+					'The musical role this note is playing -- root, chord tone, scale tone, passing tone, or a chromatic/diatonic approach into the next target.'
+			},
+			{
+				term: 'Position',
+				description:
+					'Which string and fret the generator chose to play this note on, out of every physically valid option.'
+			}
 		]
 	}
 ];

@@ -161,3 +161,35 @@ test.describe('Acid Bass Intelligence V4: generated bar selector and step inspec
 		await expect(page.getByText(/String \d+ · Fret \d+/)).toBeVisible();
 	});
 });
+
+test.describe('Acid Bass Intelligence V4: Generated-mode glossary', () => {
+	test('is hidden by default, absent in Manual mode, and the toggle shows/hides a GLOSSARY panel covering every section', async ({
+		page
+	}) => {
+		await openGeneratedLine(page);
+
+		await expect(page.getByRole('region', { name: 'GLOSSARY' })).toHaveCount(0);
+
+		const toggle = page.getByRole('button', { name: 'Generated bassline glossary' });
+		await expect(toggle).toHaveText('Show Glossary');
+		await toggle.click();
+		await expect(toggle).toHaveText('Hide Glossary');
+
+		const glossary = page.getByRole('region', { name: 'GLOSSARY' });
+		await expect(glossary).toBeVisible();
+		for (const section of ['MODE', 'GENERATION', 'STEP INSPECTOR']) {
+			await expect(glossary.getByText(section, { exact: true })).toBeVisible();
+		}
+		await expect(glossary.getByText('Style', { exact: true })).toBeVisible();
+		await expect(glossary.getByText('Playability', { exact: true })).toBeVisible();
+
+		await toggle.click();
+		await expect(toggle).toHaveText('Show Glossary');
+		await expect(page.getByRole('region', { name: 'GLOSSARY' })).toHaveCount(0);
+
+		// Not part of the Manual-mode UI at all -- this glossary is specific to
+		// Generated mode's own controls.
+		await page.getByRole('button', { name: 'Manual', exact: true }).click();
+		await expect(page.getByRole('button', { name: 'Generated bassline glossary' })).toHaveCount(0);
+	});
+});
