@@ -57,7 +57,8 @@ function multiPatternGroove(
 		feel,
 		feelAmount,
 		timeSignature: groove.timeSignature,
-		acidBass: groove.acidBass
+		acidBass: groove.acidBass,
+		chordPadFx: groove.chordPadFx
 	};
 }
 

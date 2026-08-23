@@ -10,6 +10,7 @@
  */
 
 import type { AcidBassState } from '$lib/acid-bass/types';
+import type { ChordPadFxState } from '$lib/chord-pad-fx/types';
 
 import type { PatternRole } from './pattern-role';
 import type { TimeSignature } from './time-signature';
@@ -63,4 +64,6 @@ export interface Groove {
 	timeSignature: TimeSignature;
 	/** The Acid Bass voice's own A/B/F/T patterns, sharing this groove's arrangement/pattern-role selection -- there is no independent bass arrangement (see `acid-bass/types.ts`). */
 	acidBass: AcidBassState;
+	/** The chord-backing pad's own FX rack (Reverb/Delay/Chorus, stage 1 of 2 -- see `chord-pad-fx/types.ts`) -- a wholly separate accompaniment layer from Acid Bass, with no pattern/arrangement concept of its own. */
+	chordPadFx: ChordPadFxState;
 }

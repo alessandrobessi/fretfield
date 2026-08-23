@@ -1,4 +1,5 @@
 import { coerceAcidBassState } from '$lib/acid-bass/migrate';
+import { coerceChordPadFxState } from '$lib/chord-pad-fx/migrate';
 
 import { createEmptyGroove } from './pattern';
 import { TIME_SIGNATURES } from './time-signature';
@@ -47,7 +48,8 @@ function migratePreFeelGroove(groove: PreFeelGroove): Groove {
 		feel: groove.swing > 0 ? 'swing' : 'straight',
 		feelAmount: groove.swing,
 		timeSignature: '4/4',
-		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup })
+		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup }),
+		chordPadFx: coerceChordPadFxState(undefined)
 	};
 }
 
@@ -72,7 +74,8 @@ function migratePreTimeSignatureGroove(groove: PreTimeSignatureGroove): Groove {
 	return {
 		...groove,
 		timeSignature: '4/4',
-		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup })
+		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup }),
+		chordPadFx: coerceChordPadFxState(undefined)
 	};
 }
 
@@ -109,7 +112,40 @@ function migratePreAcidBassGroove(groove: PreAcidBassGroove): Groove {
 	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES[groove.timeSignature];
 	return {
 		...groove,
-		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup })
+		acidBass: coerceAcidBassState(undefined, { stepsPerBar, stepsPerBeatGroup }),
+		chordPadFx: coerceChordPadFxState(undefined)
+	};
+}
+
+/** The Groove Engine's own shape before the Chord Pad's FX rack existed: everything else current (including `acidBass`), but no `chordPadFx`. */
+interface PreChordPadFxGroove {
+	patterns: Groove['patterns'];
+	arrangement: Groove['arrangement'];
+	feel: Groove['feel'];
+	feelAmount: number;
+	timeSignature: Groove['timeSignature'];
+	acidBass: Groove['acidBass'];
+}
+
+function isPreChordPadFxGroove(value: unknown): value is PreChordPadFxGroove {
+	if (typeof value !== 'object' || value === null) return false;
+	const v = value as Record<string, unknown>;
+	return (
+		'patterns' in v &&
+		'arrangement' in v &&
+		typeof v.feel === 'string' &&
+		'timeSignature' in v &&
+		'acidBass' in v &&
+		!('chordPadFx' in v)
+	);
+}
+
+function migratePreChordPadFxGroove(groove: PreChordPadFxGroove): Groove {
+	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES[groove.timeSignature];
+	return {
+		...groove,
+		acidBass: coerceAcidBassState(groove.acidBass, { stepsPerBar, stepsPerBeatGroup }),
+		chordPadFx: coerceChordPadFxState(undefined)
 	};
 }
 
@@ -146,22 +182,24 @@ export function migrateLegacyPattern(legacy: LegacyGroovePattern): Groove {
 /**
  * Reads any prior shape from storage/a preset and always returns a
  * current-model `Groove`. The final fallthrough case (every top-level
- * `Groove` field already present) still runs `acidBass` through its own
- * `coerceAcidBassState` unconditionally -- a groove saved while Acid Bass
+ * `Groove` field already present) still runs `acidBass`/`chordPadFx` through
+ * their own coercion unconditionally -- a groove saved while Acid Bass
  * existed but before it was versioned has every other current field, yet
  * `acidBass` itself is still V1-shaped (no `version`), and even an already-
- * current groove's `acidBass` is untrusted persisted data (spec §78).
+ * current groove's nested state is untrusted persisted data (spec §78).
  */
 export function coerceGroove(raw: unknown): Groove {
 	if (isLegacyGroovePattern(raw)) return migrateLegacyPattern(raw);
 	if (isPreFeelGroove(raw)) return migratePreFeelGroove(raw);
 	if (isPreTimeSignatureGroove(raw)) return migratePreTimeSignatureGroove(raw);
 	if (isPreAcidBassGroove(raw)) return migratePreAcidBassGroove(raw);
+	if (isPreChordPadFxGroove(raw)) return migratePreChordPadFxGroove(raw);
 
 	const groove = raw as Groove;
 	const { stepsPerBar, stepsPerBeatGroup } = TIME_SIGNATURES[groove.timeSignature];
 	return {
 		...groove,
-		acidBass: coerceAcidBassState(groove.acidBass, { stepsPerBar, stepsPerBeatGroup })
+		acidBass: coerceAcidBassState(groove.acidBass, { stepsPerBar, stepsPerBeatGroup }),
+		chordPadFx: coerceChordPadFxState(groove.chordPadFx)
 	};
 }

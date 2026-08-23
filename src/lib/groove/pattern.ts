@@ -1,4 +1,5 @@
 import { createDefaultAcidBassState, resizeAcidBassState } from '$lib/acid-bass/pattern';
+import { createDefaultChordPadFxState } from '$lib/chord-pad-fx/pattern';
 
 import { TIME_SIGNATURES } from './time-signature';
 import {
@@ -33,7 +34,8 @@ export function createEmptyGroove(timeSignature: TimeSignature = '4/4'): Groove 
 		feel: 'straight',
 		feelAmount: 0,
 		timeSignature,
-		acidBass: createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup)
+		acidBass: createDefaultAcidBassState(stepsPerBar, stepsPerBeatGroup),
+		chordPadFx: createDefaultChordPadFxState()
 	};
 }
 

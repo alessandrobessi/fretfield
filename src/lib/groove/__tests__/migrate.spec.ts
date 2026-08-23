@@ -110,4 +110,31 @@ describe('coerceGroove', () => {
 		expect(coerced.acidBass.enabled).toBe(false);
 		expect(coerced.acidBass.patterns.A).toHaveLength(20);
 	});
+
+	it('migrates a pre-chord-pad-FX Groove (acidBass present, no chordPadFx field) with every FX off, and keeps its existing acidBass state intact', () => {
+		const groove = createEmptyGroove();
+		const preChordPadFx = {
+			...groove,
+			acidBass: { ...groove.acidBass, enabled: true }
+		} as unknown as Record<string, unknown>;
+		delete preChordPadFx.chordPadFx;
+
+		const coerced = coerceGroove(preChordPadFx);
+		expect(coerced.chordPadFx.reverb.enabled).toBe(false);
+		expect(coerced.chordPadFx.delay.enabled).toBe(false);
+		expect(coerced.chordPadFx.chorus.enabled).toBe(false);
+		expect(coerced.acidBass.enabled).toBe(true);
+	});
+
+	it('an already-current Groove still runs chordPadFx through coercion (untrusted persisted data)', () => {
+		const groove = {
+			...createEmptyGroove(),
+			chordPadFx: { version: 1, reverb: { enabled: true, size: 999 } }
+		} as unknown as Record<string, unknown>;
+
+		const coerced = coerceGroove(groove);
+		expect(coerced.chordPadFx.reverb.enabled).toBe(true);
+		expect(coerced.chordPadFx.reverb.size).toBe(100);
+		expect(coerced.chordPadFx.delay.enabled).toBe(false);
+	});
 });
