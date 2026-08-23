@@ -524,14 +524,31 @@
 				onClearLocks={handleClearAcidStepLocks}
 			/>
 		{:else}
-			<HardwareButton
-				variant="secondary"
-				pressed={showGeneratedGlossary}
-				ariaLabel="Generated bassline glossary"
-				onclick={() => (showGeneratedGlossary = !showGeneratedGlossary)}
-			>
-				{showGeneratedGlossary ? 'Hide' : 'Show'} Glossary
-			</HardwareButton>
+			<div class="generation-header-row">
+				<HardwareButton
+					variant="secondary"
+					pressed={showGeneratedGlossary}
+					ariaLabel="Generated bassline glossary"
+					onclick={() => (showGeneratedGlossary = !showGeneratedGlossary)}
+				>
+					{showGeneratedGlossary ? 'Hide' : 'Show'} Glossary
+				</HardwareButton>
+				{#if styleRecommendations.length > 0}
+					<p class="style-recommendation">
+						Recommended:
+						{#each styleRecommendations as recommendation, index (recommendation.style)}
+							{#if index > 0}<span aria-hidden="true"> · </span>{/if}<button
+								type="button"
+								class="style-recommendation-pick"
+								title={recommendation.reason}
+								onclick={() => scalePractice.setAcidBassGenerationStyle(recommendation.style)}
+								>{STYLES.find((style) => style.id === recommendation.style)?.label ??
+									recommendation.style}</button
+							>
+						{/each}
+					</p>
+				{/if}
+			</div>
 
 			{#if showGeneratedGlossary}
 				<GlossaryPanel
@@ -540,30 +557,17 @@
 				/>
 			{/if}
 
-			{#if styleRecommendations.length > 0}
-				<p class="style-recommendation">
-					Recommended:
-					{#each styleRecommendations as recommendation, index (recommendation.style)}
-						{#if index > 0}<span aria-hidden="true"> · </span>{/if}<button
-							type="button"
-							class="style-recommendation-pick"
-							title={recommendation.reason}
-							onclick={() => scalePractice.setAcidBassGenerationStyle(recommendation.style)}
-							>{STYLES.find((style) => style.id === recommendation.style)?.label ??
-								recommendation.style}</button
-						>
-					{/each}
-				</p>
-			{/if}
-			{@render pickerField('Style', STYLES, generation.style, (id) =>
-				scalePractice.setAcidBassGenerationStyle(id as BasslineStyleId)
-			)}
-			{@render pickerField('Harmony', HARMONY_MODES, generation.harmonyMode, (id) =>
-				scalePractice.setAcidBassGenerationHarmonyMode(id as BassHarmonyMode)
-			)}
-			{@render pickerField('Register', REGISTER_MODES, generation.register, (id) =>
-				scalePractice.setAcidBassGenerationRegister(id as BassRegisterMode)
-			)}
+			<div class="row">
+				{@render pickerField('Style', STYLES, generation.style, (id) =>
+					scalePractice.setAcidBassGenerationStyle(id as BasslineStyleId)
+				)}
+				{@render pickerField('Harmony', HARMONY_MODES, generation.harmonyMode, (id) =>
+					scalePractice.setAcidBassGenerationHarmonyMode(id as BassHarmonyMode)
+				)}
+				{@render pickerField('Register', REGISTER_MODES, generation.register, (id) =>
+					scalePractice.setAcidBassGenerationRegister(id as BassRegisterMode)
+				)}
+			</div>
 			<div class="row">
 				{@render knobField('Density', generation.density, (v) =>
 					scalePractice.setAcidBassGenerationDensity(v)
@@ -580,11 +584,10 @@
 				{@render knobField('Intelligence', generation.intelligence, (v) =>
 					scalePractice.setAcidBassGenerationIntelligence(v)
 				)}
+				<HardwareButton variant="secondary" onclick={() => scalePractice.newAcidBassVariation()}>
+					New Variation
+				</HardwareButton>
 			</div>
-
-			<HardwareButton variant="secondary" onclick={() => scalePractice.newAcidBassVariation()}>
-				New Variation
-			</HardwareButton>
 
 			{#if generatedPlan === null}
 				<p class="generation-unavailable">
@@ -741,6 +744,17 @@
 		gap: 0.7rem;
 		flex-wrap: wrap;
 		min-width: 0;
+	}
+
+	/* Groups the glossary toggle and the style recommendation onto one line
+	   instead of two full-width rows -- part of the Generated-mode compaction
+	   (user-requested, 2026-08). */
+	.generation-header-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.6rem;
 	}
 
 	.style-recommendation {

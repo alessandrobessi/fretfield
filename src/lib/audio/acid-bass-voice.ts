@@ -122,6 +122,7 @@ import { getDistortionCurve } from '$lib/acid-bass/distortion';
 import { createDefaultAcidPatch } from '$lib/acid-bass/pattern';
 import {
 	accentAmountToMultipliers,
+	ACID24_RESONANCE_SWING_RATIO,
 	attackToSeconds,
 	BASS_REFERENCE_OCTAVE_MIDI,
 	clampCutoffHz,
@@ -662,6 +663,39 @@ export function createAcidBassVoice(
 		acid24Node = node;
 		mixCompensationGain.connect(node);
 		node.connect(acid24OutputGain);
+		// Cutoff/Resonance modulation (both LFOs, and the three aux-mod
+		// sources' Resonance-capable bank) was only ever wired to the Biquad
+		// `filter`'s own AudioParams above -- genuinely inaudible once the
+		// patch's model is `acid24` (the default) and this worklet has
+		// crossfaded in, since the Biquad path it *was* modulating no longer
+		// reaches the output. Same "connect once the worklet resolves" pattern
+		// `pulseWidthParam` uses below for the Pulse oscillator worklet.
+		const acid24CutoffParam = node.parameters.get('cutoff');
+		if (acid24CutoffParam !== undefined) {
+			cutoffLfo1Gain.connect(acid24CutoffParam);
+			cutoffLfo2Gain.connect(acid24CutoffParam);
+			envModGains.cutoff.connect(acid24CutoffParam);
+			accentModGains.cutoff.connect(acid24CutoffParam);
+			randomModGains.cutoff.connect(acid24CutoffParam);
+		}
+		// The Resonance destination's own swing is tuned against the Biquad Q
+		// range, not acid24's much narrower ladder-feedback range -- routed
+		// through a fixed-ratio scaling gain (`ACID24_RESONANCE_SWING_RATIO`,
+		// resolve.ts) rather than the raw mod gain, so the acid24 path gets a
+		// proportionally equivalent swing instead of a wildly oversized one.
+		const acid24ResonanceParam = node.parameters.get('resonance');
+		if (acid24ResonanceParam !== undefined) {
+			for (const resonanceGain of [
+				envModGains.resonance,
+				accentModGains.resonance,
+				randomModGains.resonance
+			]) {
+				const scaler = ctx.createGain();
+				scaler.gain.setValueAtTime(ACID24_RESONANCE_SWING_RATIO, ctx.currentTime);
+				resonanceGain.connect(scaler);
+				scaler.connect(acid24ResonanceParam);
+			}
+		}
 		applyFilterModelRouting(currentPatch, ctx.currentTime);
 	});
 

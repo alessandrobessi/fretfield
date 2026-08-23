@@ -106,6 +106,20 @@ export function resonanceToModelParameter(model: AcidFilterModel, value: number)
 }
 
 /**
+ * Both the Biquad `filter.Q` and the acid24 worklet's own `resonance`
+ * AudioParam are always driven in parallel regardless of which model is
+ * currently audible (`acid-bass-voice.ts`'s own "always connected, crossfade
+ * the inactive one to zero" idiom) -- including modulation from the aux-mod
+ * sources' Resonance destination. That destination's own swing
+ * (`auxModulationSwing`) is tuned against the Biquad `Q` range (`MIN_Q`..
+ * `MAX_Q`, ~15.5 wide); applying that same raw swing to acid24's own
+ * ladder-feedback range (0..`MAX_LADDER_FEEDBACK`, ~4 wide) would be wildly
+ * disproportionate -- this is the fixed ratio that keeps it proportionally
+ * equivalent instead.
+ */
+export const ACID24_RESONANCE_SWING_RATIO = MAX_LADDER_FEEDBACK / MAX_Q;
+
+/**
  * -100..+100, bipolar (was V1's unipolar `motionToEnvelopeRatio`). A
  * multiplier applied to the base cutoff for the filter envelope's peak: 1 at
  * 0 (no additional movement), up to 7x at +100 (envelope opens the filter),

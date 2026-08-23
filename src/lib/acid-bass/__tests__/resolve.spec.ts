@@ -4,6 +4,7 @@ import { noteNameToPitchClass } from '$lib/music/pitch';
 import { createEmptyAcidStep } from '../pattern';
 import type { AcidModulationDestination } from '../types';
 import {
+	ACID24_RESONANCE_SWING_RATIO,
 	accentAmountToMultipliers,
 	attackToSeconds,
 	auxModulationDepthRatio,
@@ -112,6 +113,15 @@ describe('filter mapping', () => {
 		expect(resonanceToModelParameter('acid24', 75)).toBeGreaterThan(
 			resonanceToModelParameter('acid24', 25)
 		);
+	});
+
+	it("ACID24_RESONANCE_SWING_RATIO narrows a Q-scaled resonance-mod swing down to acid24's own much smaller range, never expands it", () => {
+		expect(ACID24_RESONANCE_SWING_RATIO).toBeGreaterThan(0);
+		expect(ACID24_RESONANCE_SWING_RATIO).toBeLessThan(1);
+		// A swing tuned against the full legacy Q ceiling (0.5-16), scaled by
+		// this ratio, must land inside acid24's own 0-4 ladder-feedback range.
+		const qCeiling = resonanceToModelParameter('legacy', 100);
+		expect(qCeiling * ACID24_RESONANCE_SWING_RATIO).toBeLessThanOrEqual(4);
 	});
 
 	it('envAmountToRatio is 1 (no movement) at 0, grows above 1 for positive, shrinks below 1 for negative', () => {
