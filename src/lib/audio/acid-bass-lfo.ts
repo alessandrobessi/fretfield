@@ -40,7 +40,15 @@ export interface AcidBassLfo {
 	dispose(): void;
 }
 
-export function createAcidBassLfo(ctx: AudioContext): AcidBassLfo {
+/** Same narrow testability seam `acid-bass-voice.ts` exposes, for the same reason: no unit tests otherwise exist for this file's own crossfade/rate wiring. */
+export interface AcidBassLfoTestHooks {
+	__test: {
+		readonly shapeGains: Record<AcidLfoShape, GainNode>;
+		readonly rateOscillators: readonly OscillatorNode[];
+	};
+}
+
+export function createAcidBassLfo(ctx: AudioContext): AcidBassLfo & AcidBassLfoTestHooks {
 	const sineOsc = ctx.createOscillator();
 	sineOsc.type = 'sine';
 	const triangleOsc = ctx.createOscillator();
@@ -130,6 +138,16 @@ export function createAcidBassLfo(ctx: AudioContext): AcidBassLfo {
 			triangleOsc.stop(stopTime);
 			squareOsc.stop(stopTime);
 			sampleHoldSource.stop(stopTime);
+		},
+
+		__test: {
+			shapeGains: {
+				sine: sineGain,
+				triangle: triangleGain,
+				square: squareGain,
+				sampleHold: sampleHoldGain
+			},
+			rateOscillators: [sineOsc, triangleOsc, squareOsc]
 		}
 	};
 }

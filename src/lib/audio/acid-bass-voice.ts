@@ -189,6 +189,42 @@ export interface AcidBassVoice {
 	dispose(): void;
 }
 
+/**
+ * A deliberate, narrow testability seam -- this file has no unit tests of
+ * its own otherwise (DSP wiring is normally verified live, per this app's
+ * established boundary), and the internal graph nodes below are all
+ * function-local closures with no other way to reach them from outside.
+ * Exists specifically to let `acid-bass-voice.spec.ts` assert real
+ * connectivity (which gain node feeds which AudioParam) rather than just
+ * "did `setPatch`/`schedule` throw" -- the exact class of bug this file
+ * already shipped once (LFO/Mod Cutoff and Resonance wired to the Biquad
+ * filter's own AudioParams but never to the `acid24` AudioWorkletNode's,
+ * silently inaudible once that worklet became the default, only-audible
+ * path). Every property here is a read-only reference to a node that
+ * already exists for production reasons -- attaching this adds no new
+ * nodes, no new behavior, and no runtime cost beyond a handful of object
+ * references.
+ */
+export interface AcidBassVoiceTestHooks {
+	__test: {
+		readonly filter: BiquadFilterNode;
+		readonly vca: GainNode;
+		readonly subGain: GainNode;
+		readonly osc2Gain: GainNode;
+		readonly driveInput: GainNode;
+		/** One representative pitch-modulation target -- every main-wave oscillator, Sub, and Osc 2 all get the identical connection (see the file's own `pitchModulatedOscillators` array), so checking one confirms the pattern without exposing all six. */
+		readonly representativeOscillatorDetune: AudioParam;
+		readonly acid24Node: () => AudioWorkletNode | null;
+		readonly pulseWorkletNode: () => AudioWorkletNode | null;
+		readonly lfoGains: (slot: 1 | 2) => Record<AcidLfoDestination, GainNode>;
+		readonly auxModGains: (
+			source: 'envelope' | 'accent' | 'random'
+		) => Record<AcidModulationDestination, GainNode>;
+		/** Resolves once both the acid24 and Pulse-oscillator worklets have settled (loaded, or permanently failed/unavailable) -- awaiting this before asserting worklet-specific connections avoids racing the fire-and-forget `.then()` callbacks that wire them up. */
+		waitForWorkletsReady(): Promise<void>;
+	};
+}
+
 const MIN_RELEASE_SECONDS = 0.02;
 const SILENCE_RAMP_SECONDS = 0.03;
 const WAVE_CROSSFADE_TIME_CONSTANT = 0.01;
@@ -296,7 +332,7 @@ function createPulseWave(ctx: AudioContext, dutyPercent: number): PeriodicWave {
 export function createAcidBassVoice(
 	ctx: AudioContext,
 	destination: AudioNode = ctx.destination
-): AcidBassVoice {
+): AcidBassVoice & AcidBassVoiceTestHooks {
 	let currentPatch: AcidBassPatch = DEFAULT_PATCH;
 
 	const sawOsc = ctx.createOscillator();
@@ -653,8 +689,10 @@ export function createAcidBassVoice(
 
 	// Fire-and-forget: the voice must stay usable (via the Biquad fallback)
 	// for however long this takes, or forever if it never resolves to a node
-	// at all -- see createAcid24WorkletNode's own no-throw contract.
-	void createAcid24WorkletNode(ctx).then((node) => {
+	// at all -- see createAcid24WorkletNode's own no-throw contract. The
+	// promise itself is kept (not `void`-discarded) only so `__test.
+	// waitForWorkletsReady()` below can await it -- nothing else ever reads it.
+	const acid24Ready = createAcid24WorkletNode(ctx).then((node) => {
 		if (disposed) {
 			node?.disconnect();
 			return;
@@ -700,7 +738,7 @@ export function createAcidBassVoice(
 	});
 
 	// Same fire-and-forget pattern, for the Pulse oscillator worklet (M11).
-	void createPulseOscillatorWorkletNode(ctx).then((node) => {
+	const pulseWorkletReady = createPulseOscillatorWorkletNode(ctx).then((node) => {
 		if (disposed) {
 			node?.disconnect();
 			return;
@@ -1308,6 +1346,36 @@ export function createAcidBassVoice(
 			lfo2.dispose();
 			acid24Node?.disconnect();
 			pulseWorkletNode?.disconnect();
+		},
+
+		__test: {
+			filter,
+			vca,
+			subGain,
+			osc2Gain,
+			driveInput,
+			representativeOscillatorDetune: sawOsc.detune,
+			acid24Node: () => acid24Node,
+			pulseWorkletNode: () => pulseWorkletNode,
+			lfoGains: (slot) =>
+				slot === 1
+					? {
+							cutoff: cutoffLfo1Gain,
+							pitch: pitchLfo1Gain,
+							subLevel: subLevelLfo1Gain,
+							osc2Level: osc2LevelLfo1Gain,
+							pulseWidth: pulseWidthLfo1Gain
+						}
+					: {
+							cutoff: cutoffLfo2Gain,
+							pitch: pitchLfo2Gain,
+							subLevel: subLevelLfo2Gain,
+							osc2Level: osc2LevelLfo2Gain,
+							pulseWidth: pulseWidthLfo2Gain
+						},
+			auxModGains: (source) => auxModGainBank(source),
+			waitForWorkletsReady: () =>
+				Promise.all([acid24Ready, pulseWorkletReady]).then(() => undefined)
 		}
 	};
 }
