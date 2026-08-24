@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * The Mixer strip (Drums/Chords/Bass channel faders, user-requested,
- * 2026-08) -- an always-visible row in the Band panel, above the Drums/
- * Harmony/Bass/Editor tabs. No real-audio assertions here, matching this
- * app's existing testing boundary (see `drum-machine.e2e.ts`'s own header
- * comment) -- only UI/state and that live playback survives fader moves.
+ * The Mixer (Drums/Chords/Bass channel faders, user-requested, 2026-08) --
+ * its own Band panel tab, between Bass and Editor. Originally built as an
+ * always-visible strip above every tab; the user corrected that ("i've just
+ * realized that it is everywhere ... mixer should have its own tab, it
+ * should not be in the harmony section") -- it now only renders while the
+ * Mixer tab itself is active, same shape as every other Band tab. No
+ * real-audio assertions here, matching this app's existing testing boundary
+ * (see `drum-machine.e2e.ts`'s own header comment) -- only UI/state and that
+ * live playback survives fader moves.
  */
 
 async function openScalePractice(page: import('@playwright/test').Page): Promise<void> {
@@ -13,22 +17,34 @@ async function openScalePractice(page: import('@playwright/test').Page): Promise
 	await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 }
 
+async function openMixerTab(page: import('@playwright/test').Page): Promise<void> {
+	await openScalePractice(page);
+	await page.getByRole('button', { name: 'Mixer', exact: true }).click();
+}
+
 test.describe('Mixer', () => {
-	test('all three faders are visible regardless of which Band tab is active', async ({ page }) => {
+	test('lives on its own tab -- not visible on Drums/Harmony/Bass/Editor, only on Mixer', async ({
+		page
+	}) => {
 		await openScalePractice(page);
 
 		for (const tab of ['Drums', 'Harmony', 'Bass', 'Editor']) {
 			await page.getByRole('button', { name: tab, exact: true }).click();
-			await expect(page.getByLabel('Drums volume')).toBeVisible();
-			await expect(page.getByLabel('Chords volume')).toBeVisible();
-			await expect(page.getByLabel('Bass volume')).toBeVisible();
+			await expect(page.getByLabel('Drums volume')).not.toBeVisible();
+			await expect(page.getByLabel('Chords volume')).not.toBeVisible();
+			await expect(page.getByLabel('Bass volume')).not.toBeVisible();
 		}
+
+		await page.getByRole('button', { name: 'Mixer', exact: true }).click();
+		await expect(page.getByLabel('Drums volume')).toBeVisible();
+		await expect(page.getByLabel('Chords volume')).toBeVisible();
+		await expect(page.getByLabel('Bass volume')).toBeVisible();
 	});
 
 	test('Drums/Chords default to full (100%) on a fresh session; Bass keeps its own existing default', async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openMixerTab(page);
 
 		await expect(page.getByLabel('Drums volume')).toHaveValue('100');
 		await expect(page.getByLabel('Chords volume')).toHaveValue('100');
@@ -41,7 +57,7 @@ test.describe('Mixer', () => {
 	test("the Bass fader is the same control as Acid Bass's own OUTPUT > Volume knob", async ({
 		page
 	}) => {
-		await openScalePractice(page);
+		await openMixerTab(page);
 
 		await page.getByLabel('Bass volume').fill('55');
 		await page.keyboard.press('Tab');
@@ -54,7 +70,7 @@ test.describe('Mixer', () => {
 	});
 
 	test('Drums/Chords/Bass volumes all persist across a reload', async ({ page }) => {
-		await openScalePractice(page);
+		await openMixerTab(page);
 
 		await page.getByLabel('Drums volume').fill('20');
 		await page.keyboard.press('Tab');
@@ -65,6 +81,7 @@ test.describe('Mixer', () => {
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+		await page.getByRole('button', { name: 'Mixer', exact: true }).click();
 
 		await expect(page.getByLabel('Drums volume')).toHaveValue('20');
 		await expect(page.getByLabel('Chords volume')).toHaveValue('35');
@@ -72,7 +89,7 @@ test.describe('Mixer', () => {
 	});
 
 	test('moving every fader during real playback does not stop the transport', async ({ page }) => {
-		await openScalePractice(page);
+		await openMixerTab(page);
 
 		await page.getByRole('button', { name: 'Play' }).click();
 		await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();

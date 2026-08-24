@@ -17,7 +17,7 @@
 	} from '$lib/music/scales';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
-	type BandTab = 'drums' | 'harmony' | 'bass' | 'editor';
+	type BandTab = 'drums' | 'harmony' | 'bass' | 'mixer' | 'editor';
 	let activeTab = $state<BandTab>('drums');
 
 	/** Whichever pattern is currently sounding (while playing) or was last selected for editing (while stopped) -- the Drums tab's readout. */
@@ -98,57 +98,19 @@
 		<button
 			type="button"
 			class="band-tab"
+			class:active={activeTab === 'mixer'}
+			onclick={() => (activeTab = 'mixer')}
+		>
+			Mixer
+		</button>
+		<button
+			type="button"
+			class="band-tab"
 			class:active={activeTab === 'editor'}
 			onclick={() => (activeTab = 'editor')}
 		>
 			Editor
 		</button>
-	</div>
-
-	<div class="mixer-strip" role="group" aria-label="Mixer">
-		<span class="ff-label mixer-title">Mixer</span>
-		<label class="field mixer-fader">
-			<span class="ff-label field-label">Drums</span>
-			<span class="swing-control">
-				<input
-					type="range"
-					aria-label="Drums volume"
-					min="0"
-					max="100"
-					value={scalePractice.drumsVolume}
-					onchange={handleDrumsVolumeChange}
-				/>
-				<span class="swing-readout">{scalePractice.drumsVolume}%</span>
-			</span>
-		</label>
-		<label class="field mixer-fader">
-			<span class="ff-label field-label">Chords</span>
-			<span class="swing-control">
-				<input
-					type="range"
-					aria-label="Chords volume"
-					min="0"
-					max="100"
-					value={scalePractice.chordsVolume}
-					onchange={handleChordsVolumeChange}
-				/>
-				<span class="swing-readout">{scalePractice.chordsVolume}%</span>
-			</span>
-		</label>
-		<label class="field mixer-fader">
-			<span class="ff-label field-label">Bass</span>
-			<span class="swing-control">
-				<input
-					type="range"
-					aria-label="Bass volume"
-					min="0"
-					max="100"
-					value={scalePractice.groove.acidBass.patch.output.volume}
-					onchange={handleBassVolumeChange}
-				/>
-				<span class="swing-readout">{scalePractice.groove.acidBass.patch.output.volume}%</span>
-			</span>
-		</label>
 	</div>
 
 	{#if activeTab === 'drums'}
@@ -293,6 +255,53 @@
 			{/each}
 		</ol>
 		<ChordPadFxControls />
+	{:else if activeTab === 'mixer'}
+		<HardwarePanel title="Mixer">
+			<div class="mixer-view">
+				<label class="field mixer-fader">
+					<span class="ff-label field-label">Drums</span>
+					<span class="swing-control">
+						<input
+							type="range"
+							aria-label="Drums volume"
+							min="0"
+							max="100"
+							value={scalePractice.drumsVolume}
+							onchange={handleDrumsVolumeChange}
+						/>
+						<span class="swing-readout">{scalePractice.drumsVolume}%</span>
+					</span>
+				</label>
+				<label class="field mixer-fader">
+					<span class="ff-label field-label">Chords</span>
+					<span class="swing-control">
+						<input
+							type="range"
+							aria-label="Chords volume"
+							min="0"
+							max="100"
+							value={scalePractice.chordsVolume}
+							onchange={handleChordsVolumeChange}
+						/>
+						<span class="swing-readout">{scalePractice.chordsVolume}%</span>
+					</span>
+				</label>
+				<label class="field mixer-fader">
+					<span class="ff-label field-label">Bass</span>
+					<span class="swing-control">
+						<input
+							type="range"
+							aria-label="Bass volume"
+							min="0"
+							max="100"
+							value={scalePractice.groove.acidBass.patch.output.volume}
+							onchange={handleBassVolumeChange}
+						/>
+						<span class="swing-readout">{scalePractice.groove.acidBass.patch.output.volume}%</span>
+					</span>
+				</label>
+			</div>
+		</HardwarePanel>
 	{:else}
 		<GrooveEditor />
 	{/if}
@@ -343,22 +352,11 @@
 		color: inherit;
 	}
 
-	/* Always visible regardless of which Band tab is active -- a mix balance
-	   is something you want to see/adjust while listening, not a per-voice
-	   editing surface like the four tabs above it. */
-	.mixer-strip {
+	.mixer-view {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.5rem;
 		flex-wrap: wrap;
-		padding: 0.6rem 0.75rem;
-		background: var(--surface, #262521);
-		border: 1px solid var(--surface-border, #3a382f);
-		border-radius: var(--ff-radius-control, 4px);
-	}
-
-	.mixer-title {
-		color: var(--fg-muted, #89877f);
 	}
 
 	.mixer-fader {
