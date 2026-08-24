@@ -6,10 +6,23 @@
 		min?: number;
 		max?: number;
 		step?: number;
+		/** Mirrors a native `disabled` control: dimmed, inert to pointer/keyboard, removed from tab order. */
+		disabled?: boolean;
+		/** Passed straight through as the wrapper's `title` -- e.g. explaining *why* a knob is disabled, the same tooltip a disabled `<input>` would carry. */
+		title?: string;
 		onChange: (value: number) => void;
 	}
 
-	let { label, value, min = 0, max = 100, step = 1, onChange }: Props = $props();
+	let {
+		label,
+		value,
+		min = 0,
+		max = 100,
+		step = 1,
+		disabled = false,
+		title,
+		onChange
+	}: Props = $props();
 
 	let knobEl: HTMLDivElement | undefined;
 	let dragging = $state(false);
@@ -34,6 +47,7 @@
 	let dragStartValue = 0;
 
 	function handlePointerDown(event: PointerEvent): void {
+		if (disabled) return;
 		dragging = true;
 		dragStartY = event.clientY;
 		dragStartValue = value;
@@ -53,6 +67,7 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent): void {
+		if (disabled) return;
 		const bigStep = Math.max(step, (max - min) / 10);
 		switch (event.key) {
 			case 'ArrowUp':
@@ -92,13 +107,16 @@
 	<div
 		bind:this={knobEl}
 		class="knob"
+		class:disabled
 		role="slider"
-		tabindex="0"
+		tabindex={disabled ? -1 : 0}
 		aria-label={label}
 		aria-valuemin={min}
 		aria-valuemax={max}
 		aria-valuenow={value}
+		aria-disabled={disabled}
 		aria-orientation="vertical"
+		{title}
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
 		onpointerup={handlePointerUp}
@@ -131,6 +149,11 @@
 	.knob:focus-visible {
 		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 2px;
+	}
+
+	.knob.disabled {
+		cursor: default;
+		opacity: 0.4;
 	}
 
 	.knob::before {

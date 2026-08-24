@@ -26,6 +26,20 @@ async function openGrooveEditor(page: import('@playwright/test').Page): Promise<
 	await page.getByRole('button', { name: 'Editor', exact: true }).click();
 }
 
+/** Sets a 0-100/step-1 `Knob` (e.g. Amount, Intensity) to an exact value via keyboard -- Home to floor it at 0, then PageUp (step 10) and ArrowUp (step 1) to reach the target, the same keyboard contract `rebrand.e2e.ts`'s own Knob coverage exercises. */
+async function setKnobValue(
+	page: import('@playwright/test').Page,
+	label: string,
+	value: number
+): Promise<void> {
+	const knob = page.getByRole('slider', { name: label, exact: true });
+	await knob.focus();
+	await knob.press('Home');
+	for (let i = 0; i < Math.floor(value / 10); i++) await knob.press('PageUp');
+	for (let i = 0; i < value % 10; i++) await knob.press('ArrowUp');
+	await expect(knob).toHaveAttribute('aria-valuenow', String(value));
+}
+
 test.describe('Drum Machine', () => {
 	test('clicking a step cycles off -> ghost -> normal -> accent -> off', async ({ page }) => {
 		await openGrooveEditor(page);
@@ -65,11 +79,17 @@ test.describe('Drum Machine', () => {
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await expect(page.getByLabel('Feel')).toHaveValue('straight');
-		await expect(page.getByLabel('Amount')).toHaveValue('0');
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-valuenow',
+			'0'
+		);
 		await page.getByLabel('Groove preset').selectOption({ label: 'Blues Shuffle' });
 
 		await expect(page.getByLabel('Feel')).toHaveValue('shuffle');
-		await expect(page.getByLabel('Amount')).toHaveValue('65');
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-valuenow',
+			'65'
+		);
 
 		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await expect(page.getByLabel('Kick step 1', { exact: true })).toHaveAttribute(
@@ -107,7 +127,10 @@ test.describe('Drum Machine', () => {
 
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('swing');
-		await expect(page.getByLabel('Amount')).toHaveValue('70');
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-valuenow',
+			'70'
+		);
 		await expect(page.getByLabel('Metronome BPM')).toHaveValue('110');
 
 		await page.getByRole('button', { name: 'Editor', exact: true }).click();
@@ -357,7 +380,10 @@ test.describe('Drum Machine: flagship 12-bar blues groove', () => {
 
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 		await expect(page.getByLabel('Feel')).toHaveValue('shuffle');
-		await expect(page.getByLabel('Amount')).toHaveValue('65');
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-valuenow',
+			'65'
+		);
 
 		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		const expectedRoles = ['A', 'A', 'A', 'B', 'A', 'A', 'B', 'F', 'A', 'B', 'T', 'F'];
@@ -397,24 +423,32 @@ test.describe('Drum Machine: Feel + Intensity', () => {
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await expect(page.getByLabel('Feel')).toHaveValue('straight');
-		await expect(page.getByLabel('Amount')).toBeDisabled();
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-disabled',
+			'true'
+		);
 
 		await page.getByLabel('Feel').selectOption('shuffle');
-		await expect(page.getByLabel('Amount')).toBeEnabled();
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-disabled',
+			'false'
+		);
 	});
 
 	test('Intensity persists across a reload', async ({ page }) => {
 		await openScalePractice(page);
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
-		await page.getByLabel('Intensity').fill('40');
-		await page.keyboard.press('Tab');
+		await setKnobValue(page, 'Intensity', 40);
 
 		await page.reload();
 		await page.getByRole('tab', { name: 'Practice', exact: true }).click();
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
-		await expect(page.getByLabel('Intensity')).toHaveValue('40');
+		await expect(page.getByRole('slider', { name: 'Intensity' })).toHaveAttribute(
+			'aria-valuenow',
+			'40'
+		);
 	});
 });
 
@@ -461,14 +495,20 @@ test.describe('Drum Machine: time signature', () => {
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
 
 		await page.getByLabel('Feel').selectOption('shuffle');
-		await expect(page.getByLabel('Amount')).toBeEnabled();
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-disabled',
+			'false'
+		);
 
 		await page.getByRole('button', { name: 'Editor', exact: true }).click();
 		await page.getByLabel('Time Signature').selectOption('12/8');
 
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
-		await expect(page.getByLabel('Amount')).toBeDisabled();
-		await expect(page.getByLabel('Amount')).toHaveAttribute(
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-disabled',
+			'true'
+		);
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
 			'title',
 			"12/8 already has its own compound feel -- swing doesn't apply"
 		);
@@ -477,7 +517,10 @@ test.describe('Drum Machine: time signature', () => {
 		await page.getByLabel('Time Signature').selectOption('3/4');
 
 		await page.getByRole('button', { name: 'Drums', exact: true }).click();
-		await expect(page.getByLabel('Amount')).toBeEnabled();
+		await expect(page.getByRole('slider', { name: 'Amount' })).toHaveAttribute(
+			'aria-disabled',
+			'false'
+		);
 	});
 
 	test('the chosen time signature and its resized grid survive a reload', async ({ page }) => {
@@ -567,7 +610,7 @@ test.describe('Drum Machine: compact Practice UI', () => {
 		await expect(page.getByLabel('Groove preset')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 		await expect(page.getByLabel('Feel')).toBeVisible();
-		await expect(page.getByLabel('Intensity')).toBeVisible();
+		await expect(page.getByRole('slider', { name: 'Intensity' })).toBeVisible();
 		// Gated behind the Editor tab: the step grid, arrangement editor, time
 		// signature, and saved grooves.
 		await expect(page.getByLabel('Time Signature')).not.toBeVisible();

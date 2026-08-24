@@ -38,14 +38,6 @@
 		scalePractice.setFeel((event.currentTarget as HTMLSelectElement).value as GrooveFeel);
 	}
 
-	function handleFeelAmountChange(event: Event): void {
-		scalePractice.setFeelAmount(Number((event.currentTarget as HTMLInputElement).value));
-	}
-
-	function handleIntensityChange(event: Event): void {
-		scalePractice.setIntensity(Number((event.currentTarget as HTMLInputElement).value));
-	}
-
 	function handleCountInChange(event: Event): void {
 		scalePractice.setCountIn((event.currentTarget as HTMLSelectElement).value as CountIn);
 	}
@@ -119,38 +111,26 @@
 						<option value="swing">Swing</option>
 					</select>
 				</label>
-				<label class="field">
+				<div class="field">
 					<span class="ff-label field-label">Amount</span>
-					<span class="swing-control">
-						<input
-							type="range"
-							aria-label="Amount"
-							min="0"
-							max="100"
-							disabled={scalePractice.groove.feel === 'straight' || isCompoundMeter}
-							title={isCompoundMeter
-								? `${scalePractice.groove.timeSignature} already has its own compound feel -- swing doesn't apply`
-								: undefined}
-							value={scalePractice.groove.feelAmount}
-							onchange={handleFeelAmountChange}
-						/>
-						<span class="swing-readout">{scalePractice.groove.feelAmount}%</span>
-					</span>
-				</label>
-				<label class="field">
+					<Knob
+						label="Amount"
+						value={scalePractice.groove.feelAmount}
+						disabled={scalePractice.groove.feel === 'straight' || isCompoundMeter}
+						title={isCompoundMeter
+							? `${scalePractice.groove.timeSignature} already has its own compound feel -- swing doesn't apply`
+							: undefined}
+						onChange={(v) => scalePractice.setFeelAmount(v)}
+					/>
+				</div>
+				<div class="field">
 					<span class="ff-label field-label">Intensity</span>
-					<span class="swing-control">
-						<input
-							type="range"
-							aria-label="Intensity"
-							min="0"
-							max="100"
-							value={scalePractice.intensity}
-							onchange={handleIntensityChange}
-						/>
-						<span class="swing-readout">{scalePractice.intensity}%</span>
-					</span>
-				</label>
+					<Knob
+						label="Intensity"
+						value={scalePractice.intensity}
+						onChange={(v) => scalePractice.setIntensity(v)}
+					/>
+				</div>
 				<label class="field">
 					<span class="ff-label field-label">Count-in</span>
 					<select
@@ -377,22 +357,9 @@
 		border-color: var(--ff-yellow, #e3ac18);
 	}
 
-	select:focus-visible,
-	input[type='range']:focus-visible {
+	select:focus-visible {
 		outline: 3px solid var(--focus-ring, #e3ac18);
 		outline-offset: 1px;
-	}
-
-	.swing-control {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-	}
-
-	.swing-readout {
-		font-weight: 600;
-		font-variant-numeric: tabular-nums;
-		min-width: 2.5em;
 	}
 
 	.pattern-readout {
