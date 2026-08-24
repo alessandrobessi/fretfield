@@ -45,6 +45,18 @@
 		scalePractice.setIntensity(Number((event.currentTarget as HTMLInputElement).value));
 	}
 
+	function handleDrumsVolumeChange(event: Event): void {
+		scalePractice.setDrumsVolume(Number((event.currentTarget as HTMLInputElement).value));
+	}
+
+	function handleChordsVolumeChange(event: Event): void {
+		scalePractice.setChordsVolume(Number((event.currentTarget as HTMLInputElement).value));
+	}
+
+	function handleBassVolumeChange(event: Event): void {
+		scalePractice.setAcidBassVolume(Number((event.currentTarget as HTMLInputElement).value));
+	}
+
 	function handleCountInChange(event: Event): void {
 		scalePractice.setCountIn((event.currentTarget as HTMLSelectElement).value as CountIn);
 	}
@@ -91,6 +103,52 @@
 		>
 			Editor
 		</button>
+	</div>
+
+	<div class="mixer-strip" role="group" aria-label="Mixer">
+		<span class="ff-label mixer-title">Mixer</span>
+		<label class="field mixer-fader">
+			<span class="ff-label field-label">Drums</span>
+			<span class="swing-control">
+				<input
+					type="range"
+					aria-label="Drums volume"
+					min="0"
+					max="100"
+					value={scalePractice.drumsVolume}
+					onchange={handleDrumsVolumeChange}
+				/>
+				<span class="swing-readout">{scalePractice.drumsVolume}%</span>
+			</span>
+		</label>
+		<label class="field mixer-fader">
+			<span class="ff-label field-label">Chords</span>
+			<span class="swing-control">
+				<input
+					type="range"
+					aria-label="Chords volume"
+					min="0"
+					max="100"
+					value={scalePractice.chordsVolume}
+					onchange={handleChordsVolumeChange}
+				/>
+				<span class="swing-readout">{scalePractice.chordsVolume}%</span>
+			</span>
+		</label>
+		<label class="field mixer-fader">
+			<span class="ff-label field-label">Bass</span>
+			<span class="swing-control">
+				<input
+					type="range"
+					aria-label="Bass volume"
+					min="0"
+					max="100"
+					value={scalePractice.groove.acidBass.patch.output.volume}
+					onchange={handleBassVolumeChange}
+				/>
+				<span class="swing-readout">{scalePractice.groove.acidBass.patch.output.volume}%</span>
+			</span>
+		</label>
 	</div>
 
 	{#if activeTab === 'drums'}
@@ -283,6 +341,29 @@
 
 	.playing-label {
 		color: inherit;
+	}
+
+	/* Always visible regardless of which Band tab is active -- a mix balance
+	   is something you want to see/adjust while listening, not a per-voice
+	   editing surface like the four tabs above it. */
+	.mixer-strip {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+		padding: 0.6rem 0.75rem;
+		background: var(--surface, #262521);
+		border: 1px solid var(--surface-border, #3a382f);
+		border-radius: var(--ff-radius-control, 4px);
+	}
+
+	.mixer-title {
+		color: var(--fg-muted, #89877f);
+	}
+
+	.mixer-fader {
+		flex: 1 1 8rem;
+		min-width: 8rem;
 	}
 
 	.drums-view {
