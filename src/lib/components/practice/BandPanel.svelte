@@ -3,6 +3,7 @@
 	import type { CountIn } from '$lib/groove/transport';
 	import type { GrooveFeel } from '$lib/groove/types';
 	import HardwarePanel from '$lib/components/hardware/HardwarePanel.svelte';
+	import Knob from '$lib/components/hardware/Knob.svelte';
 	import Led from '$lib/components/hardware/Led.svelte';
 	import AcidBassControls from '$lib/components/practice/AcidBassControls.svelte';
 	import ChordPadFxControls from '$lib/components/practice/ChordPadFxControls.svelte';
@@ -43,18 +44,6 @@
 
 	function handleIntensityChange(event: Event): void {
 		scalePractice.setIntensity(Number((event.currentTarget as HTMLInputElement).value));
-	}
-
-	function handleDrumsVolumeChange(event: Event): void {
-		scalePractice.setDrumsVolume(Number((event.currentTarget as HTMLInputElement).value));
-	}
-
-	function handleChordsVolumeChange(event: Event): void {
-		scalePractice.setChordsVolume(Number((event.currentTarget as HTMLInputElement).value));
-	}
-
-	function handleBassVolumeChange(event: Event): void {
-		scalePractice.setAcidBassVolume(Number((event.currentTarget as HTMLInputElement).value));
 	}
 
 	function handleCountInChange(event: Event): void {
@@ -258,48 +247,30 @@
 	{:else if activeTab === 'mixer'}
 		<HardwarePanel title="Mixer">
 			<div class="mixer-view">
-				<label class="field mixer-fader">
+				<div class="field">
 					<span class="ff-label field-label">Drums</span>
-					<span class="swing-control">
-						<input
-							type="range"
-							aria-label="Drums volume"
-							min="0"
-							max="100"
-							value={scalePractice.drumsVolume}
-							onchange={handleDrumsVolumeChange}
-						/>
-						<span class="swing-readout">{scalePractice.drumsVolume}%</span>
-					</span>
-				</label>
-				<label class="field mixer-fader">
+					<Knob
+						label="Drums volume"
+						value={scalePractice.drumsVolume}
+						onChange={(v) => scalePractice.setDrumsVolume(v)}
+					/>
+				</div>
+				<div class="field">
 					<span class="ff-label field-label">Chords</span>
-					<span class="swing-control">
-						<input
-							type="range"
-							aria-label="Chords volume"
-							min="0"
-							max="100"
-							value={scalePractice.chordsVolume}
-							onchange={handleChordsVolumeChange}
-						/>
-						<span class="swing-readout">{scalePractice.chordsVolume}%</span>
-					</span>
-				</label>
-				<label class="field mixer-fader">
+					<Knob
+						label="Chords volume"
+						value={scalePractice.chordsVolume}
+						onChange={(v) => scalePractice.setChordsVolume(v)}
+					/>
+				</div>
+				<div class="field">
 					<span class="ff-label field-label">Bass</span>
-					<span class="swing-control">
-						<input
-							type="range"
-							aria-label="Bass volume"
-							min="0"
-							max="100"
-							value={scalePractice.groove.acidBass.patch.output.volume}
-							onchange={handleBassVolumeChange}
-						/>
-						<span class="swing-readout">{scalePractice.groove.acidBass.patch.output.volume}%</span>
-					</span>
-				</label>
+					<Knob
+						label="Bass volume"
+						value={scalePractice.groove.acidBass.patch.output.volume}
+						onChange={(v) => scalePractice.setAcidBassVolume(v)}
+					/>
+				</div>
 			</div>
 		</HardwarePanel>
 	{:else}
@@ -354,14 +325,9 @@
 
 	.mixer-view {
 		display: flex;
-		align-items: center;
-		gap: 1.5rem;
+		align-items: flex-start;
+		gap: 2rem;
 		flex-wrap: wrap;
-	}
-
-	.mixer-fader {
-		flex: 1 1 8rem;
-		min-width: 8rem;
 	}
 
 	.drums-view {
