@@ -55,13 +55,15 @@ import { createChordPadFxBus, type ChordPadFxBus } from '$lib/audio/chord-pad-fx
 import { triggerChordPad } from '$lib/audio/chord-voices';
 import type { ChordPadDelayDivision, ChordPadFxState } from '$lib/chord-pad-fx/types';
 import {
+	createDrumsBus,
 	resolveAudioContextConstructor,
 	triggerClosedHat,
 	triggerKick,
 	triggerOpenHat,
 	triggerRide,
 	triggerRim,
-	triggerSnare
+	triggerSnare,
+	type DrumsBus
 } from '$lib/audio/drum-voices';
 import { effectiveSwing } from '$lib/groove/feel';
 import { stepShouldSound } from '$lib/groove/intensity';
@@ -215,7 +217,12 @@ interface PersistedScalePracticeConfig {
 	barsPerChord: number;
 	countIn: CountIn;
 	intensity: number;
+	/** 0-100 -- the Mixer's Drums/Chords channel faders (user-requested, 2026-08). Bass has no equivalent entry here: its channel fader is `groove.acidBass.patch.output.volume`, already persisted as part of the Groove itself. Session-level like `intensity`, not shareable Groove content, since a mix balance is a listening preference, not authored musical content. */
+	drumsVolume: number;
+	chordsVolume: number;
 }
+
+const DEFAULT_MIXER_VOLUME = 100;
 
 const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	root: null,
@@ -225,7 +232,9 @@ const DEFAULT_CONFIG: PersistedScalePracticeConfig = {
 	progressionTemplateId: null,
 	barsPerChord: DEFAULT_BARS_PER_CHORD,
 	countIn: '1-bar',
-	intensity: DEFAULT_INTENSITY
+	intensity: DEFAULT_INTENSITY,
+	drumsVolume: DEFAULT_MIXER_VOLUME,
+	chordsVolume: DEFAULT_MIXER_VOLUME
 };
 
 /**
@@ -250,7 +259,9 @@ function loadPersistedConfig(): PersistedScalePracticeConfig {
 			DEFAULT_CONFIG.progressionTemplateId,
 		barsPerChord: (raw.barsPerChord as number | undefined) ?? DEFAULT_CONFIG.barsPerChord,
 		countIn: (raw.countIn as CountIn | undefined) ?? DEFAULT_CONFIG.countIn,
-		intensity: (raw.intensity as number | undefined) ?? DEFAULT_CONFIG.intensity
+		intensity: (raw.intensity as number | undefined) ?? DEFAULT_CONFIG.intensity,
+		drumsVolume: (raw.drumsVolume as number | undefined) ?? DEFAULT_CONFIG.drumsVolume,
+		chordsVolume: (raw.chordsVolume as number | undefined) ?? DEFAULT_CONFIG.chordsVolume
 	};
 }
 
@@ -340,6 +351,9 @@ export class ScalePracticeStore {
 	isCountingIn = $state(false);
 	/** 0-100, global: gates which authored steps sound (see `groove/intensity.ts`). Defaults to 100 -- everything authored plays, matching pre-Intensity-engine behavior. */
 	intensity = $state(this.persisted.intensity);
+	/** 0-100 -- the Mixer's Drums/Chords channel faders (user-requested, 2026-08). See `PersistedScalePracticeConfig`'s own doc comment for why Bass has no sibling field here. */
+	drumsVolume = $state(this.persisted.drumsVolume);
+	chordsVolume = $state(this.persisted.chordsVolume);
 
 	private readonly tuning: Tuning;
 	private readonly fretCount: number;
@@ -361,6 +375,8 @@ export class ScalePracticeStore {
 	private acidBassVoice: AcidBassVoice | null = null;
 	/** The chord pad's own FX rack (Reverb/Delay/Chorus) -- created in `start()` alongside `audioContext`, nulled in `stop()`. No explicit teardown needed (no worklets/intervals inside it, unlike `acidBassVoice`) -- `audioContext.close()` already tears down the whole graph. */
 	private chordPadFxBus: ChordPadFxBus | null = null;
+	/** Every drum trigger's shared destination (the Mixer's "Drums" fader) -- same lifecycle as `chordPadFxBus`. */
+	private drumsBus: DrumsBus | null = null;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
 	// (the transport's own clock), but the *highlight* has to flip at the same
 	// wall-clock moment the chord/step actually starts sounding, which a
@@ -745,6 +761,20 @@ export class ScalePracticeStore {
 
 	setIntensity(intensity: number): void {
 		this.intensity = clampIntensity(intensity);
+		this.persist();
+	}
+
+	/** The Mixer's "Drums" channel fader (user-requested, 2026-08) -- applies immediately to the running bus, without restarting the transport, same shape as `updateAcidBassPatch`/`updateChordPadFx`. */
+	setDrumsVolume(volume: number): void {
+		this.drumsVolume = clampPercent(volume);
+		this.drumsBus?.setVolume(this.drumsVolume, this.audioContext?.currentTime);
+		this.persist();
+	}
+
+	/** The Mixer's "Chords" channel fader -- same immediate-apply shape as `setDrumsVolume`. */
+	setChordsVolume(volume: number): void {
+		this.chordsVolume = clampPercent(volume);
+		this.chordPadFxBus?.setVolume(this.chordsVolume, this.audioContext?.currentTime);
 		this.persist();
 	}
 
@@ -1528,7 +1558,9 @@ export class ScalePracticeStore {
 			progressionTemplateId: this.progressionTemplateId,
 			barsPerChord: this.barsPerChord,
 			countIn: this.countIn,
-			intensity: this.intensity
+			intensity: this.intensity,
+			drumsVolume: this.drumsVolume,
+			chordsVolume: this.chordsVolume
 		});
 	}
 
@@ -1577,6 +1609,9 @@ export class ScalePracticeStore {
 		this.chordPadFxBus = createChordPadFxBus(this.audioContext);
 		this.chordPadFxBus.setPatch(this.groove.chordPadFx);
 		this.chordPadFxBus.setTempo(this.bpm);
+		this.chordPadFxBus.setVolume(this.chordsVolume, this.audioContext.currentTime);
+		this.drumsBus = createDrumsBus(this.audioContext);
+		this.drumsBus.setVolume(this.drumsVolume, this.audioContext.currentTime);
 		this.running = true;
 		this.isCountingIn = this.countIn !== 'off';
 		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
@@ -1590,6 +1625,7 @@ export class ScalePracticeStore {
 		this.acidBassVoice?.dispose();
 		this.acidBassVoice = null;
 		this.chordPadFxBus = null;
+		this.drumsBus = null;
 		this.pendingCrossBarLegato = false;
 		void this.audioContext?.close();
 		this.audioContext = null;
@@ -1632,7 +1668,12 @@ export class ScalePracticeStore {
 		for (const voice of DRUM_VOICES) {
 			const step = this.currentBarPattern.steps[voice][stepIndex];
 			if (stepShouldSound(step, this.intensity)) {
-				VOICE_TRIGGERS[voice](ctx, ctx.destination, swungTime, step.velocity);
+				VOICE_TRIGGERS[voice](
+					ctx,
+					this.drumsBus?.output ?? ctx.destination,
+					swungTime,
+					step.velocity
+				);
 			}
 		}
 
@@ -1839,7 +1880,7 @@ export class ScalePracticeStore {
 		const ctx = this.audioContext;
 		const stepsPerBeatGroup = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBeatGroup;
 		if (ctx === null || stepIndex % stepsPerBeatGroup !== 0) return;
-		triggerClosedHat(ctx, ctx.destination, gridTime, 1);
+		triggerClosedHat(ctx, this.drumsBus?.output ?? ctx.destination, gridTime, 1);
 	}
 
 	/**

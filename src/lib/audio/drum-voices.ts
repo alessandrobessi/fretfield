@@ -6,7 +6,16 @@
  * oscillator/noise-buffer graph per hit (cheap, no reuse — the same pattern
  * the old click used), scheduled at a precise `AudioContext.currentTime` by
  * the lookahead scheduler in scale-practice.svelte.ts.
+ *
+ * `createDrumsBus` (added 2026-08, the Mixer's "Drums" fader) is the one
+ * piece of persistent state in this otherwise fully stateless file -- a
+ * single shared `GainNode` every trigger call routes through instead of
+ * `ctx.destination` directly, the same "one persistent bus, `setVolume`
+ * hides the raw AudioParam" shape `chord-pad-fx.ts`'s own `ChordPadFxBus`
+ * already established.
  */
+
+import { volumeToGain } from './gain';
 
 export type AudioContextConstructor = new () => AudioContext;
 
@@ -14,6 +23,29 @@ export function resolveAudioContextConstructor(): AudioContextConstructor | null
 	if (typeof window === 'undefined') return null;
 	const withWebkit = window as typeof window & { webkitAudioContext?: AudioContextConstructor };
 	return withWebkit.AudioContext ?? withWebkit.webkitAudioContext ?? null;
+}
+
+const PARAM_SMOOTH_TIME_CONSTANT = 0.02;
+
+export interface DrumsBus {
+	/** Where every drum trigger function should connect instead of `ctx.destination` directly. */
+	readonly output: GainNode;
+	/** 0-100 -- the Mixer's "Drums" channel fader, via the same `volumeToGain` headroom curve every Groove Engine voice shares. */
+	setVolume(value: number, atTime?: number): void;
+}
+
+export function createDrumsBus(ctx: AudioContext): DrumsBus {
+	const output = ctx.createGain();
+	output.gain.setValueAtTime(volumeToGain(100), ctx.currentTime);
+	output.connect(ctx.destination);
+
+	return {
+		output,
+		setVolume(value, atTime = ctx.currentTime) {
+			output.gain.cancelScheduledValues(atTime);
+			output.gain.setTargetAtTime(volumeToGain(value), atTime, PARAM_SMOOTH_TIME_CONSTANT);
+		}
+	};
 }
 
 // A shared white-noise buffer, created once per AudioContext and reused
