@@ -4,6 +4,7 @@ import { delayDivisionToSeconds } from '$lib/chord-pad-fx/resolve';
 import { createDefaultChordPadFxState } from '$lib/chord-pad-fx/pattern';
 import type { ChordPadFxState } from '$lib/chord-pad-fx/types';
 
+import { volumeToGain } from '../gain';
 import { createChordPadFxBus } from '../chord-pad-fx';
 import { FakeAudioContext, FakeAudioNode, FakeAudioParam } from './fake-web-audio';
 
@@ -204,5 +205,30 @@ describe('createChordPadFxBus: delay tempo sync', () => {
 		expect(fakeParam(bus.__test.delayNode.delayTime).value).toBeCloseTo(
 			delayDivisionToSeconds(160, '1/4')
 		);
+	});
+});
+
+describe('createChordPadFxBus: channel volume (the Mixer\'s "Chords" fader)', () => {
+	it('the channel gain node sits downstream of input, on the path to ctx.destination', () => {
+		const { ctx, bus } = makeBus();
+		expect(fakeNode(bus.input).reaches(fakeNode(bus.__test.channelGain))).toBe(true);
+		expect(fakeNode(bus.__test.channelGain).reaches(ctx.destination)).toBe(true);
+	});
+
+	it('defaults to full (100) headroom-scaled gain before any setVolume call', () => {
+		const { bus } = makeBus();
+		expect(fakeParam(bus.__test.channelGain.gain).value).toBeCloseTo(volumeToGain(100));
+	});
+
+	it('setVolume resolves through the same volumeToGain headroom curve every Groove Engine voice shares', () => {
+		const { bus } = makeBus();
+		bus.setVolume(50, 0);
+		expect(fakeParam(bus.__test.channelGain.gain).value).toBeCloseTo(volumeToGain(50));
+	});
+
+	it('setVolume(0) silences the channel', () => {
+		const { bus } = makeBus();
+		bus.setVolume(0, 0);
+		expect(fakeParam(bus.__test.channelGain.gain).value).toBe(0);
 	});
 });

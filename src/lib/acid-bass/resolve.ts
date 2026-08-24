@@ -1,3 +1,4 @@
+import { MAX_OUTPUT_GAIN } from '$lib/audio/gain';
 import { intervalSemitones } from '$lib/music/intervals';
 import type { PitchClass } from '$lib/music/pitch';
 
@@ -273,15 +274,6 @@ const MAX_DRIVE_PREGAIN = 10;
 export function driveToPregain(value: number): number {
 	const t = clamp(value, 0, 100) / 100;
 	return 1 + t * (MAX_DRIVE_PREGAIN - 1);
-}
-
-// Headroom against the rest of the Groove Engine's output (drums, chord
-// pad) -- Volume 100 deliberately doesn't reach a bare 1.0 output gain.
-const MAX_OUTPUT_GAIN = 0.9;
-
-/** 0-100 -> the actual final output gain (headroom already folded in -- there is no separate trim multiplier elsewhere). Deliberately linear; this is patch output level against the rest of the Groove Engine's voices, not a mastering control. */
-export function volumeToGain(value: number): number {
-	return (clamp(value, 0, 100) / 100) * MAX_OUTPUT_GAIN;
 }
 
 /** Inverse of `volumeToGain` -- migration only, see `v1AttackSecondsToV2Value`. V1's fixed master gain (0.7) reproduces as ~78. */

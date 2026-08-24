@@ -63,10 +63,12 @@ export class FakeAudioParam {
 
 export class FakeAudioNode {
 	private readonly outputs = new Set<FakeAudioNode | FakeAudioParam>();
+	private readonly inputs = new Set<FakeAudioNode>();
 
 	connect(target: FakeAudioNode | FakeAudioParam): FakeAudioNode | FakeAudioParam {
 		this.outputs.add(target);
 		if (target instanceof FakeAudioParam) target._registerIncoming(this);
+		else target.inputs.add(this);
 		return target;
 	}
 
@@ -74,12 +76,14 @@ export class FakeAudioNode {
 		if (target === undefined) {
 			for (const out of this.outputs) {
 				if (out instanceof FakeAudioParam) out._unregisterIncoming(this);
+				else out.inputs.delete(this);
 			}
 			this.outputs.clear();
 			return;
 		}
 		this.outputs.delete(target);
 		if (target instanceof FakeAudioParam) target._unregisterIncoming(this);
+		else target.inputs.delete(this);
 	}
 
 	/** Direct (one-hop) connection only -- for asserting "this specific gain feeds that specific param/node," the shape most of this file's own routing bugs actually take. */
@@ -96,6 +100,11 @@ export class FakeAudioNode {
 			if (out instanceof FakeAudioNode && out.reaches(target, seen)) return true;
 		}
 		return false;
+	}
+
+	/** True if anything at all has ever connected into this node -- for fire-and-forget voices (`drum-voices.ts`) that expose no `__test` handle on their own internal envelope/oscillator nodes, so the only externally-observable thing is whether the passed-in destination received a connection at all. */
+	hasIncomingConnections(): boolean {
+		return this.inputs.size > 0;
 	}
 }
 
@@ -143,6 +152,35 @@ export class FakeConstantSourceNode extends FakeAudioNode {
 
 export class FakeDelayNode extends FakeAudioNode {
 	readonly delayTime = new FakeAudioParam(0);
+}
+
+/** Enough of `AudioBuffer`/`AudioBufferSourceNode` for `drum-voices.ts`'s noise-burst voices (snare/hats/ride/rim) -- silent data (a real `AudioBuffer` would hold white noise), since these tests assert graph topology and start/stop lifecycle, not actual waveform content. */
+export class FakeAudioBuffer {
+	private readonly channels: Float32Array[];
+
+	constructor(
+		readonly numberOfChannels: number,
+		readonly length: number,
+		readonly sampleRate: number
+	) {
+		this.channels = Array.from({ length: numberOfChannels }, () => new Float32Array(length));
+	}
+
+	getChannelData(channel: number): Float32Array {
+		return this.channels[channel];
+	}
+}
+
+export class FakeAudioBufferSourceNode extends FakeAudioNode {
+	buffer: FakeAudioBuffer | null = null;
+	started = false;
+	stopped = false;
+	start(_time?: number): void {
+		this.started = true;
+	}
+	stop(_time?: number): void {
+		this.stopped = true;
+	}
 }
 
 /** Enough of `AnalyserNode` for `AcidBassAudioScope.svelte`'s own read calls (`getByteFrequencyData`/`getByteTimeDomainData`) to have somewhere real to write -- returns silence (0/128, matching a real idle analyser's output), not meaningful signal data; this fake has no actual DSP/FFT behind it. */
@@ -229,6 +267,12 @@ export class FakeAudioContext {
 	}
 	createPeriodicWave(_real: Float32Array, _imag: Float32Array): object {
 		return {};
+	}
+	createBuffer(numberOfChannels: number, length: number, sampleRate: number): FakeAudioBuffer {
+		return new FakeAudioBuffer(numberOfChannels, length, sampleRate);
+	}
+	createBufferSource(): FakeAudioBufferSourceNode {
+		return new FakeAudioBufferSourceNode();
 	}
 }
 

@@ -151,15 +151,17 @@ const DEFAULT_GROOVE =
 	listGroovePresets().find((preset) => preset.id === 'straight-rock')?.groove ??
 	listGroovePresets()[0].groove;
 
-const VOICE_TRIGGERS: Record<DrumVoice, (ctx: AudioContext, time: number, gain?: number) => void> =
-	{
-		kick: triggerKick,
-		snare: triggerSnare,
-		closedHat: triggerClosedHat,
-		openHat: triggerOpenHat,
-		ride: triggerRide,
-		rim: triggerRim
-	};
+const VOICE_TRIGGERS: Record<
+	DrumVoice,
+	(ctx: AudioContext, destinationNode: AudioNode, time: number, gain?: number) => void
+> = {
+	kick: triggerKick,
+	snare: triggerSnare,
+	closedHat: triggerClosedHat,
+	openHat: triggerOpenHat,
+	ride: triggerRide,
+	rim: triggerRim
+};
 
 export const STORAGE_KEY = 'fretfield-scale-practice';
 
@@ -1630,7 +1632,7 @@ export class ScalePracticeStore {
 		for (const voice of DRUM_VOICES) {
 			const step = this.currentBarPattern.steps[voice][stepIndex];
 			if (stepShouldSound(step, this.intensity)) {
-				VOICE_TRIGGERS[voice](ctx, swungTime, step.velocity);
+				VOICE_TRIGGERS[voice](ctx, ctx.destination, swungTime, step.velocity);
 			}
 		}
 
@@ -1837,7 +1839,7 @@ export class ScalePracticeStore {
 		const ctx = this.audioContext;
 		const stepsPerBeatGroup = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBeatGroup;
 		if (ctx === null || stepIndex % stepsPerBeatGroup !== 0) return;
-		triggerClosedHat(ctx, gridTime, 1);
+		triggerClosedHat(ctx, ctx.destination, gridTime, 1);
 	}
 
 	/**

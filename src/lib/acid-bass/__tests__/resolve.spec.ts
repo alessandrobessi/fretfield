@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { volumeToGain } from '$lib/audio/gain';
 import { noteNameToPitchClass } from '$lib/music/pitch';
 
 import { createEmptyAcidStep } from '../pattern';
@@ -29,8 +30,7 @@ import {
 	saturationToPregain,
 	subOctaveToRatio,
 	sustainToRatio,
-	tuneFineToRatio,
-	volumeToGain
+	tuneFineToRatio
 } from '../resolve';
 
 describe('oscillator mapping', () => {
@@ -211,13 +211,6 @@ describe('output mapping', () => {
 	it('driveToPregain is 1 (effectively clean) at 0 and grows monotonically', () => {
 		expect(driveToPregain(0)).toBe(1);
 		expect(driveToPregain(100)).toBeGreaterThan(driveToPregain(50));
-	});
-
-	it('volumeToGain is 0 at 0, capped below unity at 100 (headroom), and monotonic', () => {
-		expect(volumeToGain(0)).toBe(0);
-		expect(volumeToGain(100)).toBeLessThan(1);
-		expect(volumeToGain(100)).toBeGreaterThan(0.5);
-		expect(volumeToGain(75)).toBeGreaterThan(volumeToGain(25));
 	});
 });
 

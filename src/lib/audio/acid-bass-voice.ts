@@ -143,10 +143,10 @@ import {
 	saturationToPregain,
 	subOctaveToRatio,
 	sustainToRatio,
-	tuneFineToRatio,
-	volumeToGain
+	tuneFineToRatio
 } from '$lib/acid-bass/resolve';
 import { resolveStepLocks, type ResolvedStepLocks } from '$lib/acid-bass/sequencer';
+import { volumeToGain } from '$lib/audio/gain';
 import type {
 	AcidBassPatch,
 	AcidFilterModel,

@@ -4,7 +4,9 @@
  * `acid-bass-voice.ts`'s own "build once, live for the whole session"
  * shape), sitting between every `triggerChordPad` hit (`chord-voices.ts`)
  * and `ctx.destination`. Signal order: Fuzz -> Chorus -> Phaser -> Flanger ->
- * Tremolo -> Delay -> Reverb -> destination -- Fuzz first (the standard
+ * Tremolo -> Delay -> Reverb -> channel volume (the Mixer's "Chords" fader,
+ * `setVolume`, added 2026-08 -- see `$lib/audio/gain`'s shared headroom
+ * curve) -> destination -- Fuzz first (the standard
  * pedalboard convention: distortion ahead of modulation and time-based
  * effects, so everything downstream processes the already-fuzzed signal),
  * then the four modulation effects grouped ahead of the two time-based ones
@@ -65,6 +67,7 @@
  * `ChordPadTremoloPatch`'s own doc comment).
  */
 
+import { volumeToGain } from '$lib/audio/gain';
 import {
 	chorusDepthToSeconds,
 	chorusMixToGain,
@@ -146,6 +149,8 @@ export interface ChordPadFxBus {
 	setPatch(state: ChordPadFxState, atTime?: number): void;
 	/** Re-derives the delay's own time from the transport's current BPM -- the only tempo-related thing this bus ever needs to know, the same "no new clock" pattern `acid-bass-voice.ts`'s own `setTempo` established. */
 	setTempo(bpm: number): void;
+	/** 0-100 -- the Mixer's "Chords" channel fader, via the same `volumeToGain` headroom curve every Groove Engine voice shares. */
+	setVolume(value: number, atTime?: number): void;
 	/**
 	 * A deliberate, narrow testability seam -- this file has no other unit
 	 * coverage otherwise (DSP wiring is normally verified live), exposing
@@ -170,6 +175,7 @@ export interface ChordPadFxBus {
 		readonly flangerDelay: DelayNode;
 		readonly flangerFeedback: GainNode;
 		readonly tremoloGain: GainNode;
+		readonly channelGain: GainNode;
 	};
 }
 
@@ -345,6 +351,13 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 	allpass.frequency.setValueAtTime(REVERB_ALLPASS_HZ, ctx.currentTime);
 	const output = ctx.createGain();
 
+	// Channel volume -- the Mixer's "Chords" fader (user-requested, 2026-08).
+	// Kept as a dedicated node after `output` rather than repurposing
+	// `output`'s own gain, so `output` stays a pure dry/wet sum exactly as
+	// every test/comment above already assumes.
+	const channelGain = ctx.createGain();
+	channelGain.gain.setValueAtTime(volumeToGain(100), ctx.currentTime);
+
 	delayOutput.connect(reverbDry);
 	delayOutput.connect(reverbSend);
 	for (const stage of combStages) reverbSend.connect(stage.delay);
@@ -352,7 +365,8 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 	reverbDry.connect(output);
 	allpass.connect(output);
 
-	output.connect(ctx.destination);
+	output.connect(channelGain);
+	channelGain.connect(ctx.destination);
 
 	function applyDelayTime(atTime: number): void {
 		const seconds = delayDivisionToSeconds(currentBpm, currentState.delay.division);
@@ -493,6 +507,11 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 			applyDelayTime(ctx.currentTime);
 		},
 
+		setVolume(value, atTime = ctx.currentTime) {
+			channelGain.gain.cancelScheduledValues(atTime);
+			channelGain.gain.setTargetAtTime(volumeToGain(value), atTime, PARAM_SMOOTH_TIME_CONSTANT);
+		},
+
 		__test: {
 			fuzzSend,
 			fuzzPregain,
@@ -507,7 +526,8 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 			flangerSend,
 			flangerDelay,
 			flangerFeedback,
-			tremoloGain
+			tremoloGain,
+			channelGain
 		}
 	};
 }
