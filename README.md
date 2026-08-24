@@ -57,11 +57,18 @@ FretField is an interactive bass-fretboard application that teaches the neck as 
 </td>
 </tr>
 <tr>
-<td colspan="2">
+<td width="50%">
 
 **Groove Editor** — the multi-bar arrangement and step grid
 
 <img src="./docs/screenshots/groove-editor.jpg" alt="The Groove Editor showing a 12-bar A/A/A/B/A/A/B/F/A/B/T/F arrangement and the six-voice drum step grid for pattern A">
+
+</td>
+<td width="50%">
+
+**Mixer** — independent Drums/Chords/Bass channel volume
+
+<img src="./docs/screenshots/mixer.jpg" alt="The Mixer tab showing three rotary knobs — Drums, Chords, and Bass — each an independent channel-volume fader">
 
 </td>
 </tr>
@@ -102,7 +109,9 @@ src/lib/audio/
 │                                Phaser/Flanger/Tremolo rack
 ├── acid-bass-voice.ts          the Acid Bass synth's persistent monophonic voice
 ├── acid-bass-lfo.ts            its two free-running, tempo-syncable LFOs
-└── acid-worklet-node.ts        loads the acid24 filter + Pulse-oscillator AudioWorklets
+├── acid-worklet-node.ts        loads the acid24 filter + Pulse-oscillator AudioWorklets
+└── gain.ts                     the shared 0-100 channel-volume curve the Mixer's
+                                 Drums/Chords/Bass faders all use
 
 src/lib/groove/
 ├── types.ts / pattern.ts        Groove/GroovePattern data model + pure mutators
@@ -142,7 +151,10 @@ src/lib/scale-practice/
 src/lib/components/hardware/
 └── Led.svelte, HardwarePanel.svelte, HardwareButton.svelte, Knob.svelte
     the 2026 visual rebrand's reusable primitives — a real rotary Knob with full
-    keyboard support, used across both Acid Bass's and the Chord Pad FX rack's patch macros
+    keyboard support (plus optional disabled/title props), the single volume/level
+    control used everywhere in Scale Practice: Acid Bass's and the Chord Pad FX
+    rack's patch macros, the Mixer's Drums/Chords/Bass faders, and the Groove
+    Engine's own Amount/Intensity
 ```
 
 `src/lib/audio/` only ever knows about acoustic pitch, plain Hz frequencies, and MIDI numbers — it has no concept of a chord, a key, or a scale. Harmonic meaning is layered on afterward: `src/lib/stores/live-input.svelte.ts` combines a detected note with whatever `src/lib/music/` analysis is already on screen, and `src/lib/stores/scale-practice.svelte.ts` resolves each Groove/Acid Bass step's interval into a frequency (via `resolveAcidStepMidi`/`midiToFrequency`) right before calling into the voice — never a second harmony engine living inside the audio layer itself.
