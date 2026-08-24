@@ -260,6 +260,7 @@
 			<span class="ff-label field-label">Patch</span>
 			<select
 				aria-label="Patch"
+				value={scalePractice.selectedAcidBassFactoryPatchId}
 				onchange={(event) =>
 					scalePractice.applyAcidBassFactoryPatch((event.currentTarget as HTMLSelectElement).value)}
 			>

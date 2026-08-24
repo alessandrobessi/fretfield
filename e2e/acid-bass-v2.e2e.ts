@@ -496,6 +496,20 @@ test.describe('Acid Bass V2: factory patches', () => {
 			'28'
 		);
 	});
+
+	test('the Patch picker keeps showing the applied patch after switching to another Band tab and back (user-reported regression)', async ({
+		page
+	}) => {
+		await openBassTab(page);
+
+		await page.getByLabel('Patch', { exact: true }).selectOption('classic-acid');
+		await expect(page.getByLabel('Patch', { exact: true })).toHaveValue('classic-acid');
+
+		await page.getByRole('button', { name: 'Drums', exact: true }).click();
+		await page.getByRole('button', { name: 'Bass', exact: true }).click();
+
+		await expect(page.getByLabel('Patch', { exact: true })).toHaveValue('classic-acid');
+	});
 });
 
 test.describe('Acid Bass V2: step editor sequencer powers', () => {

@@ -346,6 +346,20 @@ export class ScalePracticeStore {
 	 * Editor tab. Session-only, same as `selectedPatternRole` above.
 	 */
 	selectedStepGridTab = $state<'drums' | 'bass'>('drums');
+	/**
+	 * Which factory patch the Bass tab's Patch picker last applied -- lives
+	 * here rather than as `AcidBassControls.svelte`'s own local state, same
+	 * reasoning as `selectedStepGridTab` above (user-reported, 2026-08: the
+	 * picker was silently resetting to "Choose a patch…" on every trip back
+	 * to the Bass tab, since `BandPanel.svelte` unmounts it whenever another
+	 * tab is selected). `''` means no factory patch has been chosen this
+	 * session -- editing a knob afterward does NOT clear this, since applying
+	 * a patch is a one-time value copy, not a live link (see
+	 * `applyAcidBassFactoryPatch`'s own doc comment); this field only tracks
+	 * which preset the picker should keep showing, not whether the current
+	 * patch still matches it exactly. Session-only, like `selectedPatternRole`.
+	 */
+	selectedAcidBassFactoryPatchId = $state<string>('');
 	countIn = $state<CountIn>(this.persisted.countIn);
 	/** True for the count-in bar(s) after `start()`, before real playback (and `activeStepIndex`/`activeChordIndex` updates) begins. */
 	isCountingIn = $state(false);
@@ -1208,6 +1222,7 @@ export class ScalePracticeStore {
 	applyAcidBassFactoryPatch(id: string): void {
 		const patch = getAcidBassFactoryPatch(id);
 		if (patch === undefined) return;
+		this.selectedAcidBassFactoryPatchId = id;
 		this.updateAcidBassPatch(() => patch);
 	}
 
