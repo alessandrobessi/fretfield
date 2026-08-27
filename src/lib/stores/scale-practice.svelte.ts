@@ -391,6 +391,20 @@ export class ScalePracticeStore {
 	private chordPadFxBus: ChordPadFxBus | null = null;
 	/** Every drum trigger's shared destination (the Mixer's "Drums" fader) -- same lifecycle as `chordPadFxBus`. */
 	private drumsBus: DrumsBus | null = null;
+	/** Fans `drumsBus.output`/`chordPadFxBus.output`/`acidBassVoice.outputAnalyser` into one analyser, alongside their existing connections to `ctx.destination` -- nothing is rerouted, this is purely an additional tap. Created in `start()`, nulled in `stop()`, same lifecycle as the buses it reads. For Radio Mode's visualizer (user-requested, 2026-08); `getMasterAnalyser()` below is the only way anything outside this file reaches it. */
+	private masterAnalyser: AnalyserNode | null = null;
+	/**
+	 * `false` suppresses every `persist()` call below to a no-op. Exists
+	 * solely for Radio Mode (`src/routes/radio/+page.svelte`, user-requested,
+	 * 2026-08): Radio drives this same singleton store for hours, rotating
+	 * root/progression/groove/Acid-Bass-patch far more often than a human
+	 * ever would -- without this flag, every rotation would silently
+	 * overwrite whatever a real user last saved in ordinary Practice, in the
+	 * same browser's `localStorage`. Radio sets this to `false` immediately
+	 * after obtaining the store, before calling any setter. Defaults `true`
+	 * -- zero behavior change for ordinary Practice usage.
+	 */
+	persistEnabled = true;
 	// Visual-only timers: audio timing always comes from AudioContext.currentTime
 	// (the transport's own clock), but the *highlight* has to flip at the same
 	// wall-clock moment the chord/step actually starts sounding, which a
@@ -1565,6 +1579,7 @@ export class ScalePracticeStore {
 	}
 
 	private persist(): void {
+		if (!this.persistEnabled) return;
 		writeJSON<PersistedScalePracticeConfig>(STORAGE_KEY, {
 			root: this.root,
 			zone: this.zone,
@@ -1611,6 +1626,11 @@ export class ScalePracticeStore {
 		return this.acidBassVoice;
 	}
 
+	/** A tap on the full mix (drums + chords + bass), for Radio Mode's visualizer -- `null` whenever nothing is playing, same shape/lifecycle as `getAcidBassVoice()`. */
+	getMasterAnalyser(): AnalyserNode | null {
+		return this.masterAnalyser;
+	}
+
 	/** Starts (or stops) only the drum machine — has no effect on which notes are highlighted. */
 	start(): void {
 		if (this.running) return;
@@ -1627,6 +1647,10 @@ export class ScalePracticeStore {
 		this.chordPadFxBus.setVolume(this.chordsVolume, this.audioContext.currentTime);
 		this.drumsBus = createDrumsBus(this.audioContext);
 		this.drumsBus.setVolume(this.drumsVolume, this.audioContext.currentTime);
+		this.masterAnalyser = this.audioContext.createAnalyser();
+		this.drumsBus.output.connect(this.masterAnalyser);
+		this.chordPadFxBus.output.connect(this.masterAnalyser);
+		this.acidBassVoice.outputAnalyser.connect(this.masterAnalyser);
 		this.running = true;
 		this.isCountingIn = this.countIn !== 'off';
 		const stepsPerBar = TIME_SIGNATURES[this.groove.timeSignature].stepsPerBar;
@@ -1641,6 +1665,7 @@ export class ScalePracticeStore {
 		this.acidBassVoice = null;
 		this.chordPadFxBus = null;
 		this.drumsBus = null;
+		this.masterAnalyser = null;
 		this.pendingCrossBarLegato = false;
 		void this.audioContext?.close();
 		this.audioContext = null;

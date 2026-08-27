@@ -146,6 +146,8 @@ const FUZZ_CURVE = createFuzzCurve();
 export interface ChordPadFxBus {
 	/** Where a chord-pad hit (`chord-voices.ts`'s `triggerChordPad`) should connect instead of `ctx.destination` directly. */
 	readonly input: GainNode;
+	/** This bus's fully-processed signal, post channel-volume, pre `ctx.destination` -- the same public "tap the real final node" shape `DrumsBus.output` (`drum-voices.ts`) uses. Exists so `scale-practice.svelte.ts` can fan it into a master analyser (Radio Mode, user-requested, 2026-08) alongside its existing connection to `ctx.destination`, without rerouting anything. */
+	readonly output: GainNode;
 	setPatch(state: ChordPadFxState, atTime?: number): void;
 	/** Re-derives the delay's own time from the transport's current BPM -- the only tempo-related thing this bus ever needs to know, the same "no new clock" pattern `acid-bass-voice.ts`'s own `setTempo` established. */
 	setTempo(bpm: number): void;
@@ -376,6 +378,7 @@ export function createChordPadFxBus(ctx: AudioContext): ChordPadFxBus {
 
 	return {
 		input,
+		output: channelGain,
 
 		setPatch(state, atTime = ctx.currentTime) {
 			currentState = state;
