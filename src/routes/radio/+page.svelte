@@ -30,6 +30,7 @@
 		type RadioDirector
 	} from '$lib/stores/radio-director';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
+	import { installRadioTestHooks } from '$lib/testing/radio-test-hooks';
 
 	let started = $state(false);
 	let currentCombo = $state<RadioCombo | null>(null);
@@ -72,6 +73,7 @@
 			{ onRotate: (combo) => (currentCombo = combo) }
 		);
 		radioDirector.start();
+		installRadioTestHooks({ forceRotate: () => radioDirector?.forceRotate() });
 
 		started = true;
 	}

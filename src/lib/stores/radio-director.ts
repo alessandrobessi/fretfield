@@ -140,6 +140,8 @@ export interface RadioDirectorOptions {
 export interface RadioDirector {
 	start(): void;
 	stop(): void;
+	/** Rotates immediately, resetting the segment timer -- the manual "skip" a future UI could expose, and how `radio.e2e.ts` proves a rotation applies cleanly without waiting a real 90-180s. A no-op before `start()`. */
+	forceRotate(): void;
 	/** Whatever combo is currently on air, or `null` before the first `start()`. Read by the visualizer's "now playing" overlay. */
 	readonly current: RadioCombo | null;
 }
@@ -184,6 +186,10 @@ export function createRadioDirector(
 		stop() {
 			if (intervalId !== null) clearInterval(intervalId);
 			intervalId = null;
+		},
+		forceRotate() {
+			if (intervalId === null) return;
+			rotate();
 		},
 		get current() {
 			return current;

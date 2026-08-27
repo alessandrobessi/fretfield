@@ -112,6 +112,21 @@ describe('createRadioDirector', () => {
 		expect(onRotate).toHaveBeenCalledWith(director.current);
 	});
 
+	it('forceRotate() is a no-op before start(), and immediately applies a new combo once started', () => {
+		const director = createRadioDirector(deps);
+
+		director.forceRotate();
+		expect(deps.setRoot).not.toHaveBeenCalled();
+
+		director.start();
+		const firstCombo = director.current;
+		expect(deps.setRoot).toHaveBeenCalledTimes(1);
+
+		director.forceRotate();
+		expect(deps.setRoot).toHaveBeenCalledTimes(2);
+		expect(director.current).not.toBe(firstCombo);
+	});
+
 	it('rotates again on its own well within a real streaming session, and stops rotating once stop() is called', () => {
 		const director = createRadioDirector(deps);
 		director.start();
