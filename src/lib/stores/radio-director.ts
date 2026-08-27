@@ -131,6 +131,12 @@ function randomSegmentMs(random: () => number): number {
 	return randomInRange([MIN_SEGMENT_SECONDS, MAX_SEGMENT_SECONDS], random) * 1000;
 }
 
+export interface RadioDirectorOptions {
+	random?: () => number;
+	/** Called right after every rotation (including the immediate one on `start()`) -- the page's own hook for reactively updating its "now playing" text, since this plain module has no Svelte reactivity of its own. */
+	onRotate?: (combo: RadioCombo) => void;
+}
+
 export interface RadioDirector {
 	start(): void;
 	stop(): void;
@@ -140,8 +146,9 @@ export interface RadioDirector {
 
 export function createRadioDirector(
 	deps: RadioDirectorDeps,
-	random: () => number = Math.random
+	options: RadioDirectorOptions = {}
 ): RadioDirector {
+	const { random = Math.random, onRotate } = options;
 	let current: RadioCombo | null = null;
 	let nextRotationAt = 0;
 	let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -161,6 +168,7 @@ export function createRadioDirector(
 		current = pickNextCombo(current, random);
 		nextRotationAt = Date.now() + randomSegmentMs(random);
 		applyCombo(current);
+		onRotate?.(current);
 	}
 
 	function poll(): void {

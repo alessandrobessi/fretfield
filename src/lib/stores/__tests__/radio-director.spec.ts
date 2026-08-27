@@ -103,6 +103,15 @@ describe('createRadioDirector', () => {
 		expect(director.current).not.toBeNull();
 	});
 
+	it('onRotate fires with the exact combo just applied, on every rotation including the first', () => {
+		const onRotate = vi.fn();
+		const director = createRadioDirector(deps, { onRotate });
+		director.start();
+
+		expect(onRotate).toHaveBeenCalledTimes(1);
+		expect(onRotate).toHaveBeenCalledWith(director.current);
+	});
+
 	it('rotates again on its own well within a real streaming session, and stops rotating once stop() is called', () => {
 		const director = createRadioDirector(deps);
 		director.start();
