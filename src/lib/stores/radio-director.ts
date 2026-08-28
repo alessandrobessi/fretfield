@@ -13,6 +13,7 @@
  * itself is just a thin `setInterval` wrapper around that pure logic.
  */
 
+import type { AcidBassMode } from '$lib/acid-bass/types';
 import type { BasslineStyleId } from '$lib/music/bassline/types';
 import { normalizePitchClass, type PitchClass } from '$lib/music/pitch';
 import { listProgressionTemplates } from '$lib/music/progressions';
@@ -23,6 +24,9 @@ export interface RadioDirectorDeps {
 	setRoot(root: PitchClass): void;
 	setProgressionTemplate(id: string): void;
 	setGroove(groove: Groove): void;
+	/** Re-asserted after every `setGroove` call -- a `GroovePreset`'s own baked-in `Groove` carries Acid Bass's default disabled/manual state (`createEmptyGroove`'s own default), so `setGroove` alone would silently turn the bass back off on every single rotation. */
+	setAcidBassEnabled(enabled: boolean): void;
+	setAcidBassMode(mode: AcidBassMode): void;
 	setAcidBassGenerationStyle(style: BasslineStyleId): void;
 	setBpm(bpm: number): void;
 }
@@ -44,11 +48,12 @@ const BASSLINE_STYLES: readonly BasslineStyleId[] = [
 	'walking'
 ];
 
-// Every groove preset except 'click' -- that's the bare-metronome preset,
-// not a real genre, and has no business showing up on an autonomous stream.
-const GROOVE_PRESET_IDS: readonly string[] = listGroovePresets()
-	.map((preset) => preset.id)
-	.filter((id) => id !== 'click');
+// Pinned to trance only (user-requested, 2026-08 -- "music should always be
+// trance"), not the full groove-preset pool. `pickDifferent`'s own
+// pool.length <= 1 guard already returns the sole option without looping, so
+// this needs no other change anywhere -- root/progression/bass-style still
+// rotate normally, only the genre itself no longer varies.
+const GROOVE_PRESET_IDS: readonly string[] = ['trance'];
 
 const PROGRESSION_TEMPLATE_IDS: readonly string[] = listProgressionTemplates().map((t) => t.id);
 
@@ -162,6 +167,12 @@ export function createRadioDirector(
 		deps.setRoot(combo.root);
 		deps.setProgressionTemplate(combo.progressionId);
 		deps.setGroove(groovePreset.groove);
+		// Every GroovePreset's own baked-in Groove carries Acid Bass's default
+		// disabled/manual state -- setGroove just silently turned the bass back
+		// off. Re-assert enabled + generated on every single rotation, not just
+		// once at start().
+		deps.setAcidBassEnabled(true);
+		deps.setAcidBassMode('generated');
 		deps.setAcidBassGenerationStyle(combo.bassStyle);
 		deps.setBpm(combo.bpm);
 	}

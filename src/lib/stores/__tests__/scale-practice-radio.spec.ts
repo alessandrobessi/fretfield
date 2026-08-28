@@ -103,6 +103,11 @@ describe('runtime safety under heavy rotation (simulated multi-hour Radio sessio
 			store.setRoot(combo.root);
 			store.setProgressionTemplate(combo.progressionId);
 			store.setGroove(groovePreset.groove);
+			// Regression: groovePreset.groove carries Acid Bass's own default
+			// disabled/manual state, so setGroove alone would silently turn the
+			// bass back off on every rotation -- must be re-asserted after.
+			store.setAcidBassEnabled(true);
+			store.setAcidBassMode('generated');
 			store.setAcidBassGenerationStyle(combo.bassStyle);
 			store.setBpm(combo.bpm);
 
@@ -113,6 +118,8 @@ describe('runtime safety under heavy rotation (simulated multi-hour Radio sessio
 		expect(writeJSON).not.toHaveBeenCalled();
 		expect(store.bpm).toBeGreaterThanOrEqual(30);
 		expect(store.bpm).toBeLessThanOrEqual(240);
+		expect(store.groove.acidBass.enabled).toBe(true);
+		expect(store.groove.acidBass.mode).toBe('generated');
 		expect(store.groove.acidBass.generation.style).toBe(lastCombo?.bassStyle);
 	});
 });

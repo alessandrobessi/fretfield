@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { listGroovePresets } from '$lib/groove/presets';
 import type { BasslineStyleId } from '$lib/music/bassline/types';
 import { listProgressionTemplates } from '$lib/music/progressions';
 
@@ -11,11 +10,9 @@ import {
 	type RadioDirectorDeps
 } from '../radio-director';
 
-const GROOVE_PRESET_IDS = new Set(
-	listGroovePresets()
-		.map((p) => p.id)
-		.filter((id) => id !== 'click')
-);
+// Pinned to trance only (user-requested, 2026-08 -- "music should always be
+// trance") -- see radio-director.ts's own GROOVE_PRESET_IDS doc comment.
+const GROOVE_PRESET_IDS = new Set(['trance']);
 const PROGRESSION_IDS = new Set(listProgressionTemplates().map((t) => t.id));
 const BASS_STYLES = new Set<BasslineStyleId>([
 	'rooted',
@@ -42,19 +39,19 @@ describe('pickNextCombo', () => {
 		}
 	});
 
-	it('never repeats the immediately-previous root/progression/groove/style, across many trials', () => {
+	it('never repeats the immediately-previous root/progression/style, across many trials -- groove is pinned to trance, so it never varies at all, by design', () => {
 		let previous = pickNextCombo(null);
 		for (let i = 0; i < 200; i++) {
 			const combo = pickNextCombo(previous);
 			expect(combo.root).not.toBe(previous.root);
 			expect(combo.progressionId).not.toBe(previous.progressionId);
-			expect(combo.groovePresetId).not.toBe(previous.groovePresetId);
+			expect(combo.groovePresetId).toBe('trance');
 			expect(combo.bassStyle).not.toBe(previous.bassStyle);
 			previous = combo;
 		}
 	});
 
-	it('produces real variety, not the same handful of combos every time', () => {
+	it('produces real variety in root, even though the groove is always trance', () => {
 		const roots = new Set<number>();
 		const grooves = new Set<string>();
 		let previous: RadioCombo | null = null;
@@ -65,7 +62,7 @@ describe('pickNextCombo', () => {
 			previous = combo;
 		}
 		expect(roots.size).toBeGreaterThan(1);
-		expect(grooves.size).toBeGreaterThan(1);
+		expect(grooves).toEqual(new Set(['trance']));
 	});
 
 	it('the very first pick (previous: null) skips every no-repeat guardrail without hanging', () => {
@@ -82,6 +79,8 @@ describe('createRadioDirector', () => {
 			setRoot: vi.fn<RadioDirectorDeps['setRoot']>(),
 			setProgressionTemplate: vi.fn<RadioDirectorDeps['setProgressionTemplate']>(),
 			setGroove: vi.fn<RadioDirectorDeps['setGroove']>(),
+			setAcidBassEnabled: vi.fn<RadioDirectorDeps['setAcidBassEnabled']>(),
+			setAcidBassMode: vi.fn<RadioDirectorDeps['setAcidBassMode']>(),
 			setAcidBassGenerationStyle: vi.fn<RadioDirectorDeps['setAcidBassGenerationStyle']>(),
 			setBpm: vi.fn<RadioDirectorDeps['setBpm']>()
 		};
@@ -101,6 +100,25 @@ describe('createRadioDirector', () => {
 		expect(deps.setAcidBassGenerationStyle).toHaveBeenCalledTimes(1);
 		expect(deps.setBpm).toHaveBeenCalledTimes(1);
 		expect(director.current).not.toBeNull();
+	});
+
+	it("re-asserts Acid Bass enabled + generated mode after every setGroove call, on every rotation (regression: a GroovePreset's own baked-in Groove carries Acid Bass disabled/manual, so setGroove alone silently turns the bass back off)", () => {
+		const director = createRadioDirector(deps);
+		director.start();
+		director.forceRotate();
+		director.forceRotate();
+
+		expect(deps.setGroove.mock.calls.length).toBe(3);
+		expect(deps.setAcidBassEnabled.mock.calls.length).toBe(3);
+		expect(deps.setAcidBassMode.mock.calls.length).toBe(3);
+		for (const call of deps.setAcidBassEnabled.mock.calls) expect(call[0]).toBe(true);
+		for (const call of deps.setAcidBassMode.mock.calls) expect(call[0]).toBe('generated');
+
+		// And in the correct order relative to setGroove -- setGroove must not
+		// be the last word on Acid Bass's own enabled/mode state.
+		const grooveCallOrder = deps.setGroove.mock.invocationCallOrder[0];
+		const enabledCallOrder = deps.setAcidBassEnabled.mock.invocationCallOrder[0];
+		expect(enabledCallOrder).toBeGreaterThan(grooveCallOrder);
 	});
 
 	it('onRotate fires with the exact combo just applied, on every rotation including the first', () => {

@@ -58,8 +58,6 @@
 		// constant rotation overwrite a real user's saved Practice session in
 		// this same browser's localStorage.
 		scalePractice.persistEnabled = false;
-		scalePractice.setAcidBassEnabled(true);
-		scalePractice.setAcidBassMode('generated');
 		scalePractice.start();
 
 		radioDirector = createRadioDirector(
@@ -67,13 +65,23 @@
 				setRoot: (root) => scalePractice.setRoot(root),
 				setProgressionTemplate: (id) => scalePractice.setProgressionTemplate(id),
 				setGroove: (groove) => scalePractice.setGroove(groove),
+				// Re-asserted by RadioDirector on every rotation, not just once here
+				// -- see radio-director.ts's own RadioDirectorDeps doc comment for why.
+				setAcidBassEnabled: (enabled) => scalePractice.setAcidBassEnabled(enabled),
+				setAcidBassMode: (mode) => scalePractice.setAcidBassMode(mode),
 				setAcidBassGenerationStyle: (style) => scalePractice.setAcidBassGenerationStyle(style),
 				setBpm: (bpm) => scalePractice.setBpm(bpm)
 			},
 			{ onRotate: (combo) => (currentCombo = combo) }
 		);
 		radioDirector.start();
-		installRadioTestHooks({ forceRotate: () => radioDirector?.forceRotate() });
+		installRadioTestHooks({
+			forceRotate: () => radioDirector?.forceRotate(),
+			getAcidBassState: () => ({
+				enabled: scalePractice.groove.acidBass.enabled,
+				mode: scalePractice.groove.acidBass.mode
+			})
+		});
 
 		started = true;
 	}
