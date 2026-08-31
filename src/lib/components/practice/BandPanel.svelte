@@ -8,6 +8,7 @@
 	import AcidBassControls from '$lib/components/practice/AcidBassControls.svelte';
 	import ChordPadFxControls from '$lib/components/practice/ChordPadFxControls.svelte';
 	import GrooveEditor from '$lib/components/practice/GrooveEditor.svelte';
+	import TunerControls from '$lib/components/practice/TunerControls.svelte';
 	import { defaultNoteName } from '$lib/music/pitch';
 	import { resolvedChordSymbol } from '$lib/music/progressions';
 	import {
@@ -18,7 +19,7 @@
 	} from '$lib/music/scales';
 	import { scalePractice } from '$lib/stores/scale-practice.svelte';
 
-	type BandTab = 'drums' | 'harmony' | 'bass' | 'mixer' | 'editor';
+	type BandTab = 'drums' | 'harmony' | 'bass' | 'mixer' | 'tuner' | 'editor';
 	let activeTab = $state<BandTab>('drums');
 
 	/** Whichever pattern is currently sounding (while playing) or was last selected for editing (while stopped) -- the Drums tab's readout. */
@@ -83,6 +84,14 @@
 			onclick={() => (activeTab = 'mixer')}
 		>
 			Mixer
+		</button>
+		<button
+			type="button"
+			class="band-tab"
+			class:active={activeTab === 'tuner'}
+			onclick={() => (activeTab = 'tuner')}
+		>
+			Tuner
 		</button>
 		<button
 			type="button"
@@ -252,6 +261,10 @@
 					/>
 				</div>
 			</div>
+		</HardwarePanel>
+	{:else if activeTab === 'tuner'}
+		<HardwarePanel title="Tuner" tone="carbon">
+			<TunerControls />
 		</HardwarePanel>
 	{:else}
 		<GrooveEditor />
