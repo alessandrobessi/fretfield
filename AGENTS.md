@@ -82,6 +82,7 @@ Responsibilities:
 - harmonic analysis
 - progression templates (used by Scale Practice's chord backing, not a resolution/voice-leading engine anymore — see below)
 - scale definitions and chord-family-aware scale suggestions (`scales.ts`)
+- tuner math (`tuner.ts`, user-requested, 2026-08): given a `DetectedNote`'s already-computed `midi`/`cents` (from `$lib/audio/`, see below), which open string it's closest to and how many cents off that specific string — `findClosestOpenString`/`centsFromOpenString`/`classifyTunerStatus`, consumed only by `TunerControls.svelte` (a `BandPanel.svelte` tab, not a destination — see §21 in BLUEPRINT.md). No pitch detection of its own; it never touches a frequency, an `AudioContext`, or `liveInput` directly
 
 Must not import:
 
@@ -673,7 +674,7 @@ Built so far, in `src/lib/music/`:
 
 ```text
 pitch.ts intervals.ts tuning.ts fretboard.ts chords.ts harmony.ts
-progressions.ts absolute-pitch.ts live-position.ts scales.ts
+progressions.ts absolute-pitch.ts live-position.ts scales.ts tuner.ts
 ```
 
 And in `src/lib/audio/` (Live Input's acoustic-pitch domain, plus the Groove Engine's drum/chord-pad/Acid-Bass synthesis — see §4):
