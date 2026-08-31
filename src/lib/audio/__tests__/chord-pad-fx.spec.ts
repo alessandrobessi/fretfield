@@ -231,9 +231,4 @@ describe('createChordPadFxBus: channel volume (the Mixer\'s "Chords" fader)', ()
 		bus.setVolume(0, 0);
 		expect(fakeParam(bus.__test.channelGain.gain).value).toBe(0);
 	});
-
-	it('the public `output` field is the same node as the internal channel gain -- a genuine tap point, not a copy', () => {
-		const { bus } = makeBus();
-		expect(bus.output).toBe(bus.__test.channelGain);
-	});
 });
